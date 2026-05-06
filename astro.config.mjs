@@ -7,6 +7,7 @@ import vercel from '@astrojs/vercel';
 export default defineConfig({
   output: 'server',
   adapter: vercel(),
+  prefetch: true,
   vite: {
     ssr: {
       external: ['@prisma/client']

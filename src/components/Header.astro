@@ -44,7 +44,11 @@ if (user.role === 'ADMIN') {
       {navItems.map(item => {
         const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
         return (
-          <a href={item.href} class={`nav-pill${isActive ? ' active' : ''}`}>
+          <a
+            href={item.href}
+            class={`nav-pill${isActive ? " active" : ""}`}
+            data-astro-prefetch
+          >
             <span class="nav-icon" set:html={item.icon} />
             <span class="nav-label">{item.label}</span>
           </a>
