@@ -1,0 +1,61 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { prisma } from '../../lib/db';
+import { getUserFromCookie } from '../../lib/auth';
+
+const currentUser = getUserFromCookie(Astro.cookies)!;
+const targetUserId = Astro.params.id;
+
+if (!targetUserId || targetUserId === currentUser.id) {
+  return Astro.redirect('/');
+}
+
+// Check permission
+const permission = await prisma.permissionRequest.findFirst({
+  where: {
+    requesterId: currentUser.id,
+    targetId: targetUserId,
+    status: 'APPROVED'
+  }
+});
+
+if (!permission) {
+  return Astro.redirect('/users'); // No permission, redirect back
+}
+
+const targetUser = await prisma.user.findUnique({
+  where: { id: targetUserId }
+});
+
+if (!targetUser) {
+  return Astro.redirect('/users');
+}
+
+const diaries = await prisma.diary.findMany({
+  where: { userId: targetUserId },
+  orderBy: { date: 'desc' }
+});
+---
+<Layout title={`${targetUser.username} 的日记`}>
+  <div class="glass-panel">
+    <div class="flex justify-between align-center mb-6">
+      <h2>{targetUser.username} 的日记</h2>
+      <a href="/users" class="btn btn-outline" style="padding: 0.25rem 0.75rem;">返回</a>
+    </div>
+
+    {diaries.length === 0 ? (
+      <p style="color: #94a3b8;">该成员还没有写过日记...</p>
+    ) : (
+      <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+        {diaries.map(diary => (
+          <div style="padding: 1.5rem; border: 1px solid var(--card-border); border-radius: 12px; background: #f8fafc;">
+            <div style="font-size: 0.9rem; color: var(--primary-color); font-weight: 600; margin-bottom: 1rem; border-bottom: 1px solid var(--card-border); padding-bottom: 0.5rem;">
+              {diary.date.toISOString().split('T')[0]}
+            </div>
+            <div style="white-space: pre-wrap; font-size: 1rem; line-height: 1.7;">{diary.content}</div>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+</Layout>

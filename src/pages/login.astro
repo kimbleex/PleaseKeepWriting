@@ -1,0 +1,89 @@
+---
+import '../styles/global.css';
+import { prisma } from '../lib/db';
+import { verifyPassword, signToken, getUserFromCookie } from '../lib/auth';
+
+const user = getUserFromCookie(Astro.cookies);
+
+let error = '';
+
+if (Astro.request.method === 'POST') {
+  const data = await Astro.request.formData();
+  const username = data.get('username') as string;
+  const password = data.get('password') as string;
+
+  if (!username || !password) {
+    error = '请输入用户名和密码';
+  } else {
+    try {
+      const existingUser = await prisma.user.findUnique({ where: { username } });
+      if (!existingUser) {
+        error = '用户名或密码错误';
+      } else {
+        const isValid = await verifyPassword(password, existingUser.passwordHash);
+        if (!isValid) {
+          error = '用户名或密码错误';
+        } else {
+          const token = signToken({ id: existingUser.id, username: existingUser.username, role: existingUser.role });
+          Astro.cookies.set('auth_token', token, { path: '/', httpOnly: true, maxAge: 60 * 60 * 24 * 7 });
+          return Astro.redirect('/');
+        }
+      }
+    } catch (e) {
+      error = '登录失败，请检查数据库配置';
+      console.error(e);
+    }
+  }
+}
+---
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>登录 - 我们的日记</title>
+    <style>
+      .login-container {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+      }
+      .login-box {
+        max-width: 400px;
+        width: 100%;
+      }
+      .login-box h1 {
+        text-align: center;
+        margin-bottom: 2rem;
+        font-size: 2rem;
+        background: linear-gradient(to right, #818cf8, #c084fc);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="login-container">
+      <div class="glass-panel login-box">
+        <h1>欢迎回来</h1>
+        {error && <div class="alert">{error}</div>}
+        <form method="POST">
+          <div class="input-group">
+            <label for="username">用户名</label>
+            <input type="text" id="username" name="username" class="input-control" required autofocus />
+          </div>
+          <div class="input-group">
+            <label for="password">密码</label>
+            <input type="password" id="password" name="password" class="input-control" required />
+          </div>
+          <button type="submit" class="btn btn-primary" style="width: 100%;">登录系统</button>
+        </form>
+        <div class="text-center mt-4">
+          <p style="font-size: 0.85rem; color: #94a3b8;">只有超级管理员可以创建新成员账号</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

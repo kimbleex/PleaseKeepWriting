@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String
+  role         Role     @default(USER)
+  createdAt    DateTime @default(now())
+
+  diaries      Diary[]
+  sentRequests PermissionRequest[] @relation("Requester")
+  receivedRequests PermissionRequest[] @relation("Target")
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+model Diary {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  date      DateTime @db.Date
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
+}
+
+model PermissionRequest {
+  id          String   @id @default(uuid())
+  requesterId String
+  targetId    String
+  status      RequestStatus @default(PENDING)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  requester   User     @relation("Requester", fields: [requesterId], references: [id])
+  target      User     @relation("Target", fields: [targetId], references: [id])
+
+  @@unique([requesterId, targetId])
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
