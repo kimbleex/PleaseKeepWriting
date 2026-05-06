@@ -1,7 +1,8 @@
 ---
-import '../styles/global.css';
-import Header from '../components/Header.astro';
-import { getUserFromCookie } from '../lib/auth';
+import "../styles/global.css";
+import Header from "../components/Header.astro";
+import { getUserFromCookie } from "../lib/auth";
+import { ClientRouter } from "astro:transitions";
 
 interface Props {
   title: string;
@@ -11,12 +12,13 @@ const { title } = Astro.props;
 const user = (Astro.locals as any).user || getUserFromCookie(Astro.cookies);
 ---
 
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{title} - 我们的日记</title>
+    <ClientRouter />
   </head>
   <body>
     {user && <Header user={user} url={Astro.url} />}

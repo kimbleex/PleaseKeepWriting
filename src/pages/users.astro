@@ -33,22 +33,22 @@ if (Astro.request.method === 'POST') {
   }
 }
 
-const otherUsers = await prisma.user.findMany({
-  where: { id: { not: currentUser.id } },
-  orderBy: { username: 'asc' }
-});
+const [otherUsers, sentRequests, receivedRequests] = await Promise.all([
+  prisma.user.findMany({
+    where: { id: { not: currentUser.id } },
+    orderBy: { username: "asc" },
+  }),
+  prisma.permissionRequest.findMany({
+    where: { requesterId: currentUser.id },
+    include: { target: true },
+  }),
+  prisma.permissionRequest.findMany({
+    where: { targetId: currentUser.id, status: "PENDING" },
+    include: { requester: true },
+  }),
+]);
 
-const regularUserCount = otherUsers.filter(u => u.role === 'USER').length;
-
-const sentRequests = await prisma.permissionRequest.findMany({
-  where: { requesterId: currentUser.id },
-  include: { target: true }
-});
-
-const receivedRequests = await prisma.permissionRequest.findMany({
-  where: { targetId: currentUser.id, status: 'PENDING' },
-  include: { requester: true }
-});
+const regularUserCount = otherUsers.filter((u) => u.role === "USER").length;
 
 const requestsMap = new Map<string, string>();
 sentRequests.forEach(req => requestsMap.set(req.targetId, req.status));

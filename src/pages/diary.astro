@@ -13,42 +13,49 @@ const weekdays = ['星期日','星期一','星期二','星期三','星期四','�
 const todayWeekday = weekdays[today.getDay()];
 const monthNames = ['1','2','3','4','5','6','7','8','9','10','11','12'];
 
-let existingDiary = await prisma.diary.findFirst({
-  where: { userId: user.id, date: todayDateObj }
-});
+const [existingDiaryResult, previousDiaries] = await Promise.all([
+  prisma.diary.findFirst({
+    where: { userId: user.id, date: todayDateObj },
+  }),
+  prisma.diary.findMany({
+    where: { userId: user.id, date: { not: todayDateObj } },
+    orderBy: { date: "desc" },
+    take: 20,
+  }),
+]);
 
-let message = '';
+let existingDiary = existingDiaryResult;
+
+let message = "";
 let isError = false;
 
-if (Astro.request.method === 'POST') {
+if (Astro.request.method === "POST") {
   const data = await Astro.request.formData();
-  const content = data.get('content') as string;
+  const content = data.get("content") as string;
   if (!content?.trim()) {
-    message = '日记内容不能为空';
+    message = "日记内容不能为空";
     isError = true;
   } else {
     try {
       if (existingDiary) {
-        existingDiary = await prisma.diary.update({ where: { id: existingDiary.id }, data: { content } });
-        message = '修改成功，已保存 ✨';
+        existingDiary = await prisma.diary.update({
+          where: { id: existingDiary.id },
+          data: { content },
+        });
+        message = "修改成功，已保存 ✨";
       } else {
-        existingDiary = await prisma.diary.create({ data: { userId: user.id, date: todayDateObj, content } });
-        message = '发布成功！今天的日记已记录 🎉';
+        existingDiary = await prisma.diary.create({
+          data: { userId: user.id, date: todayDateObj, content },
+        });
+        message = "发布成功！今天的日记已记录 🎉";
       }
     } catch (e) {
-      message = '保存失败，请重试';
+      message = "保存失败，请重试";
       isError = true;
       console.error(e);
     }
   }
 }
-
-// Previous diaries (excluding today)
-const previousDiaries = await prisma.diary.findMany({
-  where: { userId: user.id, date: { not: todayDateObj } },
-  orderBy: { date: 'desc' },
-  take: 20
-});
 
 const charCount = existingDiary?.content?.length ?? 0;
 ---

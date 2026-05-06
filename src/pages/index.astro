@@ -6,6 +6,7 @@ import { getUserFromCookie } from "../lib/auth";
 const currentUser = getUserFromCookie(Astro.cookies)!;
 const url = new URL(Astro.request.url);
 const today = new Date();
+const realTodayStr = today.toISOString().split("T")[0];
 
 // Get year/month from query or default to today
 const queryYear = parseInt(url.searchParams.get("y") || "");
@@ -31,20 +32,39 @@ const monthStart = new Date(
 const monthEnd = new Date(
   `${year}-${String(month + 1).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}T23:59:59Z`,
 );
-const diariesThisMonth = await prisma.diary.findMany({
-  where: { date: { gte: monthStart, lte: monthEnd } },
-  select: { date: true, userId: true },
+const allUserList = await prisma.user.findMany({
+  where: { role: "USER" },
+  select: { id: true },
 });
+const allUserIds = allUserList.map((u) => u.id);
 
-// Fetch all non-admin user IDs to filter today's diaries count
-const allUserIds = (
-  await prisma.user.findMany({
-    where: { role: "USER" },
-    select: { id: true },
+// Fetch everything in parallel
+const [diariesThisMonth, totalUsers, allMyDiaries, hasWroteToday, realTodayWroteCount] = await Promise.all([
+  prisma.diary.findMany({
+    where: { date: { gte: monthStart, lte: monthEnd } },
+    select: { date: true, userId: true },
+  }),
+  prisma.user.count({ where: { role: "USER" } }),
+  prisma.diary.findMany({
+    where: { userId: currentUser.id },
+    orderBy: { date: "desc" },
+    select: { date: true },
+  }),
+  prisma.diary.findFirst({
+    where: { 
+      userId: currentUser.id, 
+      date: new globalThis.Date(`${realTodayStr}T00:00:00Z`) 
+    },
+    select: { id: true }
+  }),
+  prisma.diary.count({
+    where: {
+      date: new globalThis.Date(`${realTodayStr}T00:00:00Z`),
+      userId: { in: allUserIds }
+    }
   })
-).map((u) => u.id);
+]);
 
-// Exclude admin diaries from the participation counts
 const nonAdminDiaries = diariesThisMonth.filter((d) =>
   allUserIds.includes(d.userId),
 );
@@ -55,23 +75,12 @@ nonAdminDiaries.forEach((d) => {
   diariesByDay[day] = (diariesByDay[day] || 0) + 1;
 });
 
-const totalUsers = await prisma.user.count({ where: { role: "USER" } });
 const daysWithDiaries = Object.keys(diariesByDay).length;
-const realTodayStr = today.toISOString().split("T")[0];
 const todayDateStr = isCurrentMonth
   ? `${year}-${String(month + 1).padStart(2, "0")}-${String(todayDay).padStart(2, "0")}`
-  : realTodayStr; // Fallback for stats that need a valid date string
+  : realTodayStr;
 
-const todayDiaries = diariesThisMonth.filter(
-  (d) => d.date.getUTCDate() === todayDay && allUserIds.includes(d.userId),
-);
-const wroteToday = todayDiaries.length;
-
-const allMyDiaries = await prisma.diary.findMany({
-  where: { userId: currentUser.id },
-  orderBy: { date: "desc" },
-  select: { date: true },
-});
+const wroteToday = realTodayWroteCount;
 const totalMyDiaries = allMyDiaries.length;
 
 // Current streak
@@ -118,9 +127,7 @@ const myMonthDiaries = diariesThisMonth.filter(
 ).length;
 const monthCompletionPct =
   daysInMonth > 0 ? Math.round((myMonthDiaries / daysInMonth) * 100) : 0;
-const wroteToday_me = diariesThisMonth.some(
-  (d) => d.userId === currentUser.id && d.date.getUTCDate() === todayDay,
-);
+const wroteToday_me = !!hasWroteToday;
 
 const monthNames = [
   "一月",

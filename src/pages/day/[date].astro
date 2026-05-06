@@ -8,37 +8,35 @@ if (!currentUser) {
   return Astro.redirect('/login');
 }
 
-const { date } = Astro.params;
+const { date: dateStr } = Astro.params;
 
 // Validate date format
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-if (!date || !dateRegex.test(date)) {
-  return Astro.redirect('/');
+if (!dateStr || !dateRegex.test(dateStr)) {
+  return Astro.redirect("/");
 }
 
-const dateObj = new Date(`${date}T00:00:00Z`);
+const dateObj = new globalThis.Date(`${dateStr}T00:00:00Z`);
 if (isNaN(dateObj.getTime())) {
-  return Astro.redirect('/');
+  return Astro.redirect("/");
 }
 
-// Get all users (excluding admins for counting)
-const allUsers = await prisma.user.findMany({
-  where: { role: 'USER' },
-  orderBy: { username: 'asc' }
-});
-
-// Get diaries for this date
-const diaries = await prisma.diary.findMany({
-  where: { date: dateObj },
-  include: { user: { select: { id: true, username: true } } },
-  orderBy: { user: { username: 'asc' } }
-});
-
-// Get permissions
-const approvedRequests = await prisma.permissionRequest.findMany({
-  where: { requesterId: currentUser.id, status: 'APPROVED' },
-  select: { targetId: true }
-});
+// Fetch all data in parallel
+const [allUsers, diaries, approvedRequests] = await Promise.all([
+  prisma.user.findMany({
+    where: { role: "USER" },
+    orderBy: { username: "asc" },
+  }),
+  prisma.diary.findMany({
+    where: { date: dateObj },
+    include: { user: { select: { id: true, username: true } } },
+    orderBy: { user: { username: "asc" } },
+  }),
+  prisma.permissionRequest.findMany({
+    where: { requesterId: currentUser.id, status: "APPROVED" },
+    select: { targetId: true },
+  }),
+]);
 const approvedTargetIds = new Set(approvedRequests.map(r => r.targetId));
 
 const diaryMap = new Map(diaries.map(d => [d.userId, d]));
@@ -49,23 +47,23 @@ const canViewDiary = (userId: string) => {
   return approvedTargetIds.has(userId);
 };
 
-const [year, month, day] = date.split('-').map(Number);
-const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+const [year, month, day] = dateStr.split("-").map(Number);
+const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
 const weekday = weekdays[dateObj.getUTCDay()];
 
 // Prev/next day
-const prevDate = new Date(dateObj);
+const prevDate = new globalThis.Date(dateObj);
 prevDate.setUTCDate(prevDate.getUTCDate() - 1);
-const nextDate = new Date(dateObj);
+const nextDate = new globalThis.Date(dateObj);
 nextDate.setUTCDate(nextDate.getUTCDate() + 1);
-const prevStr = prevDate.toISOString().split('T')[0];
-const nextStr = nextDate.toISOString().split('T')[0];
+const prevStr = prevDate.toISOString().split("T")[0];
+const nextStr = nextDate.toISOString().split("T")[0];
 
 const allUserIds = allUsers.map(u => u.id);
 const wroteCount = diaries.filter(d => allUserIds.includes(d.userId)).length;
 const notWroteCount = allUsers.length - wroteCount;
 ---
-<Layout title={`${date} 的日记`}>
+<Layout title={`${dateStr} 的日记`}>
   <div class="day-page">
     <!-- Back nav -->
     <div class="day-topbar">
