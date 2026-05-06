@@ -38,6 +38,8 @@ const otherUsers = await prisma.user.findMany({
   orderBy: { username: 'asc' }
 });
 
+const regularUserCount = otherUsers.filter(u => u.role === 'USER').length;
+
 const sentRequests = await prisma.permissionRequest.findMany({
   where: { requesterId: currentUser.id },
   include: { target: true }
@@ -52,17 +54,12 @@ const requestsMap = new Map<string, string>();
 sentRequests.forEach(req => requestsMap.set(req.targetId, req.status));
 
 // Pre-compute user rows to avoid JSX logic issues
-type UserRow = {
-  id: string;
-  username: string;
-  status: string | undefined;
-  initial: string;
-};
-const userRows: UserRow[] = otherUsers.map(u => ({
+const userRows = otherUsers.map(u => ({
   id: u.id,
   username: u.username,
   status: requestsMap.get(u.id),
   initial: u.username.charAt(0).toUpperCase(),
+  role: u.role,
 }));
 ---
 <Layout title="系统成员">
@@ -78,7 +75,7 @@ const userRows: UserRow[] = otherUsers.map(u => ({
           </div>
           <div>
             <h2 class="card-title">发现成员</h2>
-            <p class="card-sub">{otherUsers.length} 位成员</p>
+            <p class="card-sub">{regularUserCount} 位成员</p>
           </div>
         </div>
 
@@ -94,7 +91,10 @@ const userRows: UserRow[] = otherUsers.map(u => ({
             <div class="user-row">
               <div class="user-left">
                 <div class="user-avatar">{u.initial}</div>
-                <span class="user-name">{u.username}</span>
+                <div class="user-info-box">
+                  <span class="user-name">{u.username}</span>
+                  {u.role === 'ADMIN' && <span class="admin-tag">管理员</span>}
+                </div>
               </div>
               <div class="user-action">
                 {u.status === 'APPROVED' && (
@@ -525,5 +525,21 @@ const userRows: UserRow[] = otherUsers.map(u => ({
   .act-reject:hover {
     background: rgba(239,68,68,0.2);
     transform: translateY(-1px);
+  }
+  .user-info-box {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+  }
+
+  .admin-tag {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #6366f1;
+    background: rgba(99, 102, 241, 0.1);
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    width: fit-content;
   }
 </style>

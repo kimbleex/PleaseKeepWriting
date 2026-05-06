@@ -1,6 +1,12 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import { prisma } from '../../lib/db';
+import { getUserFromCookie } from '../../lib/auth';
+
+const currentUser = getUserFromCookie(Astro.cookies);
+if (!currentUser) {
+  return Astro.redirect('/login');
+}
 
 const { date } = Astro.params;
 
@@ -15,8 +21,9 @@ if (isNaN(dateObj.getTime())) {
   return Astro.redirect('/');
 }
 
-// Get all users
+// Get all users (excluding admins for counting)
 const allUsers = await prisma.user.findMany({
+  where: { role: 'USER' },
   orderBy: { username: 'asc' }
 });
 
@@ -27,7 +34,20 @@ const diaries = await prisma.diary.findMany({
   orderBy: { user: { username: 'asc' } }
 });
 
+// Get permissions
+const approvedRequests = await prisma.permissionRequest.findMany({
+  where: { requesterId: currentUser.id, status: 'APPROVED' },
+  select: { targetId: true }
+});
+const approvedTargetIds = new Set(approvedRequests.map(r => r.targetId));
+
 const diaryMap = new Map(diaries.map(d => [d.userId, d]));
+
+const canViewDiary = (userId: string) => {
+  if (currentUser.role === 'ADMIN') return true;
+  if (userId === currentUser.id) return true;
+  return approvedTargetIds.has(userId);
+};
 
 const [year, month, day] = date.split('-').map(Number);
 const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
@@ -41,7 +61,8 @@ nextDate.setUTCDate(nextDate.getUTCDate() + 1);
 const prevStr = prevDate.toISOString().split('T')[0];
 const nextStr = nextDate.toISOString().split('T')[0];
 
-const wroteCount = diaries.length;
+const allUserIds = allUsers.map(u => u.id);
+const wroteCount = diaries.filter(d => allUserIds.includes(d.userId)).length;
 const notWroteCount = allUsers.length - wroteCount;
 ---
 <Layout title={`${date} 的日记`}>
@@ -101,18 +122,24 @@ const notWroteCount = allUsers.length - wroteCount;
       </div>
     ) : (
       <div class="diary-list">
-        {diaries.map(diary => (
-          <div class="diary-card">
-            <div class="diary-card-header">
-              <div class="author-avatar">{diary.user.username.charAt(0).toUpperCase()}</div>
-              <div class="author-info">
-                <span class="author-name">{diary.user.username}</span>
-                <span class="diary-time">{diary.updatedAt.toISOString().split('T')[0]}</span>
+        {diaries.map(diary => {
+          const visible = canViewDiary(diary.userId);
+          return (
+            <div class="diary-card">
+              <div class="diary-card-header">
+                <div class="author-avatar">{diary.user.username.charAt(0).toUpperCase()}</div>
+                <div class="author-info">
+                  <span class="author-name">{diary.user.username}</span>
+                  <span class="diary-time">{diary.updatedAt.toISOString().split('T')[0]}</span>
+                </div>
+                {!visible && <span class="lock-badge">私密日记</span>}
+              </div>
+              <div class={`diary-content ${!visible ? 'is-locked' : ''}`}>
+                {visible ? diary.content : '内容已锁定，申请并获得对方同意后可查看'}
               </div>
             </div>
-            <div class="diary-content">{diary.content}</div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     )}
   </div>
@@ -338,5 +365,32 @@ const notWroteCount = allUsers.length - wroteCount;
     line-height: 1.85;
     color: #1e293b;
     font-family: 'Inter', 'Noto Serif SC', Georgia, serif;
+  }
+
+  .diary-content.is-locked {
+    color: #94a3b8;
+    font-style: italic;
+    font-size: 0.95rem;
+    background: #f8fafc;
+    padding: 1rem;
+    border-radius: 12px;
+    text-align: center;
+  }
+
+  .lock-badge {
+    margin-left: auto;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+    background: #f1f5f9;
+    padding: 0.2rem 0.6rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .lock-badge::before {
+    content: "🔒";
+    font-size: 0.8rem;
   }
 </style>
