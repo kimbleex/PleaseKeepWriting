@@ -143,8 +143,13 @@ const queryMonth = Astro.url.searchParams.get('m');
     .cal-weekday { font-size:0.75rem; font-weight:700; color:#94a3b8; padding:0.5rem; }
     .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); grid-auto-rows:minmax(0,1fr); gap:0.5rem; flex:1; min-height:0; }
     .cal-cell { border-radius:12px; position:relative; display:flex; align-items:center; justify-content:center; text-decoration:none; transition:all 0.25s cubic-bezier(0.4,0,0.2,1); }
-    .cal-skel { background:#f8fafc; animation:pulse 2s infinite ease-in-out; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+    .cal-skel {
+      background: linear-gradient(90deg, #f4f4f5 25%, #e5e7eb 50%, #f4f4f5 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border: 1px solid rgba(0, 0, 0, 0.03);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+    }
     .cal-empty { opacity:0; pointer-events:none; }
     .cal-day { border:1px solid rgba(0,0,0,0.03); }
     .cal-day:hover { transform:scale(1.08); z-index:10; box-shadow:0 10px 25px rgba(0,0,0,0.1); }

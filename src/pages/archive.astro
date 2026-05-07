@@ -10,7 +10,14 @@ import Layout from '../layouts/Layout.astro';
         <button type="button" class="segment" data-view="week">按周</button>
         <button type="button" class="segment" data-view="month">按月</button>
       </div>
-      <div class="archive-summary" id="archive-summary" aria-label="统计卡片" aria-live="polite"></div>
+      <div class="archive-summary" id="archive-summary" aria-label="统计卡片" aria-live="polite">
+        <div class="summary-card archive-summary-skel">
+          <div class="summary-stat"><span class="archive-skel archive-skel-line"></span><span class="archive-skel archive-skel-value"></span></div>
+          <div class="summary-stat"><span class="archive-skel archive-skel-line"></span><span class="archive-skel archive-skel-value"></span></div>
+          <div class="summary-stat"><span class="archive-skel archive-skel-line"></span><span class="archive-skel archive-skel-value"></span></div>
+          <div class="summary-stat"><span class="archive-skel archive-skel-line"></span><span class="archive-skel archive-skel-value"></span></div>
+        </div>
+      </div>
     </div>
 
     <div class="archive-grid">
@@ -19,18 +26,52 @@ import Layout from '../layouts/Layout.astro';
           <h2 id="list-title">全部日记</h2>
           <span class="pill" id="list-count">0</span>
         </div>
-        <div class="archive-list" id="archive-list"></div>
+        <div class="archive-list" id="archive-list">
+          <div class="archive-item archive-item-skel">
+            <div class="item-main">
+              <span class="archive-skel archive-skel-title"></span>
+              <span class="archive-skel archive-skel-text"></span>
+              <span class="archive-skel archive-skel-text short"></span>
+            </div>
+          </div>
+          <div class="archive-item archive-item-skel">
+            <div class="item-main">
+              <span class="archive-skel archive-skel-title"></span>
+              <span class="archive-skel archive-skel-text"></span>
+              <span class="archive-skel archive-skel-text short"></span>
+            </div>
+          </div>
+          <div class="archive-item archive-item-skel">
+            <div class="item-main">
+              <span class="archive-skel archive-skel-title"></span>
+              <span class="archive-skel archive-skel-text"></span>
+              <span class="archive-skel archive-skel-text short"></span>
+            </div>
+          </div>
+        </div>
       </section>
 
       <aside class="archive-detail-panel">
         <div class="panel-head">
           <h2 id="detail-title">归档详情</h2>
-          <span class="pill" id="detail-status">未选择</span>
+          <span class="pill" id="detail-status">加载中</span>
         </div>
         <div class="detail-body" id="detail-body">
-          <div class="empty-detail">
-            <div class="empty-icon">🗂</div>
-            <p>先选择一条日记、一个周档或一个月档。</p>
+          <div class="detail-card detail-card-skel">
+            <div class="detail-headline">
+              <div class="archive-skel archive-skel-title"></div>
+              <span class="archive-skel archive-skel-pill"></span>
+            </div>
+            <div class="detail-meta-line">
+              <span class="archive-skel archive-skel-meta"></span>
+              <span class="archive-skel archive-skel-meta short"></span>
+            </div>
+            <div class="detail-actions">
+              <span class="archive-skel archive-skel-btn"></span>
+              <span class="archive-skel archive-skel-btn"></span>
+              <span class="archive-skel archive-skel-btn"></span>
+            </div>
+            <div class="archive-skel archive-skel-note"></div>
           </div>
         </div>
       </aside>
@@ -185,6 +226,84 @@ import Layout from '../layouts/Layout.astro';
       color: var(--summary-accent);
     }
 
+    .archive-skel {
+      display: inline-block;
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 6px;
+    }
+
+    @keyframes shimmer {
+      0% {
+        background-position: 200% 0;
+      }
+
+      100% {
+        background-position: -200% 0;
+      }
+    }
+
+    .archive-summary-skel {
+      min-height: 54px;
+    }
+
+    .archive-skel-line {
+      width: 42px;
+      height: 0.72rem;
+      border-radius: 4px;
+    }
+
+    .archive-skel-value {
+      width: 18px;
+      height: 0.95rem;
+      border-radius: 4px;
+    }
+
+    .archive-skel-title {
+      width: 140px;
+      height: 1rem;
+      border-radius: 4px;
+    }
+
+    .archive-skel-text {
+      width: 100%;
+      height: 0.75rem;
+      border-radius: 4px;
+    }
+
+    .archive-skel-text.short {
+      width: 68%;
+    }
+
+    .archive-skel-pill {
+      width: 72px;
+      height: 1.4rem;
+      border-radius: 999px;
+    }
+
+    .archive-skel-meta {
+      width: 160px;
+      height: 0.72rem;
+      border-radius: 4px;
+    }
+
+    .archive-skel-meta.short {
+      width: 120px;
+    }
+
+    .archive-skel-btn {
+      width: 92px;
+      height: 2.1rem;
+      border-radius: 10px;
+    }
+
+    .archive-skel-note {
+      width: 220px;
+      height: 0.8rem;
+      border-radius: 4px;
+    }
+
     .archive-grid {
       display: grid;
       grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
@@ -267,6 +386,22 @@ import Layout from '../layouts/Layout.astro';
     .archive-item.is-selected {
       border-color: rgba(99, 102, 241, 0.34);
       background: rgba(99, 102, 241, 0.04);
+    }
+
+    .archive-item-skel {
+      pointer-events: none;
+    }
+
+    .archive-item-skel .item-main {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+
+    .detail-card-skel {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
     }
 
     .item-main {
