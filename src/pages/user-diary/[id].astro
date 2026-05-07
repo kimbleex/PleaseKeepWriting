@@ -1,61 +1,108 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import { prisma } from '../../lib/db';
-import { getUserFromCookie } from '../../lib/auth';
 
-const currentUser = getUserFromCookie(Astro.cookies)!;
 const targetUserId = Astro.params.id;
-
-if (!targetUserId || targetUserId === currentUser.id) {
-  return Astro.redirect('/');
-}
-
-// Check permission
-const permission = await prisma.permissionRequest.findFirst({
-  where: {
-    requesterId: currentUser.id,
-    targetId: targetUserId,
-    status: 'APPROVED'
-  }
-});
-
-if (!permission) {
-  return Astro.redirect('/users'); // No permission, redirect back
-}
-
-const targetUser = await prisma.user.findUnique({
-  where: { id: targetUserId }
-});
-
-if (!targetUser) {
+if (!targetUserId) {
   return Astro.redirect('/users');
 }
-
-const diaries = await prisma.diary.findMany({
-  where: { userId: targetUserId },
-  orderBy: { date: 'desc' }
-});
 ---
-<Layout title={`${targetUser.username} 的日记`}>
-  <div class="glass-panel">
-    <div class="flex justify-between align-center mb-6">
-      <h2>{targetUser.username} 的日记</h2>
-      <a href="/users" class="btn btn-outline" style="padding: 0.25rem 0.75rem;">返回</a>
+
+<Layout title="成员日记">
+  <div class="user-diary-page" data-user-id={targetUserId}>
+    <div class="diary-head">
+      <div>
+        <h2 id="page-title"><span class="skel title-skel"></span></h2>
+        <p id="page-sub"><span class="skel sub-skel"></span></p>
+      </div>
+      <a href="/users" class="back-btn" data-astro-prefetch>返回</a>
     </div>
 
-    {diaries.length === 0 ? (
-      <p style="color: #94a3b8;">该成员还没有写过日记...</p>
-    ) : (
-      <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-        {diaries.map(diary => (
-          <div style="padding: 1.5rem; border: 1px solid var(--card-border); border-radius: 12px; background: #f8fafc;">
-            <div style="font-size: 0.9rem; color: var(--primary-color); font-weight: 600; margin-bottom: 1rem; border-bottom: 1px solid var(--card-border); padding-bottom: 0.5rem;">
-              {diary.date.toISOString().split('T')[0]}
-            </div>
-            <div style="white-space: pre-wrap; font-size: 1rem; line-height: 1.7;">{diary.content}</div>
+    <div class="diary-feed" id="diary-feed">
+      {Array.from({ length: 4 }).map(() => (
+        <article class="diary-item">
+          <div class="item-date"><span class="skel date-skel"></span></div>
+          <div class="item-body">
+            <span class="skel line-full"></span>
+            <span class="skel line-full"></span>
+            <span class="skel line-short"></span>
           </div>
-        ))}
-      </div>
-    )}
+        </article>
+      ))}
+    </div>
   </div>
+
+  <style>
+    .skel { display:inline-block; background:linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:6px; }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+    .title-skel { width:180px; height:1.6rem; }
+    .sub-skel { width:110px; height:0.85rem; margin-top:0.4rem; }
+    .date-skel { width:96px; height:1rem; }
+    .line-full { display:block; width:100%; height:1rem; margin-bottom:0.7rem; }
+    .line-short { display:block; width:56%; height:1rem; }
+    .user-diary-page { max-width:820px; margin:0 auto; padding-bottom:4rem; }
+    .diary-head { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; margin-bottom:1.5rem; }
+    .diary-head h2 { font-size:1.6rem; font-weight:800; color:#0f172a; margin:0; }
+    .diary-head p { color:#94a3b8; font-size:0.9rem; margin-top:0.3rem; }
+    .back-btn { display:inline-flex; align-items:center; justify-content:center; padding:0.45rem 0.9rem; border-radius:10px; border:1px solid rgba(0,0,0,0.08); color:#64748b; text-decoration:none; background:#fff; font-weight:600; font-size:0.88rem; }
+    .back-btn:hover { color:#0f172a; background:#f8fafc; }
+    .diary-feed { display:flex; flex-direction:column; gap:1rem; }
+    .diary-item { padding:1.5rem; border:1px solid rgba(0,0,0,0.07); border-radius:16px; background:#fff; box-shadow:0 4px 20px rgba(0,0,0,0.04); }
+    .item-date { font-size:0.92rem; color:#6366f1; font-weight:700; margin-bottom:1rem; border-bottom:1px solid rgba(0,0,0,0.06); padding-bottom:0.75rem; }
+    .item-body { white-space:pre-wrap; font-size:1rem; line-height:1.8; color:#1e293b; font-family:'Inter','Noto Serif SC',Georgia,serif; }
+    .empty-state { text-align:center; color:#94a3b8; padding:5rem 1rem; background:#fff; border:1px dashed rgba(0,0,0,0.12); border-radius:16px; }
+    .error-state { color:#dc2626; background:rgba(239,68,68,0.08); border-color:rgba(239,68,68,0.2); }
+  </style>
+
+  <script>
+    import { navigate } from 'astro:transitions/client';
+
+    function escapeHTML(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+    }
+
+    async function loadUserDiary() {
+      const page = document.querySelector('.user-diary-page');
+      const userId = page?.getAttribute('data-user-id');
+      if (!userId) return;
+
+      const feed = document.getElementById('diary-feed');
+      try {
+        const res = await fetch(`/api/user-diary-data?id=${encodeURIComponent(userId)}`);
+        if (res.status === 401) {
+          navigate('/login');
+          return;
+        }
+        if (res.status === 403) {
+          navigate('/users');
+          return;
+        }
+        if (!res.ok) {
+          if (feed) feed.innerHTML = '<div class="empty-state error-state">加载失败，请稍后再试</div>';
+          return;
+        }
+
+        const data = await res.json();
+        document.title = `${data.user.username} 的日记 - 我们的日记`;
+        document.getElementById('page-title').textContent = `${data.user.username} 的日记`;
+        document.getElementById('page-sub').textContent = `${data.diaries.length} 篇记录`;
+
+        if (!feed) return;
+        if (data.diaries.length === 0) {
+          feed.innerHTML = '<div class="empty-state">该成员还没有写过日记...</div>';
+          return;
+        }
+
+        feed.innerHTML = data.diaries.map((diary) => `
+          <article class="diary-item">
+            <div class="item-date">${escapeHTML(diary.dateStr)}</div>
+            <div class="item-body">${escapeHTML(diary.content)}</div>
+          </article>`).join('');
+      } catch (error) {
+        console.error(error);
+        if (feed) feed.innerHTML = '<div class="empty-state error-state">加载失败，请稍后再试</div>';
+      }
+    }
+
+    document.addEventListener('astro:page-load', loadUserDiary);
+  </script>
 </Layout>

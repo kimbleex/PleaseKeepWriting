@@ -254,7 +254,7 @@ const queryMonth = Astro.url.searchParams.get('m');
           if (cell.isEmpty) return '<div class="cal-cell cal-empty"></div>';
           const cls = ['cal-cell cal-day', `intensity-${cell.intensity}`, cell.isToday?'is-today':'', cell.isMine?'is-mine':''].filter(Boolean).join(' ');
           const dots = cell.hasDiaries ? `<div class="cal-dots">${Array.from({length:cell.dots}).map(()=>'<span class="cal-dot"></span>').join('')}</div>` : '';
-          return `<a href="/day/${cell.dateStr}" class="${cls}" title="${cell.title}"><span class="cal-day-num">${cell.day}</span>${dots}</a>`;
+          return `<a href="/day/${cell.dateStr}" class="${cls}" title="${cell.title}" data-astro-prefetch><span class="cal-day-num">${cell.day}</span>${dots}</a>`;
         }).join('');
       }
       const legend = document.getElementById('cal-legend');
@@ -319,7 +319,35 @@ const queryMonth = Astro.url.searchParams.get('m');
       window.__pickerClickAttached = true;
     }
 
+    function resetHomeSkeleton() {
+      const titleEl = document.getElementById('cal-title');
+      const metaEl = document.getElementById('meta-pills');
+      const grid = document.getElementById('cal-grid');
+      const todayCard = document.getElementById('today-card');
+      const legend = document.getElementById('cal-legend');
+      if (titleEl) titleEl.innerHTML = '<span class="skel skel-title"></span>';
+      if (metaEl) metaEl.innerHTML = '<div class="meta-pill"><span class="skel skel-num-sm"></span><span class="meta-lbl">加载中</span></div><div class="meta-sep"></div><div class="meta-pill"><span class="skel skel-num-sm"></span><span class="meta-lbl">加载中</span></div>';
+      if (grid) grid.innerHTML = Array.from({ length: 35 }).map(() => '<div class="cal-cell cal-skel"></div>').join('');
+      if (legend) legend.style.visibility = 'hidden';
+      if (todayCard) {
+        todayCard.className = 'card today-card-skel';
+        todayCard.innerHTML = '<div class="skel" style="width:40px;height:40px;border-radius:12px;"></div><div style="flex:1;display:flex;flex-direction:column;gap:0.5rem;"><div class="skel" style="width:100px;height:1rem;"></div><div class="skel" style="width:150px;height:0.75rem;"></div></div>';
+      }
+      document.querySelectorAll('.stat-val').forEach(el => { el.textContent = ''; el.classList.add('skel','skel-num'); el.style.margin = 'auto'; });
+      const pctEl = document.getElementById('ring-pct');
+      const subEl = document.getElementById('ring-sub');
+      const countEl = document.getElementById('group-count');
+      const barEl = document.getElementById('group-bar');
+      const noteEl = document.getElementById('group-note');
+      if (pctEl) pctEl.textContent = '...';
+      if (subEl) subEl.innerHTML = '<span class="skel skel-line-sm"></span>';
+      if (countEl) countEl.textContent = '...';
+      if (barEl) barEl.style.width = '0%';
+      if (noteEl) noteEl.innerHTML = '<span class="skel skel-line-sm"></span>';
+    }
+
     async function loadData() {
+      resetHomeSkeleton();
       const urlParams = new URLSearchParams(window.location.search);
       const params = new URLSearchParams();
       if (urlParams.get('y')) params.set('y', urlParams.get('y'));
