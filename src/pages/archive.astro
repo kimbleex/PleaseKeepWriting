@@ -680,6 +680,13 @@ import Layout from '../layouts/Layout.astro';
       font-family: 'Inter', 'Noto Serif SC', Georgia, serif;
     }
 
+    .detail-report-raw {
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      line-height: 1.9;
+    }
+
     body.archive-modal-open {
       overflow: hidden;
     }
@@ -1043,7 +1050,7 @@ import Layout from '../layouts/Layout.astro';
               <span class="status-pill status-ready">日记</span>
             </div>
             <div class="detail-meta-line"><span><strong>更新时间</strong> ${escapeHTML(day.updatedAt.replace('T', ' ').slice(0, 16))}</span></div>
-            <div class="detail-report">${escapeHTML(day.content)}</div>
+            <div class="detail-report detail-report-raw">${escapeHTML(day.content)}</div>
           </div>`;
         return;
       }
