@@ -1,545 +1,587 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import { prisma } from '../lib/db';
-import { getUserFromCookie } from '../lib/auth';
-
-const currentUser = getUserFromCookie(Astro.cookies)!;
-
-if (Astro.request.method === 'POST') {
-  const data = await Astro.request.formData();
-  const action = data.get('action') as string;
-
-  if (action === 'request') {
-    const targetId = data.get('targetId') as string;
-    if (targetId && targetId !== currentUser.id) {
-      await prisma.permissionRequest.upsert({
-        where: { requesterId_targetId: { requesterId: currentUser.id, targetId } },
-        create: { requesterId: currentUser.id, targetId, status: 'PENDING' },
-        update: { status: 'PENDING' }
-      });
-    }
-  } else if (action === 'approve') {
-    const requestId = data.get('requestId') as string;
-    await prisma.permissionRequest.updateMany({
-      where: { id: requestId, targetId: currentUser.id },
-      data: { status: 'APPROVED' }
-    });
-  } else if (action === 'reject') {
-    const requestId = data.get('requestId') as string;
-    await prisma.permissionRequest.updateMany({
-      where: { id: requestId, targetId: currentUser.id },
-      data: { status: 'REJECTED' }
-    });
-  }
-}
-
-const [otherUsers, sentRequests, receivedRequests] = await Promise.all([
-  prisma.user.findMany({
-    where: { id: { not: currentUser.id } },
-    orderBy: { username: "asc" },
-  }),
-  prisma.permissionRequest.findMany({
-    where: { requesterId: currentUser.id },
-    include: { target: true },
-  }),
-  prisma.permissionRequest.findMany({
-    where: { targetId: currentUser.id, status: "PENDING" },
-    include: { requester: true },
-  }),
-]);
-
-const regularUserCount = otherUsers.filter((u) => u.role === "USER").length;
-
-const requestsMap = new Map<string, string>();
-sentRequests.forEach(req => requestsMap.set(req.targetId, req.status));
-
-// Pre-compute user rows to avoid JSX logic issues
-const userRows = otherUsers.map(u => ({
-  id: u.id,
-  username: u.username,
-  status: requestsMap.get(u.id),
-  initial: u.username.charAt(0).toUpperCase(),
-  role: u.role,
-}));
+import Layout from "../layouts/Layout.astro";
 ---
+
 <Layout title="系统成员">
   <div class="users-wrap">
-
     <div class="users-grid">
-
       <!-- Members column -->
       <div class="card">
         <div class="card-header">
           <div class="card-icon discover-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              ><circle cx="11" cy="11" r="8"></circle><line
+                x1="21"
+                y1="21"
+                x2="16.65"
+                y2="16.65"></line></svg
+            >
           </div>
           <div>
             <h2 class="card-title">发现成员</h2>
-            <p class="card-sub">{regularUserCount} 位成员</p>
+            <p class="card-sub" id="member-count">
+              <span
+                class="skel"
+                style="width:60px;height:0.75rem;display:inline-block;"></span>
+            </p>
           </div>
         </div>
-
-        <div class="user-list">
-          {userRows.length === 0 && (
-            <div class="empty-state">
-              <div class="empty-icon">👥</div>
-              <p>还没有其他成员</p>
-            </div>
-          )}
-
-          {userRows.map(u => (
-            <div class="user-row">
-              <div class="user-left">
-                <div class="user-avatar">{u.initial}</div>
-                <div class="user-info-box">
-                  <span class="user-name">{u.username}</span>
-                  {u.role === 'ADMIN' && <span class="admin-tag">管理员</span>}
+        <div class="user-list" id="user-list">
+          {
+            Array.from({ length: 4 }).map(() => (
+              <div class="user-row">
+                <div class="user-left">
+                  <div
+                    class="skel"
+                    style="width:34px;height:34px;border-radius:50%;flex-shrink:0;"
+                  />
+                  <div
+                    class="skel"
+                    style="width:80px;height:0.9rem;border-radius:4px;"
+                  />
                 </div>
+                <div
+                  class="skel"
+                  style="width:60px;height:1.8rem;border-radius:8px;"
+                />
               </div>
-              <div class="user-action">
-                {u.status === 'APPROVED' && (
-                  <a href={`/user-diary/${u.id}`} class="action-btn btn-view">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                    查看日记
-                  </a>
-                )}
-                {u.status === 'PENDING' && (
-                  <span class="action-badge badge-pending">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    请求中
-                  </span>
-                )}
-                {u.status === 'REJECTED' && (
-                  <form method="POST" style="display:inline">
-                    <input type="hidden" name="action" value="request" />
-                    <input type="hidden" name="targetId" value={u.id} />
-                    <button type="submit" class="action-btn btn-request">重新申请</button>
-                  </form>
-                )}
-                {!u.status && (
-                  <form method="POST" style="display:inline">
-                    <input type="hidden" name="action" value="request" />
-                    <input type="hidden" name="targetId" value={u.id} />
-                    <button type="submit" class="action-btn btn-request">申请查看</button>
-                  </form>
-                )}
-              </div>
-            </div>
-          ))}
+            ))
+          }
         </div>
       </div>
 
       <!-- Incoming requests column -->
       <div class="card">
-        <div class="card-header" style="justify-content: space-between;">
-          <div style="display: flex; align-items: center; gap: 0.85rem;">
+        <div class="card-header" style="justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:0.85rem;">
             <div class="card-icon inbox-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                ><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"
+                ></polyline><path
+                  d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"
+                ></path></svg
+              >
             </div>
             <div>
               <h2 class="card-title">收到的申请</h2>
-              <p class="card-sub">{receivedRequests.length > 0 ? `${receivedRequests.length} 条待处理` : '暂无申请'}</p>
+              <p class="card-sub" id="req-count">
+                <span
+                  class="skel"
+                  style="width:60px;height:0.75rem;display:inline-block;"
+                ></span>
+              </p>
             </div>
           </div>
-          {receivedRequests.length > 0 && (
-            <div class="notif-badge" style="margin: 0; transform: none; box-shadow: none;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-              {receivedRequests.length} 条待处理申请
-            </div>
-          )}
+          <div id="notif-badge" style="display:none" class="notif-badge">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              ><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"
+              ></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg
+            >
+            <span id="notif-text"></span>
+          </div>
         </div>
-
-        <div class="request-list">
-          {receivedRequests.length === 0 && (
-            <div class="empty-state">
-              <div class="empty-icon">📬</div>
-              <p>暂无待处理的申请</p>
-            </div>
-          )}
-
-          {receivedRequests.map(req => (
-            <div class="request-row">
-              <div class="request-left">
-                <div class="request-avatar">{req.requester.username.charAt(0).toUpperCase()}</div>
-                <div class="request-info">
-                  <span class="request-name">{req.requester.username}</span>
-                  <span class="request-desc">申请查看你的日记</span>
+        <div class="request-list" id="request-list">
+          {
+            Array.from({ length: 2 }).map(() => (
+              <div class="request-row">
+                <div class="request-left">
+                  <div
+                    class="skel"
+                    style="width:36px;height:36px;border-radius:50%;flex-shrink:0;"
+                  />
+                  <div style="display:flex;flex-direction:column;gap:0.3rem;">
+                    <div
+                      class="skel"
+                      style="width:80px;height:0.9rem;border-radius:4px;"
+                    />
+                    <div
+                      class="skel"
+                      style="width:100px;height:0.7rem;border-radius:4px;"
+                    />
+                  </div>
+                </div>
+                <div style="display:flex;gap:0.4rem;">
+                  <div
+                    class="skel"
+                    style="width:52px;height:2rem;border-radius:8px;"
+                  />
+                  <div
+                    class="skel"
+                    style="width:52px;height:2rem;border-radius:8px;"
+                  />
                 </div>
               </div>
-              <div class="request-actions">
-                <form method="POST" style="display:inline">
-                  <input type="hidden" name="action" value="approve" />
-                  <input type="hidden" name="requestId" value={req.id} />
-                  <button type="submit" class="act-btn act-approve">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    同意
-                  </button>
-                </form>
-                <form method="POST" style="display:inline">
-                  <input type="hidden" name="action" value="reject" />
-                  <input type="hidden" name="requestId" value={req.id} />
-                  <button type="submit" class="act-btn act-reject">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                    拒绝
-                  </button>
-                </form>
-              </div>
-            </div>
-          ))}
+            ))
+          }
         </div>
       </div>
-
     </div>
   </div>
+
+  <style>
+    .skel {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 6px;
+    }
+    @keyframes shimmer {
+      0% {
+        background-position: 200% 0;
+      }
+      100% {
+        background-position: -200% 0;
+      }
+    }
+    .users-wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .notif-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.5rem 1rem;
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.2);
+      border-radius: 999px;
+      color: #d97706;
+      font-size: 0.82rem;
+      font-weight: 600;
+      animation: pulse 2s ease-in-out infinite;
+      margin: 0;
+      transform: none;
+      box-shadow: none;
+    }
+    @keyframes pulse {
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.2);
+      }
+      50% {
+        box-shadow: 0 0 0 6px rgba(245, 158, 11, 0);
+      }
+    }
+    .users-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      align-items: start;
+    }
+    @media (max-width: 800px) {
+      .users-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    .card {
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.07);
+      border-radius: 20px;
+      padding: 1.75rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+    .card-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .discover-icon {
+      background: rgba(67, 56, 202, 0.1);
+      color: #4f46e5;
+      border: 1px solid rgba(67, 56, 202, 0.2);
+    }
+    .inbox-icon {
+      background: rgba(245, 158, 11, 0.1);
+      color: #d97706;
+      border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+    .card-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #0f172a;
+      line-height: 1.2;
+    }
+    .card-sub {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      margin-top: 0.15rem;
+    }
+    .user-list,
+    .request-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      max-height: 460px;
+      overflow-y: auto;
+      padding-right: 0.25rem;
+    }
+    .user-list::-webkit-scrollbar,
+    .request-list::-webkit-scrollbar {
+      width: 4px;
+    }
+    .user-list::-webkit-scrollbar-thumb,
+    .request-list::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.1);
+      border-radius: 2px;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #94a3b8;
+    }
+    .empty-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .empty-state p {
+      font-size: 0.875rem;
+    }
+    .user-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.7rem 0.9rem;
+      border-radius: 12px;
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      background: #f8fafc;
+      transition: border-color 0.15s;
+      gap: 0.75rem;
+    }
+    .user-row:hover {
+      background: #f1f5f9;
+      border-color: rgba(0, 0, 0, 0.1);
+    }
+    .user-left {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      min-width: 0;
+    }
+    .user-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+      flex-shrink: 0;
+    }
+    .user-info-box {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+      min-width: 0;
+    }
+    .user-name {
+      font-weight: 500;
+      font-size: 0.9rem;
+      color: #0f172a;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .admin-tag {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: #6366f1;
+      background: rgba(99, 102, 241, 0.1);
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      width: fit-content;
+    }
+    .user-action {
+      flex-shrink: 0;
+    }
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.3rem 0.8rem;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      font-family: inherit;
+      border: none;
+      cursor: pointer;
+      transition: all 0.18s;
+      text-decoration: none;
+    }
+    .btn-view {
+      background: rgba(99, 102, 241, 0.1);
+      color: #6366f1;
+      border: 1px solid rgba(99, 102, 241, 0.2);
+    }
+    .btn-view:hover {
+      background: rgba(99, 102, 241, 0.2);
+      color: #4f46e5;
+    }
+    .btn-request {
+      background: rgba(16, 185, 129, 0.1);
+      color: #059669;
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+    .btn-request:hover {
+      background: rgba(16, 185, 129, 0.2);
+      color: #047857;
+    }
+    .action-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.3rem 0.7rem;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .badge-pending {
+      background: rgba(245, 158, 11, 0.1);
+      color: #d97706;
+      border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+    .request-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.9rem 1rem;
+      border-radius: 12px;
+      border: 1px solid rgba(245, 158, 11, 0.15);
+      background: rgba(245, 158, 11, 0.05);
+      gap: 0.75rem;
+    }
+    .request-row:hover {
+      background: rgba(245, 158, 11, 0.1);
+    }
+    .request-left {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      min-width: 0;
+    }
+    .request-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #f59e0b, #ef4444);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+    .request-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+    }
+    .request-name {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #b45309;
+    }
+    .request-desc {
+      font-size: 0.75rem;
+      color: #64748b;
+    }
+    .request-actions {
+      display: flex;
+      gap: 0.4rem;
+      flex-shrink: 0;
+    }
+    .act-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      font-family: inherit;
+      border: none;
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+    .act-approve {
+      background: rgba(16, 185, 129, 0.1);
+      color: #059669;
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+    .act-approve:hover {
+      background: rgba(16, 185, 129, 0.2);
+      transform: translateY(-1px);
+    }
+    .act-reject {
+      background: rgba(239, 68, 68, 0.1);
+      color: #dc2626;
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+    .act-reject:hover {
+      background: rgba(239, 68, 68, 0.2);
+      transform: translateY(-1px);
+    }
+  </style>
 </Layout>
 
-<style>
-  .users-wrap {
-    max-width: 1100px;
-    margin: 0 auto;
+<script>
+  async function loadUsers() {
+    try {
+      const res = await fetch("/api/users-data");
+      if (!res.ok) return;
+      const data = await res.json();
+
+      const memberCount = document.getElementById("member-count");
+      if (memberCount)
+        memberCount.textContent = `${data.users.filter((u: { role: string }) => u.role === "USER").length} 位成员`;
+
+      const userList = document.getElementById("user-list");
+      if (userList) {
+        if (data.users.length === 0) {
+          userList.innerHTML = `<div class="empty-state"><div class="empty-icon">👥</div><p>还没有其他成员</p></div>`;
+        } else {
+          userList.innerHTML = data.users
+            .map(
+              (u: {
+                id: string;
+                username: string;
+                role: string;
+                status: string | null;
+                initial: string;
+              }) => {
+                let actionHTML = "";
+                if (u.status === "APPROVED") {
+                  actionHTML = `<a href="/user-diary/${u.id}" class="action-btn btn-view"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>查看日记</a>`;
+                } else if (u.status === "PENDING") {
+                  actionHTML = `<span class="action-badge badge-pending"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>请求中</span>`;
+                } else {
+                  actionHTML = `<button class="action-btn btn-request" data-action="request" data-target="${u.id}">${u.status === "REJECTED" ? "重新申请" : "申请查看"}</button>`;
+                }
+                return `<div class="user-row">
+              <div class="user-left">
+                <div class="user-avatar">${u.initial}</div>
+                <div class="user-info-box">
+                  <span class="user-name">${u.username}</span>
+                  ${u.role === "ADMIN" ? '<span class="admin-tag">管理员</span>' : ""}
+                </div>
+              </div>
+              <div class="user-action">${actionHTML}</div>
+            </div>`;
+              },
+            )
+            .join("");
+        }
+        // Attach request handlers
+        userList.querySelectorAll('[data-action="request"]').forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const targetId = btn.getAttribute("data-target") ?? "";
+            const body = new FormData();
+            body.set("action", "request");
+            body.set("targetId", targetId);
+            await fetch("/api/permission", { method: "POST", body });
+            loadUsers();
+          });
+        });
+      }
+
+      const reqCount = document.getElementById("req-count");
+      const notifBadge = document.getElementById("notif-badge");
+      const notifText = document.getElementById("notif-text");
+      const reqList = document.getElementById("request-list");
+      if (reqCount)
+        reqCount.textContent =
+          data.receivedRequests.length > 0
+            ? `${data.receivedRequests.length} 条待处理`
+            : "暂无申请";
+      if (notifBadge && notifText) {
+        if (data.receivedRequests.length > 0) {
+          notifBadge.style.display = "flex";
+          notifText.textContent = `${data.receivedRequests.length} 条待处理申请`;
+        } else {
+          notifBadge.style.display = "none";
+        }
+      }
+      if (reqList) {
+        if (data.receivedRequests.length === 0) {
+          reqList.innerHTML = `<div class="empty-state"><div class="empty-icon">📬</div><p>暂无待处理的申请</p></div>`;
+        } else {
+          reqList.innerHTML = data.receivedRequests
+            .map(
+              (r: {
+                id: string;
+                requesterName: string;
+                requesterInitial: string;
+              }) => `
+            <div class="request-row">
+              <div class="request-left">
+                <div class="request-avatar">${r.requesterInitial}</div>
+                <div class="request-info"><span class="request-name">${r.requesterName}</span><span class="request-desc">申请查看你的日记</span></div>
+              </div>
+              <div class="request-actions">
+                <button class="act-btn act-approve" data-action="approve" data-id="${r.id}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>同意</button>
+                <button class="act-btn act-reject" data-action="reject" data-id="${r.id}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>拒绝</button>
+              </div>
+            </div>`,
+            )
+            .join("");
+          reqList
+            .querySelectorAll('[data-action="approve"],[data-action="reject"]')
+            .forEach((btn) => {
+              btn.addEventListener("click", async () => {
+                const action = btn.getAttribute("data-action") ?? "";
+                const id = btn.getAttribute("data-id") ?? "";
+                const body = new FormData();
+                body.set("action", action);
+                body.set("requestId", id);
+                await fetch("/api/permission", { method: "POST", body });
+                loadUsers();
+              });
+            });
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
   }
 
-  .page-header {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    margin-bottom: 2rem;
-    flex-wrap: wrap;
-    gap: 1rem;
-  }
-
-  .page-title {
-    font-size: 1.9rem;
-    font-weight: 700;
-    background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    line-height: 1.2;
-  }
-
-  .page-sub {
-    font-size: 0.85rem;
-    color: #94a3b8;
-    margin-top: 0.3rem;
-  }
-
-  .notif-badge {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.5rem 1rem;
-    background: rgba(245,158,11,0.1);
-    border: 1px solid rgba(245,158,11,0.2);
-    border-radius: 999px;
-    color: #d97706;
-    font-size: 0.82rem;
-    font-weight: 600;
-    animation: pulse 2s ease-in-out infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0.2); }
-    50% { box-shadow: 0 0 0 6px rgba(245,158,11,0); }
-  }
-
-  /* Grid */
-  .users-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
-    align-items: start;
-  }
-
-  @media (max-width: 800px) {
-    .users-grid { grid-template-columns: 1fr; }
-  }
-
-  /* Card */
-  .card {
-    background: #ffffff;
-    border: 1px solid rgba(0,0,0,0.07);
-    border-radius: 20px;
-    padding: 1.75rem;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
-  }
-
-  .card-header {
-    display: flex;
-    align-items: center;
-    gap: 0.85rem;
-    margin-bottom: 1.5rem;
-    padding-bottom: 1.25rem;
-    border-bottom: 1px solid rgba(0,0,0,0.06);
-  }
-
-  .card-icon {
-    width: 42px;
-    height: 42px;
-    border-radius: 11px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .discover-icon {
-    background: rgba(67,56,202,0.1);
-    color: #4f46e5;
-    border: 1px solid rgba(67,56,202,0.2);
-  }
-
-  .inbox-icon {
-    background: rgba(245,158,11,0.1);
-    color: #d97706;
-    border: 1px solid rgba(245,158,11,0.2);
-  }
-
-  .card-title {
-    font-size: 1rem;
-    font-weight: 600;
-    color: #0f172a;
-    line-height: 1.2;
-  }
-
-  .card-sub {
-    font-size: 0.75rem;
-    color: #94a3b8;
-    margin-top: 0.15rem;
-  }
-
-  /* User list */
-  .user-list, .request-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    max-height: 460px;
-    overflow-y: auto;
-    padding-right: 0.25rem;
-  }
-
-  .user-list::-webkit-scrollbar,
-  .request-list::-webkit-scrollbar { width: 4px; }
-  .user-list::-webkit-scrollbar-track,
-  .request-list::-webkit-scrollbar-track { background: transparent; }
-  .user-list::-webkit-scrollbar-thumb,
-  .request-list::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 2px; }
-
-  .empty-state {
-    text-align: center;
-    padding: 3rem 1rem;
-    color: #94a3b8;
-  }
-  .empty-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
-  .empty-state p { font-size: 0.875rem; }
-
-  /* User row */
-  .user-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.7rem 0.9rem;
-    border-radius: 12px;
-    border: 1px solid rgba(0,0,0,0.05);
-    background: #f8fafc;
-    transition: border-color 0.15s;
-    gap: 0.75rem;
-  }
-  .user-row:hover {
-    background: #f1f5f9;
-    border-color: rgba(0,0,0,0.1);
-  }
-
-  .user-left {
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
-    min-width: 0;
-  }
-
-  .user-avatar {
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 0.85rem;
-    flex-shrink: 0;
-  }
-
-  .user-name {
-    font-weight: 500;
-    font-size: 0.9rem;
-    color: #0f172a;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .user-action { flex-shrink: 0; }
-
-  /* Action buttons */
-  .action-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    padding: 0.3rem 0.8rem;
-    border-radius: 8px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    font-family: inherit;
-    border: none;
-    cursor: pointer;
-    transition: all 0.18s;
-    text-decoration: none;
-  }
-
-  .btn-view {
-    background: rgba(99,102,241,0.1);
-    color: #6366f1;
-    border: 1px solid rgba(99,102,241,0.2);
-  }
-  .btn-view:hover {
-    background: rgba(99,102,241,0.2);
-    color: #4f46e5;
-  }
-
-  .btn-request {
-    background: rgba(16,185,129,0.1);
-    color: #059669;
-    border: 1px solid rgba(16,185,129,0.2);
-  }
-  .btn-request:hover {
-    background: rgba(16,185,129,0.2);
-    color: #047857;
-  }
-
-  .action-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.3rem 0.7rem;
-    border-radius: 8px;
-    font-size: 0.78rem;
-    font-weight: 600;
-  }
-
-  .badge-pending {
-    background: rgba(245,158,11,0.1);
-    color: #d97706;
-    border: 1px solid rgba(245,158,11,0.2);
-  }
-
-  /* Request row */
-  .request-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.9rem 1rem;
-    border-radius: 12px;
-    border: 1px solid rgba(245,158,11,0.15);
-    background: rgba(245,158,11,0.05);
-    gap: 0.75rem;
-  }
-  .request-row:hover {
-    background: rgba(245,158,11,0.1);
-  }
-
-  .request-left {
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
-    min-width: 0;
-  }
-
-  .request-avatar {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #f59e0b, #ef4444);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 0.9rem;
-    flex-shrink: 0;
-  }
-
-  .request-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.1rem;
-  }
-
-  .request-name {
-    font-weight: 600;
-    font-size: 0.9rem;
-    color: #b45309;
-  }
-
-  .request-desc {
-    font-size: 0.75rem;
-    color: #64748b;
-  }
-
-  .request-actions {
-    display: flex;
-    gap: 0.4rem;
-    flex-shrink: 0;
-  }
-
-  .act-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    padding: 0.35rem 0.75rem;
-    border-radius: 8px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    font-family: inherit;
-    border: none;
-    cursor: pointer;
-    transition: all 0.18s;
-  }
-
-  .act-approve {
-    background: rgba(16,185,129,0.1);
-    color: #059669;
-    border: 1px solid rgba(16,185,129,0.2);
-  }
-  .act-approve:hover {
-    background: rgba(16,185,129,0.2);
-    transform: translateY(-1px);
-  }
-
-  .act-reject {
-    background: rgba(239,68,68,0.1);
-    color: #dc2626;
-    border: 1px solid rgba(239,68,68,0.2);
-  }
-  .act-reject:hover {
-    background: rgba(239,68,68,0.2);
-    transform: translateY(-1px);
-  }
-  .user-info-box {
-    display: flex;
-    flex-direction: column;
-    gap: 0.1rem;
-    min-width: 0;
-  }
-
-  .admin-tag {
-    font-size: 0.65rem;
-    font-weight: 700;
-    color: #6366f1;
-    background: rgba(99, 102, 241, 0.1);
-    padding: 0.1rem 0.4rem;
-    border-radius: 4px;
-    width: fit-content;
-  }
-</style>
+  document.addEventListener("astro:page-load", loadUsers);
+</script>

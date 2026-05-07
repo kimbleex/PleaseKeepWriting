@@ -1,330 +1,46 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import { prisma } from "../lib/db";
-import { getUserFromCookie } from "../lib/auth";
-
-const currentUser = getUserFromCookie(Astro.cookies)!;
 const url = new URL(Astro.request.url);
-const today = new Date();
-const realTodayStr = today.toISOString().split("T")[0];
-
-// Get year/month from query or default to today
-const queryYear = parseInt(url.searchParams.get("y") || "");
-const queryMonth = parseInt(url.searchParams.get("m") || "");
-
-const year = !isNaN(queryYear) ? queryYear : today.getFullYear();
-const month =
-  !isNaN(queryMonth) && queryMonth >= 1 && queryMonth <= 12
-    ? queryMonth - 1
-    : today.getMonth();
-
-const daysInMonth = new Date(year, month + 1, 0).getDate();
-const firstDayOfMonth = new Date(year, month, 1).getDay();
-const firstDayMon = (firstDayOfMonth + 6) % 7;
-
-const isCurrentMonth =
-  year === today.getFullYear() && month === today.getMonth();
-const todayDay = isCurrentMonth ? today.getDate() : -1;
-
-const monthStart = new Date(
-  `${year}-${String(month + 1).padStart(2, "0")}-01T00:00:00Z`,
-);
-const monthEnd = new Date(
-  `${year}-${String(month + 1).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}T23:59:59Z`,
-);
-// Fetch everything in parallel — single round-trip
-const [allUserList, diariesThisMonth, totalUsers, allMyDiaries, hasWroteToday, myUser] = await Promise.all([
-  prisma.user.findMany({
-    where: { role: "USER" },
-    select: { id: true },
-  }),
-  prisma.diary.findMany({
-    where: { date: { gte: monthStart, lte: monthEnd } },
-    select: { date: true, userId: true },
-  }),
-  prisma.user.count({ where: { role: "USER" } }),
-  prisma.diary.findMany({
-    where: { userId: currentUser.id },
-    orderBy: { date: "desc" },
-    select: { date: true },
-  }),
-  prisma.diary.findFirst({
-    where: { 
-      userId: currentUser.id, 
-      date: new globalThis.Date(`${realTodayStr}T00:00:00Z`) 
-    },
-    select: { id: true }
-  }),
-  prisma.user.findUnique({
-    where: { id: currentUser.id },
-    select: { createdAt: true },
-  }),
-]);
-const allUserIds = allUserList.map((u) => u.id);
-
-// Second-pass: realTodayWroteCount needs allUserIds (derived above)
-const realTodayWroteCount = await prisma.diary.count({
-  where: {
-    date: new globalThis.Date(`${realTodayStr}T00:00:00Z`),
-    userId: { in: allUserIds },
-  },
-});
-
-const nonAdminDiaries = diariesThisMonth.filter((d) =>
-  allUserIds.includes(d.userId),
-);
-
-const diariesByDay: Record<number, number> = {};
-nonAdminDiaries.forEach((d) => {
-  const day = d.date.getUTCDate();
-  diariesByDay[day] = (diariesByDay[day] || 0) + 1;
-});
-
-const daysWithDiaries = Object.keys(diariesByDay).length;
-const todayDateStr = isCurrentMonth
-  ? `${year}-${String(month + 1).padStart(2, "0")}-${String(todayDay).padStart(2, "0")}`
-  : realTodayStr;
-
-const wroteToday = realTodayWroteCount;
-const totalMyDiaries = allMyDiaries.length;
-
-// Current streak
-let streak = 0;
-if (allMyDiaries.length > 0) {
-  const dateSets = new Set(
-    allMyDiaries.map((d) => d.date.toISOString().split("T")[0]),
-  );
-  let cur = new Date(`${realTodayStr}T00:00:00Z`);
-  while (dateSets.has(cur.toISOString().split("T")[0])) {
-    streak++;
-    cur.setUTCDate(cur.getUTCDate() - 1);
-  }
-}
-
-// Longest streak
-let longestStreak = 0;
-if (allMyDiaries.length > 0) {
-  const sorted = [...allMyDiaries].sort(
-    (a, b) => a.date.getTime() - b.date.getTime(),
-  );
-  let cur = 1,
-    max = 1;
-  for (let i = 1; i < sorted.length; i++) {
-    const diff =
-      (sorted[i].date.getTime() - sorted[i - 1].date.getTime()) / 86400000;
-    if (diff === 1) {
-      cur++;
-      max = Math.max(max, cur);
-    } else cur = 1;
-  }
-  longestStreak = max;
-}
-
-const daysSinceJoined = myUser
-  ? Math.floor((today.getTime() - myUser.createdAt.getTime()) / 86400000)
-  : 0;
-const myMonthDiaries = diariesThisMonth.filter(
-  (d) => d.userId === currentUser.id,
-).length;
-const monthCompletionPct =
-  daysInMonth > 0 ? Math.round((myMonthDiaries / daysInMonth) * 100) : 0;
-const wroteToday_me = !!hasWroteToday;
-
-const monthNames = [
-  "一月",
-  "二月",
-  "三月",
-  "四月",
-  "五月",
-  "六月",
-  "七月",
-  "八月",
-  "九月",
-  "十月",
-  "十一月",
-  "十二月",
-];
-const weekdayNames = ["日", "一", "二", "三", "四", "五", "六"];
-const todayWeekday = weekdayNames[today.getDay()];
-const ringFill = (monthCompletionPct / 100) * 163.4;
-
-type CalCell =
-  | { isEmpty: true }
-  | {
-      isEmpty: false;
-      day: number;
-      dateStr: string;
-      count: number;
-      hasDiaries: boolean;
-      isToday: boolean;
-      isMine: boolean;
-      intensity: number;
-      dots: number;
-      title: string;
-      cls: string;
-    };
-const calendarCells: CalCell[] = [];
-for (let i = 0; i < firstDayMon; i++) calendarCells.push({ isEmpty: true });
-for (let d = 1; d <= daysInMonth; d++) {
-  const count = diariesByDay[d] || 0;
-  const hasDiaries = count > 0;
-  const isToday = d === todayDay;
-  const ds = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-  const isMine = allMyDiaries.some(
-    (m) => m.date.toISOString().split("T")[0] === ds,
-  );
-  let intensity = 0;
-  if (isMine && totalUsers > 0) {
-    const pct = count / totalUsers;
-    intensity = pct <= 0.33 ? 1 : pct <= 0.66 ? 2 : 3;
-  }
-  calendarCells.push({
-    isEmpty: false,
-    day: d,
-    dateStr: ds,
-    count,
-    hasDiaries,
-    isToday,
-    isMine,
-    intensity,
-    dots: Math.min(count, 5),
-    title: `${ds} · ${count}/${totalUsers} 人已写`,
-    cls: [
-      "cal-cell cal-day",
-      `intensity-${intensity}`,
-      isToday ? "is-today" : "",
-      isMine ? "is-mine" : "",
-    ]
-      .filter(Boolean)
-      .join(" "),
-  });
-}
+const queryYear = url.searchParams.get("y") || "";
+const queryMonth = url.searchParams.get("m") || "";
 ---
-
 <Layout title="日历主页">
   <div class="home-layout">
     <!-- LEFT: Calendar -->
     <div class="cal-column">
-      <!-- Header -->
       <div class="section-header">
         <div class="header-left">
-          <details class="date-selector">
-            <summary class="section-title">
-              {year}年 <span class="title-accent">{monthNames[month]}</span>
-              <svg
-                class="chevron"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="3"
-                stroke-linecap="round"
-                stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg
-              >
-            </summary>
-            <div class="picker-popover">
-              <div class="picker-years">
-                <button class="y-btn" id="prevYear" data-year={year - 1}>
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    ><path d="m15 18-6-6 6-6"></path></svg
-                  >
-                </button>
-                <span class="y-val">{year}年</span>
-                <button class="y-btn" id="nextYear" data-year={year + 1}>
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg
-                  >
-                </button>
-              </div>
-              <div class="picker-months">
-                {
-                  monthNames.map((m, idx) => (
-                    <button
-                      class={`m-btn ${idx === month ? "active" : ""}`}
-                      data-month={idx + 1}
-                    >
-                      {m}
-                    </button>
-                  ))
-                }
-              </div>
-            </div>
-          </details>
+          <div class="section-title" id="cal-title">
+            <span class="skel skel-title"></span>
+          </div>
           <p class="section-sub">点击日期查看当日所有日记</p>
         </div>
-        <div class="meta-pills">
+        <div class="meta-pills" id="meta-pills">
           <div class="meta-pill">
-            <span class="meta-num">{daysWithDiaries}</span>
+            <span class="meta-num skel skel-num"></span>
             <span class="meta-lbl">有记录天数</span>
           </div>
           <div class="meta-sep"></div>
           <div class="meta-pill">
-            <span class="meta-num">{totalUsers}</span>
+            <span class="meta-num skel skel-num"></span>
             <span class="meta-lbl">成员总数</span>
           </div>
         </div>
       </div>
-
-      <!-- Calendar card -->
       <div class="card cal-card">
         <div class="cal-weekrow">
-          {
-            ["一", "二", "三", "四", "五", "六", "日"].map((w) => (
-              <div class="cal-weekday">{w}</div>
-            ))
-          }
+          {["一","二","三","四","五","六","日"].map(w=><div class="cal-weekday">{w}</div>)}
         </div>
-        <div class="cal-grid">
-          {
-            calendarCells.map((cell) =>
-              cell.isEmpty ? (
-                <div class="cal-cell cal-empty" />
-              ) : (
-                <a
-                  href={`/day/${cell.dateStr}`}
-                  class={cell.cls}
-                  title={cell.title}
-                >
-                  <span class="cal-day-num">{cell.day}</span>
-                  {cell.hasDiaries && (
-                    <div class="cal-dots">
-                      {Array.from({ length: cell.dots }).map(() => (
-                        <span class="cal-dot" />
-                      ))}
-                    </div>
-                  )}
-                </a>
-              ),
-            )
-          }
+        <div class="cal-grid" id="cal-grid">
+          {Array.from({length:35}).map(()=><div class="cal-cell cal-skel"></div>)}
         </div>
-        <div class="legend">
+        <div class="legend" id="cal-legend" style="visibility:hidden">
           <span class="legend-label">图例：</span>
-          <div class="legend-item">
-            <div class="leg-sw sw0"></div><span>未写</span>
-          </div>
+          <div class="legend-item"><div class="leg-sw sw0"></div><span>未写</span></div>
           <div class="legend-sep"></div>
           <div class="legend-item">
-            <div style="display:flex; gap:2px; margin-right:4px;">
-              <div class="leg-sw sw1"></div>
-              <div class="leg-sw sw2"></div>
-              <div class="leg-sw sw3"></div>
+            <div style="display:flex;gap:2px;margin-right:4px;">
+              <div class="leg-sw sw1"></div><div class="leg-sw sw2"></div><div class="leg-sw sw3"></div>
             </div>
             <span>已写 (颜色深浅代表全站参与度)</span>
           </div>
@@ -334,784 +50,273 @@ for (let d = 1; d <= daysInMonth; d++) {
 
     <!-- RIGHT: Sidebar -->
     <div class="sidebar">
-      <!-- Today status -->
-      <div class={`card today-card ${wroteToday_me ? "wrote" : "not-wrote"}`}>
-        <div class="today-icon">
-          {
-            wroteToday_me ? (
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            ) : (
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <>
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                </>
-              </svg>
-            )
-          }
-        </div>
+      <div class="card today-card" id="today-card">
+        <div class="today-icon skel-circle"></div>
         <div class="today-body">
-          <div class="today-title">
-            {wroteToday_me ? "今日已完成 ✨" : "今日还未写哦"}
-          </div>
-          <div class="today-date">周{todayWeekday}，{todayDateStr}</div>
+          <div class="today-title"><span class="skel skel-line"></span></div>
+          <div class="today-date"><span class="skel skel-line-sm"></span></div>
         </div>
-        {
-          !wroteToday_me && (
-            <a href="/diary" class="today-cta">
-              去写 →
-            </a>
-          )
-        }
       </div>
-
-      <!-- Stats 2x2 -->
       <div class="stats-grid">
-        <div class="card stat-card">
-          <div class="stat-icon">🔥</div>
-          <div class="stat-val">{streak}</div>
-          <div class="stat-lbl">当前连续天数</div>
-        </div>
-        <div class="card stat-card">
-          <div class="stat-icon">📖</div>
-          <div class="stat-val">{totalMyDiaries}</div>
-          <div class="stat-lbl">累计日记篇数</div>
-        </div>
-        <div class="card stat-card">
-          <div class="stat-icon">🏆</div>
-          <div class="stat-val">{longestStreak}</div>
-          <div class="stat-lbl">最长连续天数</div>
-        </div>
-        <div class="card stat-card">
-          <div class="stat-icon">📅</div>
-          <div class="stat-val">{daysSinceJoined}</div>
-          <div class="stat-lbl">加入天数</div>
-        </div>
+        {[["🔥","当前连续天数"],["📖","累计日记篇数"],["🏆","最长连续天数"],["📅","加入天数"]].map(([icon,lbl])=>(
+          <div class="card stat-card">
+            <div class="stat-icon">{icon}</div>
+            <div class="stat-val skel skel-num" style="margin:auto"></div>
+            <div class="stat-lbl">{lbl}</div>
+          </div>
+        ))}
       </div>
-
-      <!-- Month ring -->
-      <div class="card ring-card">
+      <div class="card ring-card" id="ring-card">
         <div class="ring-wrap">
           <svg viewBox="0 0 64 64" width="60" height="60">
-            <circle
-              cx="32"
-              cy="32"
-              r="26"
-              fill="none"
-              stroke="rgba(255,255,255,0.06)"
-              stroke-width="5"></circle>
-            <circle
-              cx="32"
-              cy="32"
-              r="26"
-              fill="none"
-              stroke="url(#rg)"
-              stroke-width="5"
-              stroke-linecap="round"
-              stroke-dasharray={`${ringFill} 163.4`}
-              transform="rotate(-90 32 32)"></circle>
-            <defs>
-              <linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stop-color="#6366f1"></stop>
-                <stop offset="100%" stop-color="#34d399"></stop>
-              </linearGradient>
-            </defs>
+            <circle cx="32" cy="32" r="26" fill="none" stroke="rgba(0,0,0,0.06)" stroke-width="5"></circle>
+            <circle id="ring-arc" cx="32" cy="32" r="26" fill="none" stroke="url(#rg)" stroke-width="5" stroke-linecap="round" stroke-dasharray="0 163.4" transform="rotate(-90 32 32)"></circle>
+            <defs><linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#6366f1"></stop><stop offset="100%" stop-color="#34d399"></stop></linearGradient></defs>
           </svg>
-          <div class="ring-center">
-            <span class="ring-pct">{monthCompletionPct}%</span>
-          </div>
+          <div class="ring-center"><span class="ring-pct" id="ring-pct">–</span></div>
         </div>
         <div class="ring-info">
           <div class="ring-title">本月完成率</div>
-          <div class="ring-sub">{myMonthDiaries} / {daysInMonth} 天已记录</div>
+          <div class="ring-sub" id="ring-sub"><span class="skel skel-line-sm"></span></div>
         </div>
       </div>
-
-      <!-- Group today -->
-      <div class="card group-card">
+      <div class="card group-card" id="group-card">
         <div class="group-header">
           <span class="group-title">今日动态</span>
-          <span class="group-count">{wroteToday} / {totalUsers} 人已写</span>
+          <span class="group-count" id="group-count">–</span>
         </div>
-        <div class="group-bar-bg">
-          <div
-            class="group-bar-fg"
-            style={`width:${totalUsers > 0 ? Math.round((wroteToday / totalUsers) * 100) : 0}%`}
-          >
-          </div>
-        </div>
-        <div class="group-note">
-          {
-            wroteToday === totalUsers
-              ? "🎉 所有人今天都写了！"
-              : `还有 ${totalUsers - wroteToday} 人未写`
-          }
-        </div>
+        <div class="group-bar-bg"><div class="group-bar-fg" id="group-bar" style="width:0%"></div></div>
+        <div class="group-note" id="group-note"><span class="skel skel-line-sm"></span></div>
       </div>
     </div>
   </div>
 
   <style>
-    /* Full-viewport layout */
-    .home-layout {
-      display: grid;
-      grid-template-columns: 1fr 280px;
-      gap: 1.5rem;
-      align-items: stretch;
-      height: calc(100dvh - 62px - 4rem);
-    }
+    /* Skeleton */
+    .skel { display:inline-block; background:linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:6px; }
+    .skel-title { width:160px; height:2rem; }
+    .skel-num { width:36px; height:1.1rem; }
+    .skel-line { width:120px; height:0.85rem; }
+    .skel-line-sm { width:80px; height:0.7rem; }
+    .skel-circle { width:38px; height:38px; border-radius:50%; background:linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; }
+    .cal-skel { background:linear-gradient(90deg,#f4f4f4 25%,#ebebeb 50%,#f4f4f4 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:10px; min-height:36px; }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 
-    /* ── Shared card ── */
-    .card {
-      background: #ffffff;
-      border: 1px solid rgba(0, 0, 0, 0.07);
-      border-radius: 18px;
-      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
-    }
+    .home-layout { display:grid; grid-template-columns:1fr 280px; gap:1.5rem; align-items:stretch; height:calc(100dvh - 62px - 4rem); }
+    .card { background:#ffffff; border:1px solid rgba(0,0,0,0.07); border-radius:18px; box-shadow:0 2px 12px rgba(0,0,0,0.05); }
+    .cal-column { display:flex; flex-direction:column; gap:1rem; height:100%; min-height:0; }
+    .section-header { display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:0.5rem; }
+    .section-title { font-size:1.6rem; font-weight:700; color:#0f172a; line-height:1.2; min-height:2rem; }
+    .title-accent { background:linear-gradient(135deg,#6366f1,#a855f7); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .section-sub { font-size:0.78rem; color:#94a3b8; margin-top:0.2rem; }
+    .meta-pills { display:flex; align-items:center; gap:1rem; background:#f8fafc; border:1px solid rgba(0,0,0,0.07); border-radius:10px; padding:0.5rem 1rem; }
+    .meta-pill { text-align:center; }
+    .meta-num { display:block; font-size:1.15rem; font-weight:700; color:#6366f1; line-height:1; }
+    .meta-lbl { display:block; font-size:0.67rem; color:#94a3b8; margin-top:0.12rem; }
+    .meta-sep { width:1px; height:26px; background:rgba(0,0,0,0.07); }
+    .cal-card { padding:1.25rem; flex:1; min-height:0; display:flex; flex-direction:column; }
+    .cal-weekrow { display:grid; grid-template-columns:repeat(7,1fr); gap:0.35rem; margin-bottom:0.5rem; }
+    .cal-weekday { text-align:center; font-size:0.7rem; font-weight:600; color:#64748b; letter-spacing:0.05em; padding:0.2rem 0; }
+    .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); grid-auto-rows:1fr; gap:0.35rem; flex:1; min-height:0; }
+    .cal-cell { border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-decoration:none; transition:background-color 0.15s ease,border-color 0.15s ease,transform 0.15s ease,box-shadow 0.15s ease; overflow:hidden; min-height:0; }
+    .cal-empty { pointer-events:none; transition:none; background:transparent; }
+    .cal-day { border:1px solid rgba(0,0,0,0.06); cursor:pointer; }
+    .cal-day.intensity-0 { background:#f8fafc; }
+    .cal-day.intensity-0:hover { background:#f1f5f9; border-color:rgba(0,0,0,0.12); transform:scale(1.04); }
+    .cal-day.intensity-1 { background:rgba(16,185,129,0.07); border-color:rgba(16,185,129,0.2); }
+    .cal-day.intensity-1:hover { background:rgba(16,185,129,0.14); transform:scale(1.04); }
+    .cal-day.intensity-2 { background:rgba(16,185,129,0.14); border-color:rgba(16,185,129,0.32); }
+    .cal-day.intensity-2:hover { background:rgba(16,185,129,0.22); transform:scale(1.04); }
+    .cal-day.intensity-3 { background:rgba(16,185,129,0.22); border-color:rgba(16,185,129,0.44); }
+    .cal-day.intensity-3:hover { background:rgba(16,185,129,0.32); transform:scale(1.04); }
+    .cal-day.is-mine { box-shadow:inset 0 0 0 2px rgba(139,92,246,0.4); }
+    .cal-day.is-today { border-color:#6366f1 !important; box-shadow:0 0 0 2px rgba(99,102,241,0.2); }
+    .cal-day.is-today .cal-day-num { color:#6366f1; }
+    .cal-day-num { font-size:0.82rem; font-weight:600; color:#94a3b8; line-height:1; }
+    .cal-day:hover .cal-day-num { color:#1e293b; }
+    .cal-dots { display:flex; gap:2px; margin-top:3px; flex-wrap:wrap; justify-content:center; }
+    .cal-dot { width:3px; height:3px; border-radius:50%; background:#10b981; opacity:0.9; }
+    .legend { display:flex; align-items:center; gap:0.5rem; justify-content:flex-end; flex-wrap:wrap; margin-top:0.9rem; padding-top:0.9rem; border-top:1px solid rgba(0,0,0,0.05); }
+    .legend-label { font-size:0.68rem; color:#64748b; }
+    .legend-item { display:flex; align-items:center; gap:0.22rem; font-size:0.67rem; color:#64748b; }
+    .legend-sep { width:1px; height:12px; background:rgba(0,0,0,0.07); }
+    .leg-sw { width:11px; height:11px; border-radius:3px; border:1px solid transparent; flex-shrink:0; }
+    .sw0 { background:#f1f5f9; border-color:rgba(0,0,0,0.08); }
+    .sw1 { background:rgba(16,185,129,0.1); border-color:rgba(16,185,129,0.2); }
+    .sw2 { background:rgba(16,185,129,0.2); border-color:rgba(16,185,129,0.35); }
+    .sw3 { background:rgba(16,185,129,0.35); border-color:rgba(16,185,129,0.5); }
+    .sidebar { display:flex; flex-direction:column; gap:0.85rem; height:100%; overflow-y:auto; scrollbar-width:none; }
+    .sidebar::-webkit-scrollbar { display:none; }
+    .today-card { display:flex; align-items:center; gap:0.75rem; padding:1rem 1.1rem; }
+    .today-card.wrote { border-color:rgba(16,185,129,0.25); background:rgba(16,185,129,0.05); }
+    .today-card.not-wrote { border-color:rgba(245,158,11,0.2); background:rgba(245,158,11,0.04); }
+    .today-icon { width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .wrote .today-icon { background:rgba(16,185,129,0.12); color:#059669; }
+    .not-wrote .today-icon { background:rgba(245,158,11,0.12); color:#d97706; }
+    .today-body { flex:1; min-width:0; }
+    .today-title { font-size:0.85rem; font-weight:600; color:#0f172a; }
+    .today-date { font-size:0.7rem; color:#94a3b8; margin-top:0.12rem; }
+    .today-cta { flex-shrink:0; padding:0.28rem 0.75rem; border-radius:7px; background:rgba(245,158,11,0.12); color:#d97706; font-size:0.78rem; font-weight:600; text-decoration:none; transition:background 0.18s; }
+    .today-cta:hover { background:rgba(245,158,11,0.22); }
+    .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.65rem; }
+    .stat-card { padding:0.9rem 0.75rem; text-align:center; transition:border-color 0.18s,transform 0.18s; }
+    .stat-card:hover { border-color:rgba(99,102,241,0.2); transform:translateY(-2px); box-shadow:0 4px 16px rgba(0,0,0,0.08); }
+    .stat-icon { font-size:1.25rem; line-height:1; margin-bottom:0.35rem; }
+    .stat-val { font-size:1.5rem; font-weight:700; color:#0f172a; line-height:1; }
+    .stat-lbl { font-size:0.65rem; color:#94a3b8; margin-top:0.25rem; }
+    .ring-card { display:flex; align-items:center; gap:1rem; padding:1rem 1.1rem; }
+    .ring-wrap { position:relative; width:60px; height:60px; flex-shrink:0; }
+    .ring-center { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+    .ring-pct { font-size:0.75rem; font-weight:700; color:#6366f1; }
+    .ring-info { min-width:0; }
+    .ring-title { font-size:0.85rem; font-weight:600; color:#0f172a; }
+    .ring-sub { font-size:0.7rem; color:#94a3b8; margin-top:0.18rem; }
+    .group-card { padding:1rem 1.1rem; }
+    .group-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:0.65rem; }
+    .group-title { font-size:0.85rem; font-weight:600; color:#0f172a; }
+    .group-count { font-size:0.72rem; color:#6366f1; font-weight:600; }
+    .group-bar-bg { height:5px; background:rgba(0,0,0,0.06); border-radius:999px; overflow:hidden; margin-bottom:0.55rem; }
+    .group-bar-fg { height:100%; background:linear-gradient(90deg,#6366f1,#10b981); border-radius:999px; transition:width 0.6s ease; }
+    .group-note { font-size:0.73rem; color:#94a3b8; }
 
-    /* ── Calendar column ── */
-    .cal-column {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      height: 100%;
-      min-height: 0;
-    }
+    /* Date picker */
+    .date-selector { position:relative; user-select:none; }
+    .date-selector summary { list-style:none; display:flex; align-items:center; gap:0.5rem; cursor:pointer; transition:opacity 0.2s; outline:none; margin:0; }
+    .date-selector summary::-webkit-details-marker { display:none; }
+    .date-selector summary:hover { opacity:0.8; }
+    .date-selector .chevron { color:#94a3b8; transition:transform 0.3s; margin-top:0.2rem; }
+    .date-selector[open] .chevron { transform:rotate(180deg); }
+    .picker-popover { position:absolute; top:100%; left:0; z-index:100; margin-top:0.75rem; background:rgba(255,255,255,0.95); backdrop-filter:blur(12px); border:1px solid rgba(0,0,0,0.08); border-radius:16px; padding:1.25rem; box-shadow:0 10px 40px rgba(0,0,0,0.1); width:280px; animation:slideDown 0.2s ease-out; }
+    @keyframes slideDown { from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:translateY(0)} }
+    .picker-years { display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; padding-bottom:0.75rem; border-bottom:1px solid rgba(0,0,0,0.05); }
+    .y-val { font-weight:700; color:#1e293b; font-size:1.1rem; }
+    .y-btn { width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; background:#f1f5f9; border:none; color:#64748b; cursor:pointer; transition:all 0.2s; }
+    .y-btn:hover { background:#e2e8f0; color:#1e293b; }
+    .picker-months { display:grid; grid-template-columns:repeat(3,1fr); gap:0.5rem; }
+    .m-btn { padding:0.6rem 0.25rem; border-radius:8px; background:transparent; border:1px solid transparent; color:#64748b; font-size:0.9rem; font-weight:500; cursor:pointer; transition:all 0.2s; }
+    .m-btn:hover { background:rgba(99,102,241,0.05); color:#6366f1; }
+    .m-btn.active { background:linear-gradient(135deg,#6366f1 0%,#a855f7 100%); color:white; font-weight:600; box-shadow:0 4px 12px rgba(99,102,241,0.25); }
 
-    .section-header {
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-    }
-
-    .section-title {
-      font-size: 1.6rem;
-      font-weight: 700;
-      color: #0f172a;
-      line-height: 1.2;
-    }
-    .title-accent {
-      background: linear-gradient(135deg, #6366f1, #a855f7);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    .section-sub {
-      font-size: 0.78rem;
-      color: #94a3b8;
-      margin-top: 0.2rem;
-    }
-
-    .meta-pills {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      background: #f8fafc;
-      border: 1px solid rgba(0, 0, 0, 0.07);
-      border-radius: 10px;
-      padding: 0.5rem 1rem;
-    }
-    .meta-pill {
-      text-align: center;
-    }
-    .meta-num {
-      display: block;
-      font-size: 1.15rem;
-      font-weight: 700;
-      color: #6366f1;
-      line-height: 1;
-    }
-    .meta-lbl {
-      display: block;
-      font-size: 0.67rem;
-      color: #94a3b8;
-      margin-top: 0.12rem;
-    }
-    .meta-sep {
-      width: 1px;
-      height: 26px;
-      background: rgba(0, 0, 0, 0.07);
-    }
-
-    /* cal-card fills remaining height in column */
-    .cal-card {
-      padding: 1.25rem;
-      flex: 1;
-      min-height: 0;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .cal-weekrow {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 0.35rem;
-      margin-bottom: 0.5rem;
-    }
-    .cal-weekday {
-      text-align: center;
-      font-size: 0.7rem;
-      font-weight: 600;
-      color: #64748b;
-      letter-spacing: 0.05em;
-      padding: 0.2rem 0;
-    }
-
-    /* Grid fills card; rows stretch evenly */
-    .cal-grid {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      grid-auto-rows: 1fr;
-      gap: 0.35rem;
-      flex: 1;
-      min-height: 0;
-    }
-
-    /* Cells stretch to row height — no fixed aspect-ratio */
-    .cal-cell {
-      border-radius: 10px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-decoration: none;
-      transition:
-        background-color 0.15s ease,
-        border-color 0.15s ease,
-        transform 0.15s ease,
-        box-shadow 0.15s ease;
-      overflow: hidden;
-      min-height: 0;
-    }
-    .cal-empty {
-      pointer-events: none;
-      transition: none;
-      background: transparent;
-    }
-    .cal-day {
-      border: 1px solid rgba(0, 0, 0, 0.06);
-      cursor: pointer;
-    }
-
-    .cal-day.intensity-0 {
-      background: #f8fafc;
-    }
-    .cal-day.intensity-0:hover {
-      background: #f1f5f9;
-      border-color: rgba(0, 0, 0, 0.12);
-      transform: scale(1.04);
-    }
-    .cal-day.intensity-1 {
-      background: rgba(16, 185, 129, 0.07);
-      border-color: rgba(16, 185, 129, 0.2);
-    }
-    .cal-day.intensity-1:hover {
-      background: rgba(16, 185, 129, 0.14);
-      transform: scale(1.04);
-    }
-    .cal-day.intensity-2 {
-      background: rgba(16, 185, 129, 0.14);
-      border-color: rgba(16, 185, 129, 0.32);
-    }
-    .cal-day.intensity-2:hover {
-      background: rgba(16, 185, 129, 0.22);
-      transform: scale(1.04);
-    }
-    .cal-day.intensity-3 {
-      background: rgba(16, 185, 129, 0.22);
-      border-color: rgba(16, 185, 129, 0.44);
-    }
-    .cal-day.intensity-3:hover {
-      background: rgba(16, 185, 129, 0.32);
-      transform: scale(1.04);
-    }
-
-    .cal-day.is-mine {
-      box-shadow: inset 0 0 0 2px rgba(139, 92, 246, 0.4);
-    }
-    .cal-day.is-today {
-      border-color: #6366f1 !important;
-      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
-    }
-    .cal-day.is-today .cal-day-num {
-      color: #6366f1;
-    }
-
-    .cal-day-num {
-      font-size: 0.82rem;
-      font-weight: 600;
-      color: #94a3b8;
-      line-height: 1;
-    }
-    .cal-day:hover .cal-day-num {
-      color: #1e293b;
-    }
-
-    .cal-dots {
-      display: flex;
-      gap: 2px;
-      margin-top: 3px;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-    .cal-dot {
-      width: 3px;
-      height: 3px;
-      border-radius: 50%;
-      background: #10b981;
-      opacity: 0.9;
-    }
-
-    .legend {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      justify-content: flex-end;
-      flex-wrap: wrap;
-      margin-top: 0.9rem;
-      padding-top: 0.9rem;
-      border-top: 1px solid rgba(0, 0, 0, 0.05);
-    }
-    .legend-label {
-      font-size: 0.68rem;
-      color: #64748b;
-    }
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 0.22rem;
-      font-size: 0.67rem;
-      color: #64748b;
-    }
-    .legend-sep {
-      width: 1px;
-      height: 12px;
-      background: rgba(0, 0, 0, 0.07);
-    }
-    .leg-sw {
-      width: 11px;
-      height: 11px;
-      border-radius: 3px;
-      border: 1px solid transparent;
-      flex-shrink: 0;
-    }
-    .sw0 {
-      background: #f1f5f9;
-      border-color: rgba(0, 0, 0, 0.08);
-    }
-    .sw1 {
-      background: rgba(16, 185, 129, 0.1);
-      border-color: rgba(16, 185, 129, 0.2);
-    }
-    .sw2 {
-      background: rgba(16, 185, 129, 0.2);
-      border-color: rgba(16, 185, 129, 0.35);
-    }
-    .sw3 {
-      background: rgba(16, 185, 129, 0.35);
-      border-color: rgba(16, 185, 129, 0.5);
-    }
-    .sw-mine {
-      background: transparent;
-      border: 2px solid rgba(139, 92, 246, 0.55);
-    }
-
-    /* ── Sidebar ── */
-    .sidebar {
-      display: flex;
-      flex-direction: column;
-      gap: 0.85rem;
-      height: 100%;
-      overflow-y: auto;
-      scrollbar-width: none;
-    }
-    .sidebar::-webkit-scrollbar {
-      display: none;
-    }
-
-    /* Today card */
-    .today-card {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 1rem 1.1rem;
-    }
-    .today-card.wrote {
-      border-color: rgba(16, 185, 129, 0.25);
-      background: rgba(16, 185, 129, 0.05);
-    }
-    .today-card.not-wrote {
-      border-color: rgba(245, 158, 11, 0.2);
-      background: rgba(245, 158, 11, 0.04);
-    }
-
-    .today-icon {
-      width: 38px;
-      height: 38px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-    .wrote .today-icon {
-      background: rgba(16, 185, 129, 0.12);
-      color: #059669;
-    }
-    .not-wrote .today-icon {
-      background: rgba(245, 158, 11, 0.12);
-      color: #d97706;
-    }
-
-    .today-body {
-      flex: 1;
-      min-width: 0;
-    }
-    .today-title {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: #0f172a;
-    }
-    .today-date {
-      font-size: 0.7rem;
-      color: #94a3b8;
-      margin-top: 0.12rem;
-    }
-
-    .today-cta {
-      flex-shrink: 0;
-      padding: 0.28rem 0.75rem;
-      border-radius: 7px;
-      background: rgba(245, 158, 11, 0.12);
-      color: #d97706;
-      font-size: 0.78rem;
-      font-weight: 600;
-      text-decoration: none;
-      transition: background 0.18s;
-    }
-    .today-cta:hover {
-      background: rgba(245, 158, 11, 0.22);
-      color: #d97706;
-    }
-
-    /* Stats 2x2 */
-    .stats-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.65rem;
-    }
-    .stat-card {
-      padding: 0.9rem 0.75rem;
-      text-align: center;
-      transition:
-        border-color 0.18s,
-        transform 0.18s;
-    }
-    .stat-card:hover {
-      border-color: rgba(99, 102, 241, 0.2);
-      transform: translateY(-2px);
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-    }
-    .stat-icon {
-      font-size: 1.25rem;
-      line-height: 1;
-      margin-bottom: 0.35rem;
-    }
-    .stat-val {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: #0f172a;
-      line-height: 1;
-    }
-    .stat-lbl {
-      font-size: 0.65rem;
-      color: #94a3b8;
-      margin-top: 0.25rem;
-    }
-
-    /* Ring card */
-    .ring-card {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      padding: 1rem 1.1rem;
-    }
-    .ring-wrap {
-      position: relative;
-      width: 60px;
-      height: 60px;
-      flex-shrink: 0;
-    }
-    .ring-center {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .ring-pct {
-      font-size: 0.75rem;
-      font-weight: 700;
-      color: #6366f1;
-    }
-    .ring-info {
-      min-width: 0;
-    }
-    .ring-title {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: #0f172a;
-    }
-    .ring-sub {
-      font-size: 0.7rem;
-      color: #94a3b8;
-      margin-top: 0.18rem;
-    }
-
-    /* Group card */
-    .group-card {
-      padding: 1rem 1.1rem;
-    }
-    .group-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 0.65rem;
-    }
-    .group-title {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: #0f172a;
-    }
-    .group-count {
-      font-size: 0.72rem;
-      color: #6366f1;
-      font-weight: 600;
-    }
-    .group-bar-bg {
-      height: 5px;
-      background: rgba(0, 0, 0, 0.06);
-      border-radius: 999px;
-      overflow: hidden;
-      margin-bottom: 0.55rem;
-    }
-    .group-bar-fg {
-      height: 100%;
-      background: linear-gradient(90deg, #6366f1, #10b981);
-      border-radius: 999px;
-    }
-    .group-note {
-      font-size: 0.73rem;
-      color: #94a3b8;
-    }
-
-    /* Responsive */
-    @media (max-width: 860px) {
-      .home-layout {
-        grid-template-columns: 1fr;
-        height: auto;
-      }
-      .cal-column {
-        height: auto;
-      }
-      .cal-card {
-        flex: none;
-      }
-      .cal-grid {
-        flex: none;
-        grid-auto-rows: auto;
-      }
-      .cal-cell {
-        aspect-ratio: 1;
-      }
-      .sidebar {
-        height: auto;
-        overflow-y: visible;
-      }
-    }
-
-    /* Premium Date Picker */
-    .date-selector {
-      position: relative;
-      user-select: none;
-    }
-    .date-selector summary {
-      list-style: none;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      cursor: pointer;
-      transition: opacity 0.2s;
-      outline: none;
-      margin: 0;
-    }
-    .date-selector summary::-webkit-details-marker {
-      display: none;
-    }
-    .date-selector summary:hover {
-      opacity: 0.8;
-    }
-
-    .date-selector .chevron {
-      color: #94a3b8;
-      transition: transform 0.3s;
-      margin-top: 0.2rem;
-    }
-    .date-selector[open] .chevron {
-      transform: rotate(180deg);
-    }
-
-    .picker-popover {
-      position: absolute;
-      top: 100%;
-      left: 0;
-      z-index: 100;
-      margin-top: 0.75rem;
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(0, 0, 0, 0.08);
-      border-radius: 16px;
-      padding: 1.25rem;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-      width: 280px;
-      animation: slideIn 0.2s ease-out;
-    }
-    @keyframes slideIn {
-      from {
-        opacity: 0;
-        transform: translateY(-10px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .picker-years {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 1rem;
-      padding-bottom: 0.75rem;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-    }
-    .y-val {
-      font-weight: 700;
-      color: #1e293b;
-      font-size: 1.1rem;
-    }
-    .y-btn {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #f1f5f9;
-      border: none;
-      color: #64748b;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .y-btn:hover {
-      background: #e2e8f0;
-      color: #1e293b;
-    }
-
-    .picker-months {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 0.5rem;
-    }
-    .m-btn {
-      padding: 0.6rem 0.25rem;
-      border-radius: 8px;
-      background: transparent;
-      border: 1px solid transparent;
-      color: #64748b;
-      font-size: 0.9rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .m-btn:hover {
-      background: rgba(99, 102, 241, 0.05);
-      color: #6366f1;
-    }
-    .m-btn.active {
-      background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
-      color: white;
-      font-weight: 600;
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+    @media(max-width:860px){
+      .home-layout{grid-template-columns:1fr;height:auto;}
+      .cal-column{height:auto;}
+      .cal-card{flex:none;}
+      .cal-grid{flex:none;grid-auto-rows:auto;}
+      .cal-cell{aspect-ratio:1;}
+      .sidebar{height:auto;overflow-y:visible;}
     }
   </style>
 
-  <script>
-    import { navigate } from "astro:transitions/client";
+  <script define:vars={{ initY: queryYear, initM: queryMonth }}>
+    const MONTH_NAMES = ["一月","二月","三月","四月","五月","六月","七月","八月","九月","十月","十一月","十二月"];
 
-    const yDisplay = document.querySelector(".y-val");
-    const prevY = document.getElementById("prevYear");
-    const nextY = document.getElementById("nextYear");
-    const mBtns = document.querySelectorAll(".m-btn");
-
-    let currentYear = parseInt(
-      new URLSearchParams(window.location.search).get("y") ||
-        new Date().getFullYear().toString(),
-    );
-
-    const updateURL = (year: number, month: string) => {
-      navigate(`/?y=${year}&m=${month}`);
-    };
-
-    prevY?.addEventListener("click", (e) => {
-      e.preventDefault();
-      currentYear--;
-      if (yDisplay) yDisplay.textContent = currentYear + "年";
-    });
-
-    nextY?.addEventListener("click", (e) => {
-      e.preventDefault();
-      currentYear++;
-      if (yDisplay) yDisplay.textContent = currentYear + "年";
-    });
-
-    mBtns.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const m = btn.getAttribute("data-month");
-        if (m) updateURL(currentYear, m);
-      });
-    });
-
-    // Close dropdown when clicking outside
-    document.addEventListener("click", (e) => {
-      const selector = document.querySelector(
-        ".date-selector",
-      ) as HTMLDetailsElement;
-      if (selector && selector.open && !selector.contains(e.target as Node)) {
-        selector.removeAttribute("open");
+    function buildCalendar(data) {
+      // Title
+      const titleEl = document.getElementById('cal-title');
+      if (titleEl) {
+        titleEl.innerHTML = `${data.year}年 <span class="title-accent">${MONTH_NAMES[data.month]}</span>
+          <details class="date-selector" id="date-selector">
+            <summary style="display:inline-flex;align-items:center;gap:0.5rem;cursor:pointer;outline:none;list-style:none;">
+              <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+            </summary>
+            <div class="picker-popover">
+              <div class="picker-years">
+                <button class="y-btn" id="prevYear"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg></button>
+                <span class="y-val" id="y-val">${data.year}年</span>
+                <button class="y-btn" id="nextYear"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></button>
+              </div>
+              <div class="picker-months">${MONTH_NAMES.map((m,i)=>`<button class="m-btn${i===data.month?' active':''}" data-month="${i+1}">${m}</button>`).join('')}</div>
+            </div>
+          </details>`;
+        attachPickerEvents(data.year);
       }
-    });
+
+      // Meta pills
+      const metaEl = document.getElementById('meta-pills');
+      if (metaEl) metaEl.innerHTML = `
+        <div class="meta-pill"><span class="meta-num">${data.daysWithDiaries}</span><span class="meta-lbl">有记录天数</span></div>
+        <div class="meta-sep"></div>
+        <div class="meta-pill"><span class="meta-num">${data.totalUsers}</span><span class="meta-lbl">成员总数</span></div>`;
+
+      // Grid
+      const grid = document.getElementById('cal-grid');
+      if (grid) {
+        grid.innerHTML = data.calendarCells.map(cell => {
+          if (cell.isEmpty) return '<div class="cal-cell cal-empty"></div>';
+          const cls = ['cal-cell cal-day', `intensity-${cell.intensity}`, cell.isToday?'is-today':'', cell.isMine?'is-mine':''].filter(Boolean).join(' ');
+          const dots = cell.hasDiaries ? `<div class="cal-dots">${Array.from({length:cell.dots}).map(()=>'<span class="cal-dot"></span>').join('')}</div>` : '';
+          return `<a href="/day/${cell.dateStr}" class="${cls}" title="${cell.title}"><span class="cal-day-num">${cell.day}</span>${dots}</a>`;
+        }).join('');
+      }
+      const legend = document.getElementById('cal-legend');
+      if (legend) legend.style.visibility = 'visible';
+
+      // Today card
+      const todayCard = document.getElementById('today-card');
+      if (todayCard) {
+        const iconSVG = data.wroteToday_me
+          ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
+          : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+        const ctaHTML = data.wroteToday_me ? '' : `<a href="/diary" class="today-cta">去写 →</a>`;
+        todayCard.className = `card today-card ${data.wroteToday_me ? 'wrote' : 'not-wrote'}`;
+        todayCard.innerHTML = `<div class="today-icon">${iconSVG}</div>
+          <div class="today-body">
+            <div class="today-title">${data.wroteToday_me ? '今日已完成 ✨' : '今日还未写哦'}</div>
+            <div class="today-date">周${data.todayWeekday}，${data.todayDateStr}</div>
+          </div>${ctaHTML}`;
+      }
+
+      // Stats
+      const statVals = document.querySelectorAll('.stat-val');
+      const vals = [data.streak, data.totalMyDiaries, data.longestStreak, data.daysSinceJoined];
+      statVals.forEach((el,i) => { el.textContent = vals[i]; el.classList.remove('skel','skel-num'); el.style.margin = ''; });
+
+      // Ring
+      const arc = document.getElementById('ring-arc');
+      const pctEl = document.getElementById('ring-pct');
+      const subEl = document.getElementById('ring-sub');
+      if (arc) arc.setAttribute('stroke-dasharray', `${(data.monthCompletionPct/100)*163.4} 163.4`);
+      if (pctEl) pctEl.textContent = data.monthCompletionPct + '%';
+      if (subEl) subEl.textContent = `${data.myMonthDiaries} / ${data.daysInMonth} 天已记录`;
+
+      // Group
+      const countEl = document.getElementById('group-count');
+      const barEl = document.getElementById('group-bar');
+      const noteEl = document.getElementById('group-note');
+      if (countEl) countEl.textContent = `${data.wroteToday} / ${data.totalUsers} 人已写`;
+      if (barEl) barEl.style.width = `${data.totalUsers > 0 ? Math.round((data.wroteToday/data.totalUsers)*100) : 0}%`;
+      if (noteEl) noteEl.textContent = data.wroteToday === data.totalUsers ? '🎉 所有人今天都写了！' : `还有 ${data.totalUsers - data.wroteToday} 人未写`;
+    }
+
+    function attachPickerEvents(initialYear) {
+      let currentYear = initialYear;
+      const yVal = document.getElementById('y-val');
+      document.getElementById('prevYear')?.addEventListener('click', e => { e.preventDefault(); currentYear--; if(yVal) yVal.textContent = currentYear+'年'; });
+      document.getElementById('nextYear')?.addEventListener('click', e => { e.preventDefault(); currentYear++; if(yVal) yVal.textContent = currentYear+'年'; });
+      document.querySelectorAll('.m-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const m = btn.getAttribute('data-month');
+          if (m) { import('astro:transitions/client').then(({navigate}) => navigate(`/?y=${currentYear}&m=${m}`)); }
+        });
+      });
+      document.addEventListener('click', e => {
+        const sel = document.getElementById('date-selector');
+        if (sel && sel.open && !sel.contains(e.target)) sel.removeAttribute('open');
+      }, { once: false });
+    }
+
+    async function loadData() {
+      const params = new URLSearchParams();
+      if (initY) params.set('y', initY);
+      if (initM) params.set('m', initM);
+      try {
+        const res = await fetch(`/api/home-data?${params}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        buildCalendar(data);
+      } catch(e) { console.error(e); }
+    }
+
+    document.addEventListener('astro:page-load', loadData);
   </script>
 </Layout>
