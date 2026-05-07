@@ -21,9 +21,195 @@ const user = (Astro.locals as any).user || getUserFromCookie(Astro.cookies);
     <ClientRouter />
   </head>
   <body>
+    <div id="route-loader" class="route-loader" aria-live="polite" aria-hidden="true">
+      <div class="route-loader-bar"></div>
+      <div class="route-loader-pill">加载中...</div>
+    </div>
     {user && <Header user={user} url={Astro.url} />}
     <main class="container" style="padding-top: 2rem;">
       <slot />
     </main>
+
+    <style is:global>
+      .route-loader {
+        position: fixed;
+        inset: 0 0 auto;
+        z-index: 1000;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.12s ease;
+      }
+
+      .route-loader.is-loading,
+      .route-loader.is-complete {
+        opacity: 1;
+      }
+
+      .route-loader-bar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background: linear-gradient(90deg, #6366f1, #8b5cf6, #34d399);
+        box-shadow: 0 0 16px rgba(99, 102, 241, 0.45);
+        transform: scaleX(0);
+        transform-origin: left;
+      }
+
+      .route-loader.is-loading .route-loader-bar {
+        animation: route-loader-run 1.1s ease-in-out infinite;
+      }
+
+      .route-loader.is-complete .route-loader-bar {
+        animation: none;
+        transform: scaleX(1);
+        transition: transform 0.16s ease;
+      }
+
+      .route-loader-pill {
+        position: absolute;
+        top: 12px;
+        left: 50%;
+        transform: translateX(-50%) translateY(-8px);
+        padding: 0.42rem 0.8rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.94);
+        border: 1px solid rgba(99, 102, 241, 0.18);
+        color: #4f46e5;
+        font-size: 0.78rem;
+        font-weight: 700;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        opacity: 0;
+        transition: opacity 0.12s ease, transform 0.12s ease;
+        white-space: nowrap;
+      }
+
+      .route-loader.is-loading .route-loader-pill {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+
+      .route-loader.is-complete .route-loader-pill {
+        opacity: 0;
+      }
+
+      .nav-pill.is-pending {
+        color: #6366f1;
+        background: rgba(99, 102, 241, 0.1);
+        border-color: rgba(99, 102, 241, 0.2);
+      }
+
+      @keyframes route-loader-run {
+        0% { transform: scaleX(0); opacity: 0.95; }
+        45% { transform: scaleX(0.72); opacity: 1; }
+        100% { transform: scaleX(0.96); opacity: 0.75; }
+      }
+    </style>
+
+    <script>
+      const w = window as typeof window & {
+        __routeLoaderInstalled?: boolean;
+        __routePrefetched?: Set<string>;
+      };
+
+      function getRouteLoader(): HTMLElement | null {
+        return document.getElementById('route-loader');
+      }
+
+      function showRouteLoader(label = '加载中...'): void {
+        const loader = getRouteLoader();
+        if (!loader) return;
+        const pill = loader.querySelector<HTMLElement>('.route-loader-pill');
+        if (pill) pill.textContent = label;
+        loader.classList.remove('is-complete');
+        loader.classList.add('is-loading');
+        loader.setAttribute('aria-hidden', 'false');
+      }
+
+      function hideRouteLoader(): void {
+        const loader = getRouteLoader();
+        if (!loader) return;
+        loader.classList.remove('is-loading');
+        loader.classList.add('is-complete');
+        window.setTimeout(() => {
+          const current = getRouteLoader();
+          if (!current) return;
+          current.classList.remove('is-complete');
+          current.setAttribute('aria-hidden', 'true');
+        }, 180);
+      }
+
+      function samePage(url: URL): boolean {
+        return url.pathname === location.pathname && url.search === location.search && url.hash === location.hash;
+      }
+
+      function shouldHandleLink(event: MouseEvent, anchor: HTMLAnchorElement): boolean {
+        if (event.defaultPrevented || event.button !== 0) return false;
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return false;
+        if (anchor.target && anchor.target !== '_self') return false;
+        if (anchor.hasAttribute('download')) return false;
+        const url = new URL(anchor.href, location.href);
+        if (url.origin !== location.origin) return false;
+        if (samePage(url)) return false;
+        return true;
+      }
+
+      function markPendingNav(anchor: HTMLAnchorElement): void {
+        if (!anchor.classList.contains('nav-pill')) return;
+        document.querySelectorAll('.nav-pill').forEach((item) => item.classList.remove('active', 'is-pending'));
+        anchor.classList.add('active', 'is-pending');
+      }
+
+      function prefetchNavPages(): void {
+        w.__routePrefetched ??= new Set<string>();
+        document.querySelectorAll<HTMLAnchorElement>('.nav-pill[href]').forEach((anchor) => {
+          const url = new URL(anchor.href, location.href);
+          if (url.origin !== location.origin || samePage(url) || w.__routePrefetched?.has(url.href)) return;
+          w.__routePrefetched?.add(url.href);
+
+          const link = document.createElement('link');
+          link.rel = 'prefetch';
+          link.href = url.href;
+          link.as = 'document';
+          document.head.appendChild(link);
+
+          fetch(url.href, { credentials: 'same-origin', priority: 'low' as RequestInit['priority'] }).catch(() => {});
+        });
+      }
+
+      function schedulePrefetch(): void {
+        const idle = window.requestIdleCallback ?? ((cb: IdleRequestCallback) => window.setTimeout(() => cb({ didTimeout: false, timeRemaining: () => 0 }), 300));
+        idle(() => prefetchNavPages(), { timeout: 1200 });
+      }
+
+      if (!w.__routeLoaderInstalled) {
+        w.__routeLoaderInstalled = true;
+
+        document.addEventListener('click', (event) => {
+          const anchor = (event.target as Element | null)?.closest<HTMLAnchorElement>('a[href]');
+          if (!anchor || !shouldHandleLink(event, anchor)) return;
+          markPendingNav(anchor);
+          showRouteLoader('页面加载中...');
+        }, { capture: true });
+
+        document.addEventListener('astro:before-preparation', () => showRouteLoader('页面加载中...'));
+        document.addEventListener('astro:after-swap', () => showRouteLoader('正在渲染...'));
+        document.addEventListener('astro:page-load', () => {
+          hideRouteLoader();
+          document.querySelectorAll('.nav-pill.is-pending').forEach((item) => item.classList.remove('is-pending'));
+          schedulePrefetch();
+        });
+
+        window.addEventListener('pageshow', () => {
+          hideRouteLoader();
+          schedulePrefetch();
+        });
+      }
+
+      schedulePrefetch();
+    </script>
   </body>
 </html>
