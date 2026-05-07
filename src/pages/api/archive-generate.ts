@@ -13,7 +13,7 @@ export const POST: APIRoute = async ({ cookies, request }) => {
     return new Response(JSON.stringify({ ok: false, error: 'Unauthorized' }), { status: 401 });
   }
 
-  let payload: { type?: ReportPeriodType; periodStart?: string };
+  let payload: { type?: ReportPeriodType; periodStart?: string; action?: 'generate' | 'cancel' };
   try {
     payload = await request.json();
   } catch {
@@ -22,6 +22,7 @@ export const POST: APIRoute = async ({ cookies, request }) => {
 
   const type = payload?.type;
   const periodStartStr = payload?.periodStart ?? '';
+  const action = payload?.action ?? 'generate';
   if (type !== 'WEEK' && type !== 'MONTH') {
     return new Response(JSON.stringify({ ok: false, error: '报告类型无效' }), { status: 400 });
   }
@@ -29,6 +30,29 @@ export const POST: APIRoute = async ({ cookies, request }) => {
   const parsedStart = parseDateStr(periodStartStr);
   if (!parsedStart) {
     return new Response(JSON.stringify({ ok: false, error: '周期起始日期无效' }), { status: 400 });
+  }
+
+  if (action === 'cancel') {
+    const existing = await prisma.diaryReport.findFirst({
+      where: {
+        userId: user.id,
+        type,
+        periodStart: getPeriodRange(type, parsedStart).periodStart,
+      },
+      select: { id: true },
+    });
+
+    if (existing) {
+      await prisma.diaryReport.delete({ where: { id: existing.id } });
+    }
+
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        cancelled: !!existing,
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
   }
 
   const { periodStart, periodEnd } = getPeriodRange(type, parsedStart);

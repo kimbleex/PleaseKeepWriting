@@ -417,6 +417,12 @@ import Layout from '../layouts/Layout.astro';
       border: 1px solid rgba(0, 0, 0, 0.06);
     }
 
+    .action-danger {
+      background: #fff7ed;
+      color: #c2410c;
+      border: 1px solid rgba(249, 115, 22, 0.18);
+    }
+
     .action-btn:disabled {
       opacity: 0.55;
       cursor: not-allowed;
@@ -698,6 +704,14 @@ import Layout from '../layouts/Layout.astro';
       });
     }
 
+    function reportStatusLabel(status: ReportStatus | undefined) {
+      if (status === 'READY') return '已生成';
+      if (status === 'GENERATING') return '生成中';
+      if (status === 'ERROR') return '失败';
+      if (status === 'PENDING') return '待生成';
+      return '未生成';
+    }
+
     function getCurrentGroups(): DayItem[] | GroupItem[] {
       if (!state.data) return [];
       return state.mode === 'week'
@@ -764,7 +778,7 @@ import Layout from '../layouts/Layout.astro';
         : (groups as GroupItem[]).map((group) => {
           const status = group.report?.status ?? 'PENDING';
           const badgeText = group.report
-            ? (status === 'READY' ? '已生成' : status === 'ERROR' ? '失败' : '生成中')
+            ? reportStatusLabel(status)
             : '未生成';
           return `
             <div class="archive-item" data-key="${group.periodStart}">
@@ -849,11 +863,23 @@ import Layout from '../layouts/Layout.astro';
       const res = await fetch('/api/archive-generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type, periodStart }),
+        body: JSON.stringify({ type, periodStart, action: 'generate' }),
       });
       if (!res.ok && res.status !== 202) {
         const json = await res.json().catch(() => ({}));
         throw new Error(json.error || '生成失败');
+      }
+    }
+
+    async function requestCancel(type: 'WEEK' | 'MONTH', periodStart: string) {
+      const res = await fetch('/api/archive-generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, periodStart, action: 'cancel' }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || '停止失败');
       }
     }
 
@@ -898,10 +924,12 @@ import Layout from '../layouts/Layout.astro';
       title.textContent = state.mode === 'week' ? '周档详情' : '月档详情';
       status.textContent = group.title;
       const report = group.report;
-      const buttonLabel = report?.status === 'READY' ? '重新生成' : '生成报告';
+      const reportState = report?.status ?? null;
+      const isBusy = reportState === 'GENERATING' || reportState === 'PENDING';
+      const buttonLabel = reportState === 'READY' ? '重新生成' : '生成报告';
       const refreshButton = report ? `<button type="button" class="action-btn action-secondary" data-refresh-report="${report.id}">刷新状态</button>` : '';
-      const generateDisabled = report?.status === 'GENERATING' ? 'disabled' : '';
-      const reportState = report?.status ?? 'PENDING';
+      const stopButton = isBusy ? `<button type="button" class="action-btn action-danger" data-stop-report="${group.periodStart}">停止生成</button>` : '';
+      const generateDisabled = isBusy ? 'disabled' : '';
       const statusClass = reportStatusClass(report?.status);
       const canViewReport = report?.status === 'READY' && !!report.content;
       const summaryNote =
@@ -919,11 +947,12 @@ import Layout from '../layouts/Layout.astro';
             <div>
               <h3>${escapeHTML(group.title)}</h3>
             </div>
-            <span class="status-pill ${statusClass}">${reportState}</span>
+            <span class="status-pill ${statusClass}">${reportStatusLabel(report?.status)}</span>
           </div>
           <div class="detail-meta-line"><span><strong>周期</strong> ${escapeHTML(group.periodStart)} - ${escapeHTML(group.periodEnd)}</span><span><strong>日记数量</strong> ${group.count} 篇</span></div>
           <div class="detail-actions">
             <button type="button" class="action-btn action-primary" data-generate-report="${group.periodStart}" ${generateDisabled}>${buttonLabel}</button>
+            ${stopButton}
             ${refreshButton}
             <button type="button" class="action-btn action-secondary" data-open-report ${canViewReport ? '' : 'disabled'}>查看</button>
           </div>
@@ -947,6 +976,20 @@ import Layout from '../layouts/Layout.astro';
       body.querySelector<HTMLButtonElement>('[data-refresh-report]')?.addEventListener('click', async () => {
         await loadArchiveData(false);
         renderDetail();
+      });
+
+      body.querySelector<HTMLButtonElement>('[data-stop-report]')?.addEventListener('click', async () => {
+        const btn = body.querySelector<HTMLButtonElement>('[data-stop-report]');
+        if (btn) btn.disabled = true;
+        try {
+          await requestCancel(state.mode === 'week' ? 'WEEK' : 'MONTH', group.periodStart);
+          await loadArchiveData(false);
+          state.selectedKey = group.periodStart;
+          renderDetail();
+          setSelectedItem(group.periodStart);
+        } finally {
+          if (btn) btn.disabled = false;
+        }
       });
 
       body.querySelector<HTMLButtonElement>('[data-open-report]')?.addEventListener('click', () => {

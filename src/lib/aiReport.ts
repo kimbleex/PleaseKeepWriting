@@ -8,6 +8,24 @@ type DiaryForReport = {
 
 const AI_REQUEST_TIMEOUT_MS = 45_000;
 
+async function updateReportIfExists(
+  reportId: string,
+  data: Parameters<typeof prisma.diaryReport.update>[0]['data'],
+) {
+  try {
+    await prisma.diaryReport.update({
+      where: { id: reportId },
+      data,
+    });
+    return true;
+  } catch (error) {
+    if (error instanceof Error && (error as Error & { code?: string }).code === 'P2025') {
+      return false;
+    }
+    throw error;
+  }
+}
+
 function getAIConfig() {
   const env = import.meta.env ? import.meta.env : process.env;
   const apiKey = env.AI_API_KEY;
@@ -84,10 +102,8 @@ export async function generateDiaryReport(reportId: string) {
   const report = await prisma.diaryReport.findUnique({ where: { id: reportId } });
   if (!report) return;
 
-  await prisma.diaryReport.update({
-    where: { id: reportId },
-    data: { status: 'GENERATING', error: null },
-  });
+  const active = await updateReportIfExists(reportId, { status: 'GENERATING', error: null });
+  if (!active) return;
 
   try {
     const diaries = await prisma.diary.findMany({
@@ -106,17 +122,11 @@ export async function generateDiaryReport(reportId: string) {
     const title = formatPeriodTitle(report.type as ReportPeriodType, report.periodStart, report.periodEnd);
     const { content, modelName } = await callAI(buildPrompt(report.type as ReportPeriodType, title, diaries));
 
-    await prisma.diaryReport.update({
-      where: { id: reportId },
-      data: { status: 'READY', title, content, modelName, error: null },
-    });
+    await updateReportIfExists(reportId, { status: 'READY', title, content, modelName, error: null });
   } catch (error) {
-    await prisma.diaryReport.update({
-      where: { id: reportId },
-      data: {
-        status: 'ERROR',
-        error: error instanceof Error ? error.message : '生成失败',
-      },
+    await updateReportIfExists(reportId, {
+      status: 'ERROR',
+      error: error instanceof Error ? error.message : '生成失败',
     });
   }
 }
