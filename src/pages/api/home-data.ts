@@ -8,23 +8,29 @@ export const GET: APIRoute = async ({ cookies, url }) => {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
 
-  const today = new Date();
-  const realTodayStr = today.toISOString().split('T')[0];
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' });
+  const parts = formatter.formatToParts(now);
+  const curY = parseInt(parts.find(p => p.type === 'year')?.value || '0');
+  const curM = parseInt(parts.find(p => p.type === 'month')?.value || '0');
+  const curD = parseInt(parts.find(p => p.type === 'day')?.value || '0');
+  const realTodayStr = `${curY}-${String(curM).padStart(2, '0')}-${String(curD).padStart(2, '0')}`;
+  const shanghaiToday = new Date(`${realTodayStr}T12:00:00Z`);
 
   const queryYear = parseInt(url.searchParams.get('y') || '');
   const queryMonth = parseInt(url.searchParams.get('m') || '');
-  const year = !isNaN(queryYear) ? queryYear : today.getFullYear();
+  const year = !isNaN(queryYear) ? queryYear : curY;
   const month =
     !isNaN(queryMonth) && queryMonth >= 1 && queryMonth <= 12
       ? queryMonth - 1
-      : today.getMonth();
+      : curM - 1;
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDayOfMonth = new Date(year, month, 1).getDay();
   const firstDayMon = (firstDayOfMonth + 6) % 7;
 
-  const isCurrentMonth = year === today.getFullYear() && month === today.getMonth();
-  const todayDay = isCurrentMonth ? today.getDate() : -1;
+  const isCurrentMonth = year === curY && month === curM - 1;
+  const todayDay = isCurrentMonth ? curD : -1;
 
   const monthStart = new Date(`${year}-${String(month + 1).padStart(2, '0')}-01T00:00:00Z`);
   const monthEnd = new Date(
@@ -97,7 +103,7 @@ export const GET: APIRoute = async ({ cookies, url }) => {
   }
 
   const daysSinceJoined = myUser
-    ? Math.floor((today.getTime() - myUser.createdAt.getTime()) / 86400000)
+    ? Math.floor((now.getTime() - myUser.createdAt.getTime()) / 86400000)
     : 0;
   const myMonthDiaries = diariesThisMonth.filter((d) => d.userId === currentUser.id).length;
   const monthCompletionPct = daysInMonth > 0 ? Math.round((myMonthDiaries / daysInMonth) * 100) : 0;
@@ -146,7 +152,7 @@ export const GET: APIRoute = async ({ cookies, url }) => {
       wroteToday: realTodayWroteCount,
       wroteToday_me,
       todayDateStr: realTodayStr,
-      todayWeekday: weekdayNames[today.getDay()],
+      todayWeekday: weekdayNames[shanghaiToday.getDay()],
       calendarCells,
     }),
     { headers: { 'Content-Type': 'application/json' } },

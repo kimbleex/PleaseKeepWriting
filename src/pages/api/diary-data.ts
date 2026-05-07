@@ -8,9 +8,17 @@ export const GET: APIRoute = async ({ cookies }) => {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
 
-  const today = new Date();
-  const todayDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' });
+  const parts = formatter.formatToParts(now);
+  const y = parts.find(p => p.type === 'year')?.value;
+  const m = parts.find(p => p.type === 'month')?.value;
+  const d = parts.find(p => p.type === 'day')?.value;
+  const todayDateStr = `${y}-${m}-${d}`;
   const todayDateObj = new Date(`${todayDateStr}T00:00:00Z`);
+
+  // For display info (weekday etc) based on the Shanghai date
+  const shanghaiToday = new Date(`${todayDateStr}T12:00:00Z`); // Mid-day to avoid edge cases
 
   const [existingDiary, previousDiaries] = await Promise.all([
     prisma.diary.findFirst({ where: { userId: user.id, date: todayDateObj } }),
@@ -26,10 +34,10 @@ export const GET: APIRoute = async ({ cookies }) => {
   return new Response(
     JSON.stringify({
       todayDateStr,
-      todayDay: today.getDate(),
-      todayYear: today.getFullYear(),
-      todayMonth: today.getMonth() + 1,
-      todayWeekday: weekdays[today.getDay()],
+      todayDay: parseInt(d || '0'),
+      todayYear: parseInt(y || '0'),
+      todayMonth: parseInt(m || '0'),
+      todayWeekday: weekdays[shanghaiToday.getDay()],
       existingDiary: existingDiary
         ? { id: existingDiary.id, content: existingDiary.content }
         : null,
