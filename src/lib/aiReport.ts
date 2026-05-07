@@ -6,6 +6,8 @@ type DiaryForReport = {
   content: string;
 };
 
+const AI_REQUEST_TIMEOUT_MS = 45_000;
+
 function getAIConfig() {
   const env = import.meta.env ? import.meta.env : process.env;
   const apiKey = env.AI_API_KEY;
@@ -37,21 +39,35 @@ ${diaryText}`;
 
 async function callAI(prompt: string) {
   const { apiKey, baseUrl, modelName } = getAIConfig();
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: modelName,
-      messages: [
-        { role: 'system', content: '你是一位细腻、克制、善于总结长期记录的中文日记整理助手。' },
-        { role: 'user', content: prompt },
-      ],
-      temperature: 0.7,
-    }),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), AI_REQUEST_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: modelName,
+        messages: [
+          { role: 'system', content: '你是一位细腻、克制、善于总结长期记录的中文日记整理助手。' },
+          { role: 'user', content: prompt },
+        ],
+        temperature: 0.7,
+      }),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`AI 请求超时（${Math.round(AI_REQUEST_TIMEOUT_MS / 1000)}s）`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) {
     const detail = await response.text().catch(() => '');

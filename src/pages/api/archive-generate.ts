@@ -1,8 +1,11 @@
 import type { APIRoute } from 'astro';
+import { waitUntil } from '@vercel/functions';
 import { prisma } from '../../lib/db';
 import { getUserFromCookie } from '../../lib/auth';
 import { generateDiaryReport } from '../../lib/aiReport';
 import { getPeriodRange, parseDateStr, type ReportPeriodType, toDateStr } from '../../lib/reportPeriods';
+
+export const maxDuration = 60;
 
 export const POST: APIRoute = async ({ cookies, request }) => {
   const user = getUserFromCookie(cookies);
@@ -57,7 +60,11 @@ export const POST: APIRoute = async ({ cookies, request }) => {
     },
   });
 
-  void generateDiaryReport(report.id);
+  waitUntil(
+    generateDiaryReport(report.id).catch((error) => {
+      console.error('archive report generation failed', error);
+    }),
+  );
 
   return new Response(
     JSON.stringify({
