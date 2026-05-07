@@ -47,7 +47,7 @@ function buildPrompt(type: ReportPeriodType, title: string, diaries: DiaryForRep
 
   return `请根据以下日记生成一份${reportName}。要求：
 1. 语言温和、真诚，不要夸张说教。
-2. 结构包含：概览、重要事件、情绪与能量、值得保留的观察、下阶段提醒。
+2. 结构包含：概览、重要事件、情绪与能量、值得保留的观察。
 3. 尽量引用具体日期，但不要编造日记里没有的事情。
 4. 用 Markdown 输出，标题为“${title}”。
 
