@@ -1,0 +1,1020 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="日记归档">
+  <div class="archive-page">
+    <div class="archive-toolbar">
+      <div class="segmented" role="tablist" aria-label="归档视图">
+        <button type="button" class="segment is-active" data-view="day">按天</button>
+        <button type="button" class="segment" data-view="week">按周</button>
+        <button type="button" class="segment" data-view="month">按月</button>
+      </div>
+      <div class="archive-summary" id="archive-summary" aria-label="统计卡片" aria-live="polite"></div>
+    </div>
+
+    <div class="archive-grid">
+      <section class="archive-list-panel">
+        <div class="panel-head">
+          <h2 id="list-title">全部日记</h2>
+          <span class="pill" id="list-count">0</span>
+        </div>
+        <div class="archive-list" id="archive-list"></div>
+      </section>
+
+      <aside class="archive-detail-panel">
+        <div class="panel-head">
+          <h2 id="detail-title">归档详情</h2>
+          <span class="pill" id="detail-status">未选择</span>
+        </div>
+        <div class="detail-body" id="detail-body">
+          <div class="empty-detail">
+            <div class="empty-icon">🗂</div>
+            <p>先选择一条日记、一个周档或一个月档。</p>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div class="archive-modal" id="report-modal" aria-hidden="true">
+    <div class="archive-modal-backdrop" data-report-modal-close></div>
+    <div class="archive-modal-panel" role="dialog" aria-modal="true" aria-labelledby="report-modal-title">
+      <div class="archive-modal-header">
+        <div></div>
+        <div class="archive-modal-title">
+          <h3 id="report-modal-title">周报查看</h3>
+          <p id="report-modal-subtitle"></p>
+        </div>
+        <button type="button" class="archive-modal-close" data-report-modal-close aria-label="关闭">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+      <div class="archive-modal-body" id="report-modal-content"></div>
+    </div>
+  </div>
+
+  <style is:global>
+    html:has(.archive-page) {
+      height: 100svh;
+      overflow-y: scroll;
+      scrollbar-gutter: stable;
+    }
+
+    body:has(.archive-page) {
+      height: 100svh;
+      overflow: hidden;
+    }
+
+    main.container:has(.archive-page) {
+      height: calc(100svh - var(--archive-header-height, 82px));
+      padding: clamp(0.7rem, 1.4vh, 1rem) 2rem clamp(0.7rem, 1vh, 0.9rem) !important;
+      overflow: hidden;
+    }
+
+    .archive-page {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .archive-toolbar {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 1rem;
+      align-items: stretch;
+    }
+
+    .segmented {
+      display: inline-flex;
+      padding: 0.25rem;
+      gap: 0.25rem;
+      background: #f8fafc;
+      border: 1px solid rgba(0, 0, 0, 0.07);
+      border-radius: 12px;
+      align-items: center;
+      min-height: 64px;
+    }
+
+    .segment {
+      border: none;
+      background: transparent;
+      color: #64748b;
+      padding: 0.52rem 0.9rem;
+      border-radius: 10px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .segment.is-active {
+      background: #fff;
+      color: #4f46e5;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.12);
+    }
+
+    .archive-summary {
+      display: inline-flex;
+      justify-self: end;
+      width: fit-content;
+      max-width: 100%;
+      min-width: 0;
+      height: 100%;
+    }
+
+    .summary-card {
+      display: inline-flex;
+      align-items: stretch;
+      gap: 0;
+      width: auto;
+      height: 100%;
+      min-height: 54px;
+      padding: 0.1rem 0;
+      min-width: max-content;
+    }
+
+    .summary-stat {
+      position: relative;
+      min-width: 0;
+      padding: 0.12rem 0.52rem 0.1rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 0.12rem;
+    }
+
+    .summary-stat:nth-child(1) {
+      --summary-accent: #4f46e5;
+    }
+
+    .summary-stat:nth-child(2) {
+      --summary-accent: #0f766e;
+    }
+
+    .summary-stat:nth-child(3) {
+      --summary-accent: #d97706;
+    }
+
+    .summary-stat:nth-child(4) {
+      --summary-accent: #2563eb;
+    }
+
+    .summary-stat:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: 18%;
+      bottom: 18%;
+      width: 1px;
+      background: rgba(99, 102, 241, 0.12);
+    }
+
+    .summary-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--summary-accent);
+      line-height: 1;
+    }
+
+    .summary-value {
+      font-size: 0.96rem;
+      font-weight: 800;
+      line-height: 1.1;
+      color: var(--summary-accent);
+    }
+
+    .archive-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+      gap: 1rem;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .archive-list-panel,
+    .archive-detail-panel {
+      background: #fff;
+      border: 1px solid rgba(0, 0, 0, 0.07);
+      border-radius: 18px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 1rem 1.1rem;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+      background: #f8fafc;
+    }
+
+    .panel-head h2 {
+      font-size: 1rem;
+      color: #0f172a;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 2rem;
+      padding: 0.22rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: #4f46e5;
+      background: rgba(99, 102, 241, 0.1);
+    }
+
+    .archive-list,
+    .detail-body {
+      min-height: 0;
+      overflow: auto;
+      padding: 1rem;
+    }
+
+    .archive-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .archive-item {
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      border-radius: 14px;
+      background: #fff;
+      padding: 0.95rem 1rem;
+      display: flex;
+      gap: 0.85rem;
+      align-items: flex-start;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    .archive-item:hover {
+      border-color: rgba(99, 102, 241, 0.24);
+      box-shadow: 0 8px 20px rgba(99, 102, 241, 0.08);
+      transform: translateY(-1px);
+    }
+
+    .archive-item.is-selected {
+      border-color: rgba(99, 102, 241, 0.34);
+      background: rgba(99, 102, 241, 0.04);
+    }
+
+    .item-main {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .item-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .item-preview {
+      margin-top: 0.25rem;
+      color: #475569;
+      font-size: 0.86rem;
+      line-height: 1.6;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .item-tags {
+      margin-top: 0.45rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+
+    .tag {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #64748b;
+      background: #f1f5f9;
+      border-radius: 999px;
+      padding: 0.16rem 0.5rem;
+    }
+
+    .tag.primary {
+      color: #4f46e5;
+      background: rgba(99, 102, 241, 0.1);
+    }
+
+    .detail-body {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+
+    .detail-card {
+      border: 1px solid rgba(99, 102, 241, 0.12);
+      border-radius: 16px;
+      padding: 1rem;
+      background: #fbfbff;
+    }
+
+    .detail-headline {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 0.6rem;
+    }
+
+    .detail-headline h3 {
+      font-size: 1rem;
+      color: #0f172a;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.22rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 800;
+    }
+
+    .status-ready {
+      color: #059669;
+      background: rgba(16, 185, 129, 0.1);
+    }
+
+    .status-pending,
+    .status-generating {
+      color: #b45309;
+      background: rgba(245, 158, 11, 0.1);
+    }
+
+    .status-error {
+      color: #dc2626;
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    .detail-meta-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.7rem;
+      margin-bottom: 0.75rem;
+      font-size: 0.84rem;
+      color: #64748b;
+    }
+
+    .detail-meta-line strong {
+      color: #0f172a;
+      font-weight: 700;
+    }
+
+    .detail-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      margin-top: 0.1rem;
+    }
+
+    .detail-note {
+      margin-top: 0.7rem;
+      font-size: 0.82rem;
+      color: #94a3b8;
+    }
+
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      border: none;
+      border-radius: 10px;
+      padding: 0.62rem 0.9rem;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    .action-primary {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #fff;
+      box-shadow: 0 6px 16px rgba(99, 102, 241, 0.24);
+    }
+
+    .action-secondary {
+      background: #f8fafc;
+      color: #475569;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .action-btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .loading-line {
+      color: #64748b;
+      font-size: 0.9rem;
+    }
+
+    .empty-detail {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      min-height: 320px;
+      color: #64748b;
+    }
+
+    .empty-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .archive-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 1100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .archive-modal.is-open {
+      display: flex;
+    }
+
+    .archive-modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.32);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .archive-modal-panel {
+      position: relative;
+      width: min(760px, calc(100vw - 3rem));
+      max-height: min(760px, calc(100svh - 4rem));
+      background: #fff;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 18px;
+      box-shadow: 0 24px 80px rgba(15, 23, 42, 0.22);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .archive-modal-header {
+      display: grid;
+      grid-template-columns: 40px minmax(0, 1fr) 40px;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1rem 1.1rem;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+      background: #f8fafc;
+    }
+
+    .archive-modal-title {
+      text-align: center;
+      min-width: 0;
+    }
+
+    .archive-modal-title h3 {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .archive-modal-title p {
+      font-size: 0.78rem;
+      color: #64748b;
+      margin-top: 0.1rem;
+    }
+
+    .archive-modal-close {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      background: #fff;
+      color: #64748b;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    .archive-modal-close:hover {
+      color: #4f46e5;
+      border-color: rgba(99, 102, 241, 0.22);
+      background: rgba(99, 102, 241, 0.08);
+    }
+
+    .archive-modal-body {
+      padding: 1.4rem 1.6rem;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      font-size: 1rem;
+      line-height: 1.9;
+      color: #1e293b;
+      font-family: 'Inter', 'Noto Serif SC', Georgia, serif;
+    }
+
+    body.archive-modal-open {
+      overflow: hidden;
+    }
+
+    @media (max-width: 980px) {
+      main.container:has(.archive-page) {
+        height: auto;
+        overflow: visible;
+      }
+
+      html:has(.archive-page),
+      body:has(.archive-page) {
+        height: auto;
+        overflow-y: auto;
+      }
+
+      .archive-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .archive-toolbar {
+        grid-template-columns: 1fr;
+      }
+
+      .archive-summary {
+        width: 100%;
+      }
+
+    }
+
+    @media (max-width: 640px) {
+      .segmented {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      .segment {
+        flex: 1;
+      }
+
+      .summary-card {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+        min-height: 0;
+        min-width: 0;
+      }
+
+      .summary-stat {
+        padding: 0.16rem 0.48rem 0.12rem;
+      }
+
+      .summary-stat:not(:last-child)::after {
+        display: none;
+      }
+
+      .summary-stat:nth-child(odd) {
+        border-right: 1px solid rgba(99, 102, 241, 0.1);
+      }
+
+      .summary-stat:nth-child(-n + 2) {
+        border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+        padding-bottom: 0.45rem;
+      }
+
+      .summary-stat:nth-child(n + 3) {
+        padding-top: 0.45rem;
+      }
+
+    }
+  </style>
+
+  <script>
+    type ReportStatus = 'PENDING' | 'GENERATING' | 'READY' | 'ERROR';
+    type ArchiveMode = 'day' | 'week' | 'month';
+
+    type DayItem = {
+      id: string;
+      dateStr: string;
+      content: string;
+      preview: string;
+      updatedAt: string;
+    };
+
+    type ReportItem = {
+      id: string;
+      status: ReportStatus;
+      title: string;
+      content: string | null;
+      error: string | null;
+      modelName: string | null;
+      createdAt: string;
+      updatedAt: string;
+    };
+
+    type GroupItem = {
+      periodStart: string;
+      periodEnd: string;
+      title: string;
+      count: number;
+      latestDateStr: string;
+      latestPreview: string;
+      report: ReportItem | null;
+    };
+
+    type ArchiveData = {
+      summary: {
+        totalDiaries: number;
+        totalReports: number;
+        currentWeekCount: number;
+        currentMonthCount: number;
+      };
+      diaryDays: DayItem[];
+      weeklyGroups: GroupItem[];
+      monthlyGroups: GroupItem[];
+      reports: ReportItem[];
+    };
+
+    const state = {
+      mode: 'day' as ArchiveMode,
+      data: null as ArchiveData | null,
+      selectedKey: '' as string,
+      pollTimer: null as number | null,
+    };
+
+    function escapeHTML(value: unknown): string {
+      return String(value).replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      }[char] ?? char));
+    }
+
+    function syncArchiveViewport() {
+      const header = document.querySelector('.navbar');
+      const headerHeight = header ? Math.ceil(header.getBoundingClientRect().height) : 82;
+      document.documentElement.style.setProperty('--archive-header-height', `${headerHeight}px`);
+    }
+
+    function formatDateLabel(dateStr: string) {
+      const [y, m, d] = dateStr.split('-');
+      return `${y}.${m}.${d}`;
+    }
+
+    function setSegmentActive() {
+      document.querySelectorAll<HTMLElement>('.segment').forEach((btn) => {
+        btn.classList.toggle('is-active', btn.dataset.view === state.mode);
+      });
+    }
+
+    function setSelectedItem(key: string) {
+      state.selectedKey = key;
+      document.querySelectorAll<HTMLElement>('.archive-item').forEach((item) => {
+        item.classList.toggle('is-selected', item.dataset.key === key);
+      });
+    }
+
+    function getCurrentGroups(): DayItem[] | GroupItem[] {
+      if (!state.data) return [];
+      return state.mode === 'week'
+        ? state.data.weeklyGroups
+        : state.mode === 'month'
+          ? state.data.monthlyGroups
+          : state.data.diaryDays;
+    }
+
+    function getSelectedDay(): DayItem | null {
+      if (!state.data || state.mode !== 'day') return null;
+      return state.data.diaryDays.find((day) => day.dateStr === state.selectedKey) ?? null;
+    }
+
+    function getSelectedGroup(): GroupItem | null {
+      if (!state.data || state.mode === 'day') return null;
+      const groups = state.mode === 'week' ? state.data.weeklyGroups : state.data.monthlyGroups;
+      return groups.find((group) => group.periodStart === state.selectedKey) ?? null;
+    }
+
+    function renderSummary() {
+      const el = document.getElementById('archive-summary');
+      if (!el || !state.data) return;
+      const { summary } = state.data;
+      el.innerHTML = `
+        <div class="summary-card">
+          <div class="summary-stat"><span class="summary-label">总日记</span><span class="summary-value">${summary.totalDiaries}</span></div>
+          <div class="summary-stat"><span class="summary-label">总报告</span><span class="summary-value">${summary.totalReports}</span></div>
+          <div class="summary-stat"><span class="summary-label">本周日记</span><span class="summary-value">${summary.currentWeekCount}</span></div>
+          <div class="summary-stat"><span class="summary-label">本月日记</span><span class="summary-value">${summary.currentMonthCount}</span></div>
+        </div>`;
+    }
+
+    function renderList() {
+      const list = document.getElementById('archive-list');
+      const title = document.getElementById('list-title');
+      const count = document.getElementById('list-count');
+      const hint = document.getElementById('archive-hint');
+      if (!list || !title || !count || !state.data) return;
+
+      const groups = getCurrentGroups();
+      title.textContent = state.mode === 'day' ? '全部日记' : state.mode === 'week' ? '每周归档' : '每月归档';
+      count.textContent = String(groups.length);
+      if (hint) {
+        hint.textContent = state.mode === 'day'
+          ? '按天查看每一天的内容。'
+          : '生成后会保存在这里，之后可以直接回看。';
+      }
+
+      if (groups.length === 0) {
+        list.innerHTML = '<div class="empty-detail"><div class="empty-icon">📭</div><p>这里还没有内容。</p></div>';
+        return;
+      }
+
+      list.innerHTML = state.mode === 'day'
+        ? (groups as DayItem[]).map((day) => `
+          <div class="archive-item" data-key="${day.dateStr}">
+            <div class="item-main">
+              <div class="item-title">${formatDateLabel(day.dateStr)}</div>
+              <div class="item-preview">${escapeHTML(day.preview)}</div>
+              <div class="item-tags"><span class="tag primary">日记</span><span class="tag">${escapeHTML(day.updatedAt.slice(0, 10))}</span></div>
+            </div>
+          </div>`).join('')
+        : (groups as GroupItem[]).map((group) => {
+          const status = group.report?.status ?? 'PENDING';
+          const badgeText = group.report
+            ? (status === 'READY' ? '已生成' : status === 'ERROR' ? '失败' : '生成中')
+            : '未生成';
+          return `
+            <div class="archive-item" data-key="${group.periodStart}">
+              <div class="item-main">
+                <div class="item-title">${escapeHTML(group.title)}</div>
+                <div class="item-preview">${escapeHTML(group.latestPreview)}</div>
+                <div class="item-tags">
+                  <span class="tag primary">${group.count} 篇日记</span>
+                  <span class="tag">${escapeHTML(group.latestDateStr)}</span>
+                  <span class="tag">${badgeText}</span>
+                </div>
+              </div>
+            </div>`;
+        }).join('');
+
+      list.querySelectorAll<HTMLElement>('.archive-item').forEach((item) => {
+        item.addEventListener('click', () => {
+          const key = item.dataset.key ?? '';
+          setSelectedItem(key);
+          renderDetail();
+        });
+      });
+    }
+
+    function reportStatusClass(status: ReportStatus | undefined) {
+      if (status === 'READY') return 'status-ready';
+      if (status === 'ERROR') return 'status-error';
+      if (status === 'GENERATING') return 'status-generating';
+      return 'status-pending';
+    }
+
+    function openReportModal(report: ReportItem, titleText: string, periodStart: string, periodEnd: string) {
+      const modal = document.getElementById('report-modal');
+      const modalTitle = document.getElementById('report-modal-title');
+      const modalSubtitle = document.getElementById('report-modal-subtitle');
+      const modalContent = document.getElementById('report-modal-content');
+      if (!modal || !modalTitle || !modalSubtitle || !modalContent) return;
+
+      modalTitle.textContent = `${titleText} 查看`;
+      modalSubtitle.textContent = `${periodStart} - ${periodEnd} · ${report.status}${report.modelName ? ` · ${report.modelName}` : ''}`;
+      modalContent.innerHTML = '';
+
+      const metaLine = document.createElement('div');
+      metaLine.className = 'detail-meta-line';
+      metaLine.innerHTML = `<span><strong>周期</strong> ${escapeHTML(periodStart)} - ${escapeHTML(periodEnd)}</span><span><strong>状态</strong> ${escapeHTML(report.status)}</span>`;
+
+      const body = document.createElement('div');
+      body.className = 'detail-report';
+      body.textContent = report.content ?? report.error ?? '暂无可显示内容';
+
+      modalContent.append(metaLine, body);
+      modal.classList.add('is-open');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('archive-modal-open');
+    }
+
+    function closeReportModal() {
+      const modal = document.getElementById('report-modal');
+      if (!modal) return;
+      modal.classList.remove('is-open');
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('archive-modal-open');
+    }
+
+    function attachReportModalHandlers() {
+      document.addEventListener('click', (event) => {
+        const target = event.target as Element | null;
+        if (target?.closest('[data-report-modal-close]')) {
+          event.preventDefault();
+          closeReportModal();
+        }
+      });
+
+      document.addEventListener('keydown', (event) => {
+        const modal = document.getElementById('report-modal');
+        if (!modal?.classList.contains('is-open')) return;
+        if (event.key === 'Escape') closeReportModal();
+      });
+    }
+
+    async function requestGenerate(type: 'WEEK' | 'MONTH', periodStart: string) {
+      const res = await fetch('/api/archive-generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, periodStart }),
+      });
+      if (!res.ok && res.status !== 202) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || '生成失败');
+      }
+    }
+
+    function renderDetail() {
+      const body = document.getElementById('detail-body');
+      const title = document.getElementById('detail-title');
+      const status = document.getElementById('detail-status');
+      if (!body || !title || !status) return;
+
+      if (state.mode === 'day') {
+        const day = getSelectedDay() ?? state.data?.diaryDays[0] ?? null;
+        if (!day) {
+          body.innerHTML = '<div class="empty-detail"><div class="empty-icon">📭</div><p>还没有日记。</p></div>';
+          title.textContent = '归档详情';
+          status.textContent = '未选择';
+          return;
+        }
+        title.textContent = '日记详情';
+        status.textContent = day.dateStr;
+        body.innerHTML = `
+          <div class="detail-card">
+            <div class="detail-headline">
+              <div>
+                <h3>${formatDateLabel(day.dateStr)}</h3>
+              </div>
+              <span class="status-pill status-ready">日记</span>
+            </div>
+            <div class="detail-meta-line"><span><strong>更新时间</strong> ${escapeHTML(day.updatedAt.replace('T', ' ').slice(0, 16))}</span></div>
+            <div class="detail-report">${escapeHTML(day.content)}</div>
+          </div>`;
+        return;
+      }
+
+      const group = getSelectedGroup() ?? (state.mode === 'week' ? state.data?.weeklyGroups[0] : state.data?.monthlyGroups[0]) ?? null;
+      if (!group) {
+        body.innerHTML = '<div class="empty-detail"><div class="empty-icon">📭</div><p>还没有可归档的周报或月报。</p></div>';
+        title.textContent = '归档详情';
+        status.textContent = '未选择';
+        return;
+      }
+
+      title.textContent = state.mode === 'week' ? '周档详情' : '月档详情';
+      status.textContent = group.title;
+      const report = group.report;
+      const buttonLabel = report?.status === 'READY' ? '重新生成' : '生成报告';
+      const refreshButton = report ? `<button type="button" class="action-btn action-secondary" data-refresh-report="${report.id}">刷新状态</button>` : '';
+      const generateDisabled = report?.status === 'GENERATING' ? 'disabled' : '';
+      const reportState = report?.status ?? 'PENDING';
+      const statusClass = reportStatusClass(report?.status);
+      const canViewReport = report?.status === 'READY' && !!report.content;
+      const summaryNote =
+        report?.status === 'READY'
+          ? '报告已生成，可以查看完整内容。'
+          : report?.status === 'GENERATING'
+            ? '报告正在生成中，完成后可查看。'
+            : report?.status === 'ERROR'
+              ? '报告生成失败，可重新生成。'
+              : '当前周期还没有报告。';
+
+      body.innerHTML = `
+        <div class="detail-card">
+          <div class="detail-headline">
+            <div>
+              <h3>${escapeHTML(group.title)}</h3>
+            </div>
+            <span class="status-pill ${statusClass}">${reportState}</span>
+          </div>
+          <div class="detail-meta-line"><span><strong>周期</strong> ${escapeHTML(group.periodStart)} - ${escapeHTML(group.periodEnd)}</span><span><strong>日记数量</strong> ${group.count} 篇</span></div>
+          <div class="detail-actions">
+            <button type="button" class="action-btn action-primary" data-generate-report="${group.periodStart}" ${generateDisabled}>${buttonLabel}</button>
+            ${refreshButton}
+            <button type="button" class="action-btn action-secondary" data-open-report ${canViewReport ? '' : 'disabled'}>查看</button>
+          </div>
+          <div class="detail-note">${summaryNote}</div>
+        </div>`;
+
+      body.querySelector<HTMLButtonElement>('[data-generate-report]')?.addEventListener('click', async (event) => {
+        const btn = event.currentTarget as HTMLButtonElement;
+        btn.disabled = true;
+        try {
+          await requestGenerate(state.mode === 'week' ? 'WEEK' : 'MONTH', group.periodStart);
+          await loadArchiveData(false);
+          state.selectedKey = group.periodStart;
+          renderDetail();
+          setSelectedItem(group.periodStart);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+
+      body.querySelector<HTMLButtonElement>('[data-refresh-report]')?.addEventListener('click', async () => {
+        await loadArchiveData(false);
+        renderDetail();
+      });
+
+      body.querySelector<HTMLButtonElement>('[data-open-report]')?.addEventListener('click', () => {
+        if (!report || !report.content) return;
+        openReportModal(report, group.title, group.periodStart, group.periodEnd);
+      });
+    }
+
+    async function loadArchiveData(resetSelection = true) {
+      const res = await fetch('/api/archive-data');
+      if (!res.ok) return;
+      state.data = await res.json();
+      renderSummary();
+      renderList();
+      if (resetSelection || !state.selectedKey) {
+        if (state.mode === 'day') {
+          state.selectedKey = state.data.diaryDays[0]?.dateStr ?? '';
+        } else if (state.mode === 'week') {
+          state.selectedKey = state.data.weeklyGroups[0]?.periodStart ?? '';
+        } else {
+          state.selectedKey = state.data.monthlyGroups[0]?.periodStart ?? '';
+        }
+      }
+      renderDetail();
+      setSelectedItem(state.selectedKey);
+    }
+
+    function switchMode(mode: ArchiveMode) {
+      state.mode = mode;
+      state.selectedKey = '';
+      setSegmentActive();
+      renderList();
+      if (state.mode === 'day') {
+        state.selectedKey = state.data?.diaryDays[0]?.dateStr ?? '';
+      } else if (state.mode === 'week') {
+        state.selectedKey = state.data?.weeklyGroups[0]?.periodStart ?? '';
+      } else {
+        state.selectedKey = state.data?.monthlyGroups[0]?.periodStart ?? '';
+      }
+      renderDetail();
+      setSelectedItem(state.selectedKey);
+    }
+
+    function startPolling() {
+      if (state.pollTimer) window.clearInterval(state.pollTimer);
+      state.pollTimer = window.setInterval(async () => {
+        if (!state.data) return;
+        const pending = state.data.reports.some((item) => item.status === 'PENDING' || item.status === 'GENERATING');
+        if (!pending) return;
+        await loadArchiveData(false);
+        if (state.selectedKey) {
+          renderDetail();
+          setSelectedItem(state.selectedKey);
+        }
+      }, 3000);
+    }
+
+    document.addEventListener('astro:page-load', async () => {
+      syncArchiveViewport();
+      attachReportModalHandlers();
+      setSegmentActive();
+      await loadArchiveData();
+      startPolling();
+      document.querySelectorAll<HTMLElement>('.segment').forEach((btn) => {
+        btn.addEventListener('click', () => switchMode(btn.dataset.view as ArchiveMode));
+      });
+    });
+
+    window.addEventListener('resize', syncArchiveViewport);
+  </script>
+</Layout>

@@ -15,6 +15,7 @@ model User {
   createdAt    DateTime @default(now())
 
   diaries      Diary[]
+  reports      DiaryReport[]
   sentRequests PermissionRequest[] @relation("Requester")
   receivedRequests PermissionRequest[] @relation("Target")
 }
@@ -34,6 +35,37 @@ model Diary {
   updatedAt DateTime @updatedAt
 
   @@unique([userId, date])
+}
+
+model DiaryReport {
+  id          String       @id @default(uuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id])
+  type        ReportType
+  status      ReportStatus @default(PENDING)
+  periodStart DateTime     @db.Date
+  periodEnd   DateTime     @db.Date
+  title       String
+  content     String?
+  error       String?
+  modelName   String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([userId, type, periodStart])
+  @@index([userId, type, periodStart])
+}
+
+enum ReportType {
+  WEEK
+  MONTH
+}
+
+enum ReportStatus {
+  PENDING
+  GENERATING
+  READY
+  ERROR
 }
 
 model PermissionRequest {
