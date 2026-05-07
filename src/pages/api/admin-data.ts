@@ -15,6 +15,7 @@ export const GET: APIRoute = async ({ cookies }) => {
 
   return new Response(
     JSON.stringify({
+      currentUserId: currentUser.id,
       users: users.map((user) => ({
         ...user,
         initial: user.username.charAt(0).toUpperCase(),

@@ -66,6 +66,20 @@ import Layout from '../layouts/Layout.astro';
     </div>
   </div>
 
+  <div class="modal-overlay" id="delete-modal">
+    <div class="modal-box">
+      <div class="modal-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </div>
+      <h3 class="modal-title">确定删除该成员？</h3>
+      <p class="modal-desc">此操作不可恢复，并会删除其所有的日记和申请记录。</p>
+      <div class="modal-actions">
+        <button class="modal-btn modal-cancel" id="delete-cancel">取消</button>
+        <button class="modal-btn modal-confirm" id="delete-confirm">确认删除</button>
+      </div>
+    </div>
+  </div>
+
   <style is:global>
     .skel { display:inline-block; background:linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:6px; }
     @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
@@ -115,10 +129,27 @@ import Layout from '../layouts/Layout.astro';
     .member-info { display:flex; flex-direction:column; gap:0.1rem; min-width:0; }
     .member-name { font-weight:500; font-size:0.9rem; color:#0f172a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .member-date { font-size:0.75rem; color:#94a3b8; }
+    .member-right { display:flex; align-items:center; gap:0.75rem; }
     .role-badge { display:inline-block; padding:0.2rem 0.65rem; border-radius:999px; font-size:0.75rem; font-weight:600; white-space:nowrap; }
     .role-admin { background:rgba(99,102,241,0.1); color:#6366f1; border:1px solid rgba(99,102,241,0.2); }
     .role-user { background:rgba(16,185,129,0.1); color:#059669; border:1px solid rgba(16,185,129,0.2); }
+    .delete-btn { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:6px; background:rgba(239,68,68,0.1); color:#dc2626; border:1px solid rgba(239,68,68,0.2); cursor:pointer; transition:all 0.15s; padding:0; }
+    .delete-btn:hover { background:rgba(239,68,68,0.2); transform:translateY(-1px); }
+    .delete-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
     .empty-hint { text-align:center; color:#94a3b8; padding:2rem; font-size:0.9rem; }
+    .modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.4); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; z-index:100; opacity:0; pointer-events:none; transition:opacity 0.2s; }
+    .modal-overlay.active { opacity:1; pointer-events:auto; }
+    .modal-box { background:#ffffff; width:90%; max-width:380px; border-radius:24px; padding:2rem; box-shadow:0 10px 40px rgba(0,0,0,0.1); transform:scale(0.95) translateY(10px); transition:all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); text-align:center; }
+    .modal-overlay.active .modal-box { transform:scale(1) translateY(0); }
+    .modal-icon { width:48px; height:48px; background:rgba(239,68,68,0.1); color:#dc2626; border-radius:14px; display:flex; align-items:center; justify-content:center; margin:0 auto 1.25rem; }
+    .modal-title { font-size:1.15rem; font-weight:700; color:#0f172a; margin:0 0 0.5rem; }
+    .modal-desc { font-size:0.875rem; color:#64748b; margin:0 0 1.75rem; line-height:1.5; }
+    .modal-actions { display:flex; gap:0.75rem; }
+    .modal-btn { flex:1; padding:0.7rem; border-radius:12px; font-size:0.9rem; font-weight:600; cursor:pointer; transition:all 0.2s; border:none; font-family:inherit; }
+    .modal-cancel { background:#f1f5f9; color:#475569; }
+    .modal-cancel:hover { background:#e2e8f0; color:#0f172a; }
+    .modal-confirm { background:#ef4444; color:white; box-shadow:0 4px 12px rgba(239,68,68,0.25); }
+    .modal-confirm:hover { background:#dc2626; transform:translateY(-1px); box-shadow:0 6px 16px rgba(239,68,68,0.35); }
     @media (max-width:860px) {
       .admin-grid { grid-template-columns:1fr; }
       .card-header-split { align-items:flex-start; flex-direction:column; }
@@ -136,6 +167,7 @@ import Layout from '../layouts/Layout.astro';
     };
 
     type AdminData = {
+      currentUserId: string;
       users: AdminUser[];
       totalCount: number;
       adminCount: number;
@@ -174,6 +206,39 @@ import Layout from '../layouts/Layout.astro';
       area.innerHTML = `<div class="msg-bar ${isError ? 'msg-error' : 'msg-success'}">${escapeHTML(text)}</div>`;
     }
 
+    function confirmDelete(): Promise<boolean> {
+      return new Promise((resolve) => {
+        const modal = getEl('delete-modal');
+        const cancelBtn = getEl('delete-cancel');
+        const confirmBtn = getEl('delete-confirm');
+        if (!modal || !cancelBtn || !confirmBtn) {
+          resolve(confirm('确定要删除该成员吗？此操作不可恢复，并会删除其所有的日记和申请记录。'));
+          return;
+        }
+
+        modal.classList.add('active');
+
+        const cleanup = () => {
+          cancelBtn.removeEventListener('click', onCancel);
+          confirmBtn.removeEventListener('click', onConfirm);
+          modal.classList.remove('active');
+        };
+
+        const onCancel = () => {
+          cleanup();
+          resolve(false);
+        };
+
+        const onConfirm = () => {
+          cleanup();
+          resolve(true);
+        };
+
+        cancelBtn.addEventListener('click', onCancel);
+        confirmBtn.addEventListener('click', onConfirm);
+      });
+    }
+
     async function loadAdminData(): Promise<void> {
       const list = getEl('member-list');
       try {
@@ -199,6 +264,7 @@ import Layout from '../layouts/Layout.astro';
             </div>
             <div class="member-right">
               <span class="role-badge ${user.role === 'ADMIN' ? 'role-admin' : 'role-user'}">${user.role === 'ADMIN' ? '管理员' : '成员'}</span>
+              ${user.id !== data.currentUserId ? `<button class="delete-btn" data-id="${user.id}" title="删除成员"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>` : ''}
             </div>
           </div>`).join('');
       } catch (error) {
@@ -231,12 +297,47 @@ import Layout from '../layouts/Layout.astro';
           button.disabled = false;
           label.textContent = '创建账号';
         }
-      }, { once: true });
+      });
+    }
+
+    function attachDeleteEvents(): void {
+      const list = getEl('member-list');
+      if (!list) return;
+      list.addEventListener('click', async (e: Event) => {
+        const target = e.target as HTMLElement;
+        const btn = target.closest('.delete-btn') as HTMLButtonElement | null;
+        if (!btn) return;
+        
+        const userId = btn.getAttribute('data-id');
+        if (!userId) return;
+        
+        const confirmed = await confirmDelete();
+        if (!confirmed) return;
+
+        btn.disabled = true;
+
+        try {
+          const formData = new FormData();
+          formData.set('userId', userId);
+          const res = await fetch('/api/delete-user', { method: 'POST', body: formData });
+          const json = await res.json() as CreateUserResponse;
+          showAdminMsg(json.message || json.error || '删除失败', !json.ok);
+          if (json.ok) {
+            await loadAdminData();
+          }
+        } catch (error) {
+          console.error(error);
+          showAdminMsg('删除用户时发生错误', true);
+        } finally {
+          btn.disabled = false;
+        }
+      });
     }
 
     document.addEventListener('astro:page-load', () => {
       void loadAdminData();
       attachCreateForm();
+      attachDeleteEvents();
     });
   </script>
 </Layout>
