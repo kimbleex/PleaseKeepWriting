@@ -16,7 +16,13 @@ const user = (Astro.locals as any).user || getUserFromCookie(Astro.cookies);
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="我们的日记" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
     <title>{title} - 我们的日记</title>
     <ClientRouter />
   </head>
@@ -26,7 +32,7 @@ const user = (Astro.locals as any).user || getUserFromCookie(Astro.cookies);
       <div class="route-loader-pill">加载中...</div>
     </div>
     {user && <Header user={user} url={Astro.url} />}
-    <main class="container" style="padding-top: 2rem;">
+    <main class="container main-content">
       <slot />
     </main>
 
@@ -187,6 +193,12 @@ const user = (Astro.locals as any).user || getUserFromCookie(Astro.cookies);
 
       if (!w.__routeLoaderInstalled) {
         w.__routeLoaderInstalled = true;
+
+        if ('serviceWorker' in navigator) {
+          window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js').catch(() => {});
+          });
+        }
 
         document.addEventListener('click', (event) => {
           const anchor = (event.target as Element | null)?.closest<HTMLAnchorElement>('a[href]');
