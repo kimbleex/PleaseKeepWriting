@@ -32,14 +32,12 @@ const monthStart = new Date(
 const monthEnd = new Date(
   `${year}-${String(month + 1).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}T23:59:59Z`,
 );
-const allUserList = await prisma.user.findMany({
-  where: { role: "USER" },
-  select: { id: true },
-});
-const allUserIds = allUserList.map((u) => u.id);
-
-// Fetch everything in parallel
-const [diariesThisMonth, totalUsers, allMyDiaries, hasWroteToday, realTodayWroteCount] = await Promise.all([
+// Fetch everything in parallel — single round-trip
+const [allUserList, diariesThisMonth, totalUsers, allMyDiaries, hasWroteToday, myUser] = await Promise.all([
+  prisma.user.findMany({
+    where: { role: "USER" },
+    select: { id: true },
+  }),
   prisma.diary.findMany({
     where: { date: { gte: monthStart, lte: monthEnd } },
     select: { date: true, userId: true },
@@ -57,13 +55,20 @@ const [diariesThisMonth, totalUsers, allMyDiaries, hasWroteToday, realTodayWrote
     },
     select: { id: true }
   }),
-  prisma.diary.count({
-    where: {
-      date: new globalThis.Date(`${realTodayStr}T00:00:00Z`),
-      userId: { in: allUserIds }
-    }
-  })
+  prisma.user.findUnique({
+    where: { id: currentUser.id },
+    select: { createdAt: true },
+  }),
 ]);
+const allUserIds = allUserList.map((u) => u.id);
+
+// Second-pass: realTodayWroteCount needs allUserIds (derived above)
+const realTodayWroteCount = await prisma.diary.count({
+  where: {
+    date: new globalThis.Date(`${realTodayStr}T00:00:00Z`),
+    userId: { in: allUserIds },
+  },
+});
 
 const nonAdminDiaries = diariesThisMonth.filter((d) =>
   allUserIds.includes(d.userId),
@@ -115,10 +120,6 @@ if (allMyDiaries.length > 0) {
   longestStreak = max;
 }
 
-const myUser = await prisma.user.findUnique({
-  where: { id: currentUser.id },
-  select: { createdAt: true },
-});
 const daysSinceJoined = myUser
   ? Math.floor((today.getTime() - myUser.createdAt.getTime()) / 86400000)
   : 0;
