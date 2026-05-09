@@ -89,6 +89,9 @@ export const GET: APIRoute = async ({ cookies, url }) => {
   if (allMyDiaries.length > 0) {
     const dateSets = new Set(allMyDiaries.map((d) => d.date.toISOString().split('T')[0]));
     let cur = new Date(`${realTodayStr}T00:00:00Z`);
+    if (!dateSets.has(cur.toISOString().split('T')[0])) {
+      cur.setUTCDate(cur.getUTCDate() - 1);
+    }
     while (dateSets.has(cur.toISOString().split('T')[0])) {
       streak++;
       cur.setUTCDate(cur.getUTCDate() - 1);
