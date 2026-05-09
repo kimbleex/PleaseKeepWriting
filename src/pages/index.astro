@@ -262,6 +262,7 @@ const queryMonth = Astro.url.searchParams.get('m');
 
   <script>
     import { navigate } from 'astro:transitions/client';
+    import { ensureBootstrap, getHomeData, getPendingSyncCount } from '../lib/localFirst';
     const MONTH_NAMES = ["一月","二月","三月","四月","五月","六月","七月","八月","九月","十月","十一月","十二月"];
 
     function syncHomeViewport() {
@@ -400,14 +401,17 @@ const queryMonth = Astro.url.searchParams.get('m');
     async function loadData() {
       resetHomeSkeleton();
       const urlParams = new URLSearchParams(window.location.search);
-      const params = new URLSearchParams();
-      if (urlParams.get('y')) params.set('y', urlParams.get('y'));
-      if (urlParams.get('m')) params.set('m', urlParams.get('m'));
+      const y = parseInt(urlParams.get('y') || '', 10);
+      const m = parseInt(urlParams.get('m') || '', 10);
       try {
-        const res = await fetch(`/api/home-data?${params}`);
-        if (!res.ok) return;
-        const data = await res.json();
+        await ensureBootstrap();
+        const data = await getHomeData(Number.isFinite(y) ? y : undefined, Number.isFinite(m) ? m : undefined);
         buildCalendar(data);
+        const pending = await getPendingSyncCount();
+        const noteEl = document.getElementById('group-note');
+        if (noteEl && pending > 0) {
+          noteEl.textContent = `本地有 ${pending} 条未同步`;
+        }
       } catch(e) { console.error(e); }
     }
 

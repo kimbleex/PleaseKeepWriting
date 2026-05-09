@@ -61,7 +61,7 @@ if (user.role === 'ADMIN') {
         <span class="user-chip-name">{user.username}</span>
         {user.role === 'ADMIN' && <span class="admin-dot" title="管理员"></span>}
       </div>
-      <form method="POST" action="/api/logout">
+      <form method="POST" action="/api/logout" id="logout-form">
         <button type="submit" class="logout-btn" title="退出登录">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </button>
@@ -250,3 +250,16 @@ if (user.role === 'ADMIN') {
     .header-inner { gap: 0.7rem; }
   }
 </style>
+
+<script>
+  document.addEventListener('astro:page-load', () => {
+    const form = document.getElementById('logout-form') as HTMLFormElement | null;
+    if (!form || form.dataset.bound === '1') return;
+    form.dataset.bound = '1';
+    form.addEventListener('submit', () => {
+      try {
+        indexedDB.deleteDatabase('our-diary-local');
+      } catch {}
+    });
+  });
+</script>
