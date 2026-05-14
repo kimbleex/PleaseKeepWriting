@@ -177,7 +177,6 @@ import Layout from '../layouts/Layout.astro';
       getDiaryPageData,
       getLocalPrivacyUnlockUrl,
       isLocalPrivacyKeyMissing,
-      refreshLocalData,
       saveDiaryLocal,
       syncPendingDiaries,
     } from '../lib/localFirst';
@@ -193,7 +192,10 @@ import Layout from '../layouts/Layout.astro';
     let todayDateStr = '';
     let historyDiaries: HistoryDiary[] = [];
     let activeHistoryIndex = 0;
-    const diaryWindow = window as typeof window & { __diaryModalHandlersAttached?: boolean };
+    const diaryWindow = window as typeof window & {
+      __diaryModalHandlersAttached?: boolean;
+      __diarySyncListenerAttached?: boolean;
+    };
 
     function syncDiaryViewport() {
       const header = document.querySelector('.navbar');
@@ -283,15 +285,6 @@ import Layout from '../layouts/Layout.astro';
 
     async function loadDiaryData() {
       try {
-        try {
-          await refreshLocalData();
-        } catch (syncError) {
-          if (isLocalPrivacyKeyMissing(syncError)) {
-            navigate(getLocalPrivacyUnlockUrl());
-            return;
-          }
-          console.error('local refresh failed, rendering cached diary data', syncError);
-        }
         const data = await getDiaryPageData();
 
         existingDiaryId = data.existingDiary?.id ?? null;
@@ -369,28 +362,34 @@ import Layout from '../layouts/Layout.astro';
         try {
           const result = await saveDiaryLocal(todayDateStr, content);
           existingDiaryId = result.localId;
+          const nextIdleLabel = '更新日记';
           const badge = document.getElementById('status-badge');
           if (badge) {
             badge.className = 'diary-status-badge saved';
             badge.textContent = '今日已记录';
           }
-          if (saveLabel) saveLabel.textContent = '自动同步中...';
+          if (saveLabel) saveLabel.textContent = '上传中...';
           try {
             const syncResult = await syncPendingDiaries();
-            if (saveLabel) saveLabel.textContent = '更新日记';
+            if (saveLabel) saveLabel.textContent = nextIdleLabel;
+            window.dispatchEvent(new CustomEvent('our-diary:local-sync-complete'));
             showMsg(
               result.created
-                ? `日记已发布，并自动同步到云端${syncResult.synced > 1 ? `（共 ${syncResult.synced} 篇）` : ''}`
-                : `日记已更新，并自动同步到云端${syncResult.synced > 1 ? `（共 ${syncResult.synced} 篇）` : ''}`,
+                ? `日记已发布，并已上传到云端${syncResult.synced > 1 ? `（共 ${syncResult.synced} 篇）` : ''}`
+                : `日记已更新，并已上传到云端${syncResult.synced > 1 ? `（共 ${syncResult.synced} 篇）` : ''}`,
               false,
             );
           } catch (syncError) {
+            if (isLocalPrivacyKeyMissing(syncError)) {
+              navigate(getLocalPrivacyUnlockUrl());
+              return;
+            }
             console.error(syncError);
-            if (saveLabel) saveLabel.textContent = '更新日记';
+            if (saveLabel) saveLabel.textContent = nextIdleLabel;
             showMsg(
               result.created
-                ? '日记已发布到本地，但自动同步到云端失败，请稍后在归档页重试'
-                : '日记已更新到本地，但自动同步到云端失败，请稍后在归档页重试',
+                ? '日记已保存到本地，但上传到云端失败，请稍后点击同步数据重试'
+                : '日记已更新到本地，但上传到云端失败，请稍后点击同步数据重试',
               true,
             );
           }
@@ -419,6 +418,12 @@ import Layout from '../layouts/Layout.astro';
       attachModalHandlers();
       loadDiaryData();
       attachFormHandler();
+      if (!diaryWindow.__diarySyncListenerAttached) {
+        diaryWindow.__diarySyncListenerAttached = true;
+        window.addEventListener('our-diary:local-sync-complete', () => {
+          loadDiaryData();
+        });
+      }
     });
     window.addEventListener('resize', syncDiaryViewport);
   </script>

@@ -265,7 +265,6 @@ import Layout from '../layouts/Layout.astro';
       getLocalPrivacyUnlockUrl,
       getPendingSyncCount,
       isLocalPrivacyKeyMissing,
-      refreshLocalData,
     } from '../lib/localFirst';
     const MONTH_NAMES = ["一月","二月","三月","四月","五月","六月","七月","八月","九月","十月","十一月","十二月"];
     const homeWindow = window as typeof window & { __homeSyncListenerAttached?: boolean; __pickerClickAttached?: boolean };
@@ -404,25 +403,11 @@ import Layout from '../layouts/Layout.astro';
       if (noteEl) noteEl.innerHTML = '<span class="skel skel-line-sm"></span>';
     }
 
-    async function getHomeDataWithFallback(y: number, m: number, skipRefresh = false) {
-      let autoSyncFailed = false;
-      if (!skipRefresh) {
-        try {
-          await refreshLocalData();
-        } catch (syncError) {
-          if (isLocalPrivacyKeyMissing(syncError)) {
-            navigate(getLocalPrivacyUnlockUrl());
-            throw syncError;
-          }
-          autoSyncFailed = true;
-          console.error('local refresh failed, rendering cached data', syncError);
-        }
-      }
-
+    async function getHomeDataWithFallback(y: number, m: number) {
       try {
         const data = await getHomeData(Number.isFinite(y) ? y : undefined, Number.isFinite(m) ? m : undefined);
         const pending = await getPendingSyncCount().catch(() => 0);
-        return { data, pending, autoSyncFailed };
+        return { data, pending };
       } catch (localError) {
         if (isLocalPrivacyKeyMissing(localError)) {
           navigate(getLocalPrivacyUnlockUrl());
@@ -434,7 +419,7 @@ import Layout from '../layouts/Layout.astro';
         if (Number.isFinite(m)) params.set('m', String(m));
         const res = await fetch(`/api/home-data${params.toString() ? `?${params}` : ''}`);
         if (!res.ok) throw new Error(`首页数据加载失败：${res.status}`);
-        return { data: await res.json(), pending: 0, autoSyncFailed };
+        return { data: await res.json(), pending: 0 };
       }
     }
 
@@ -446,19 +431,17 @@ import Layout from '../layouts/Layout.astro';
       if (grid) grid.innerHTML = `<div style="grid-column:1/-1;display:flex;align-items:center;justify-content:center;color:#dc2626;font-weight:700;">${message}</div>`;
     }
 
-    async function loadData(skipRefresh = false) {
+    async function loadData() {
       resetHomeSkeleton();
       const urlParams = new URLSearchParams(window.location.search);
       const y = parseInt(urlParams.get('y') || '', 10);
       const m = parseInt(urlParams.get('m') || '', 10);
       try {
-        const { data, pending, autoSyncFailed } = await getHomeDataWithFallback(y, m, skipRefresh);
+        const { data, pending } = await getHomeDataWithFallback(y, m);
         buildCalendar(data);
         const noteEl = document.getElementById('group-note');
         if (noteEl && pending > 0) {
           noteEl.textContent = `本地有 ${pending} 条未同步`;
-        } else if (noteEl && autoSyncFailed) {
-          noteEl.textContent = '同步失败，已显示本地缓存';
         }
       } catch(e) {
         console.error(e);
@@ -473,7 +456,7 @@ import Layout from '../layouts/Layout.astro';
     if (!homeWindow.__homeSyncListenerAttached) {
       homeWindow.__homeSyncListenerAttached = true;
       window.addEventListener('our-diary:local-sync-complete', () => {
-        loadData(true);
+        loadData();
       });
     }
     window.addEventListener('resize', syncHomeViewport);

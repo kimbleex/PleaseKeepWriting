@@ -65,6 +65,7 @@ const unlock = Astro.url.searchParams.get('unlock') === '1';
     </div>
     <script>
       import { deriveAndStoreLocalPrivacyKey } from '../lib/localCrypto';
+      import { refreshLocalData } from '../lib/localFirst';
 
       function safeNextPath(): string {
         const params = new URLSearchParams(window.location.search);
@@ -99,6 +100,13 @@ const unlock = Astro.url.searchParams.get('unlock') === '1';
               throw new Error(payload.error || '登录失败，请重试');
             }
             await deriveAndStoreLocalPrivacyKey(payload.user.id, password);
+            submit.textContent = '同步数据...';
+            try {
+              await refreshLocalData();
+            } catch (syncError) {
+              console.error(syncError);
+              throw new Error('登录成功，但同步数据失败，请重试');
+            }
             window.location.assign(safeNextPath());
           } catch (error) {
             if (errorEl) {

@@ -176,6 +176,15 @@ function requireLocalPrivacyKey(userId: string): void {
   if (!hasLocalPrivacyKey(userId)) throw new LocalPrivacyKeyMissingError();
 }
 
+async function requireLocalSessionUser<T extends { id: string }>(): Promise<T> {
+  const keyUserId = requireAnyLocalPrivacyKey();
+  const user = await getMeta<T>('sessionUser');
+  if (!user?.id) throw new Error('local session missing');
+  if (user.id !== keyUserId) throw new LocalPrivacyKeyMissingError();
+  requireLocalPrivacyKey(user.id);
+  return user;
+}
+
 async function encryptDiaryForStorage(row: LocalDiary): Promise<StoredDiary> {
   const { content, ...stored } = row;
   return {
@@ -390,10 +399,7 @@ export async function getDiaryPageData(): Promise<{
   existingDiary: { id: string; content: string } | null;
   previousDiaries: Array<{ id: string; dateStr: string; content: string; preview: string }>;
 }> {
-  const user = await getMeta<{ id: string }>('sessionUser');
-  if (!user?.id) await ensureBootstrap();
-  const session = await getMeta<{ id: string }>('sessionUser');
-  if (!session?.id) throw new Error('local session missing');
+  const session = await requireLocalSessionUser<{ id: string }>();
   const todayDateStr = shanghaiDateStr();
   const today = await getDiaryByDate(session.id, todayDateStr);
   const diaries = await getAllDiariesByUser(session.id);
@@ -421,10 +427,7 @@ export async function getDiaryPageData(): Promise<{
 }
 
 export async function saveDiaryLocal(dateStr: string, content: string): Promise<{ localId: string; created: boolean }> {
-  const session = await getMeta<{ id: string }>('sessionUser');
-  if (!session?.id) await ensureBootstrap();
-  const user = await getMeta<{ id: string }>('sessionUser');
-  if (!user?.id) throw new Error('local session missing');
+  const user = await requireLocalSessionUser<{ id: string }>();
   const existing = await getDiaryByDate(user.id, dateStr);
   const nowIso = new Date().toISOString();
   if (existing) {
@@ -514,10 +517,7 @@ export async function syncPendingDiaries(): Promise<{ synced: number }> {
 }
 
 export async function getArchiveDiaryDaysLocal(): Promise<ArchiveLocalDiary[]> {
-  const session = await getMeta<{ id: string }>('sessionUser');
-  if (!session?.id) await ensureBootstrap();
-  const user = await getMeta<{ id: string }>('sessionUser');
-  if (!user?.id) throw new Error('local session missing');
+  const user = await requireLocalSessionUser<{ id: string }>();
   const rows = await getAllDiariesByUser(user.id);
   return rows.map((d) => {
     const text = d.content.trim().replace(/\s+/g, ' ');
@@ -583,10 +583,7 @@ export async function syncSelectedDiaries(localIds: string[]): Promise<{ synced:
 }
 
 export async function getHomeData(yearArg?: number, monthArg?: number): Promise<any> {
-  const session = await getMeta<{ id: string; createdAt: string; role?: string }>('sessionUser');
-  if (!session?.id) await ensureBootstrap();
-  const user = await getMeta<{ id: string; createdAt: string; role?: string }>('sessionUser');
-  if (!user?.id) throw new Error('local session missing');
+  const user = await requireLocalSessionUser<{ id: string; createdAt: string; role?: string }>();
   const totalUsers = (await getMeta<number>('totalUsers')) ?? 0;
   const todayDateStr = shanghaiDateStr();
   const [curY, curM, curD] = todayDateStr.split('-').map((v) => parseInt(v, 10));

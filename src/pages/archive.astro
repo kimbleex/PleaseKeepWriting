@@ -1165,7 +1165,6 @@ import { DIARY_AGENT_NAME } from '../lib/agent/skills/diaryAssistantSkill';
       getArchiveDiaryDaysLocal,
       getLocalPrivacyUnlockUrl,
       isLocalPrivacyKeyMissing,
-      refreshLocalData,
       syncSelectedDiaries,
     } from '../lib/localFirst';
 
@@ -1212,7 +1211,10 @@ import { DIARY_AGENT_NAME } from '../lib/agent/skills/diaryAssistantSkill';
       selectedIds: new Set<string>(),
       sending: false,
     };
-    const archiveWindow = window as typeof window & { __dailyModalEscapeAttached?: boolean };
+    const archiveWindow = window as typeof window & {
+      __archiveSyncListenerAttached?: boolean;
+      __dailyModalEscapeAttached?: boolean;
+    };
 
     function redirectForPrivacyUnlock(error: unknown): boolean {
       if (!isLocalPrivacyKeyMissing(error)) return false;
@@ -1364,16 +1366,8 @@ import { DIARY_AGENT_NAME } from '../lib/agent/skills/diaryAssistantSkill';
       }
     }
 
-    async function loadDays(skipRefresh = false) {
+    async function loadDays() {
       try {
-        if (!skipRefresh) {
-          try {
-            await refreshLocalData();
-          } catch (syncError) {
-            if (redirectForPrivacyUnlock(syncError)) throw syncError;
-            console.error('local refresh failed, rendering cached archive data', syncError);
-          }
-        }
         const rows = await getArchiveDiaryDaysLocal();
         state.days = rows.map((row) => ({
           id: row.localId,
@@ -1770,8 +1764,7 @@ import { DIARY_AGENT_NAME } from '../lib/agent/skills/diaryAssistantSkill';
               markStreamStepsDone(shell.progress);
               await replayAgentAnswer(shell);
               if (shell.shouldRefreshDays) {
-                await refreshLocalData();
-                await loadDays(true);
+                await loadDays();
               }
               setAgentStatus('就绪');
             }
@@ -1946,6 +1939,15 @@ import { DIARY_AGENT_NAME } from '../lib/agent/skills/diaryAssistantSkill';
         console.error(error);
         const list = document.getElementById('daily-list');
         if (list) list.innerHTML = '<div class="empty-list">归档数据加载失败，请刷新重试</div>';
+      }
+      if (!archiveWindow.__archiveSyncListenerAttached) {
+        archiveWindow.__archiveSyncListenerAttached = true;
+        window.addEventListener('our-diary:local-sync-complete', () => {
+          loadDays().catch((error) => {
+            if (redirectForPrivacyUnlock(error)) return;
+            console.error(error);
+          });
+        });
       }
     });
 
