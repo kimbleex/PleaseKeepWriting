@@ -139,6 +139,23 @@ async function setMeta(key: string, value: unknown): Promise<void> {
   await txDone(tx);
 }
 
+async function markTeamDaysForRows(rows: Array<Pick<LocalDiary, 'userId' | 'dateStr'>>): Promise<void> {
+  if (rows.length === 0) return;
+  const db = await openDb();
+  const tx = db.transaction(STORE_TEAM_DAYS, 'readwrite');
+  const store = tx.objectStore(STORE_TEAM_DAYS);
+  const seen = new Set<string>();
+
+  for (const row of rows) {
+    const id = `${row.userId}:${row.dateStr}`;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    store.put({ id, userId: row.userId, dateStr: row.dateStr } satisfies TeamDiaryDay);
+  }
+
+  await txDone(tx);
+}
+
 async function getAllDiariesByUser(userId: string): Promise<LocalDiary[]> {
   const db = await openDb();
   const tx = db.transaction(STORE_DIARIES, 'readonly');
@@ -336,6 +353,7 @@ export async function syncPendingDiaries(): Promise<{ synced: number }> {
     store.put({ ...row, cloudId, needsSync: false } satisfies LocalDiary);
   }
   await txDone(txWrite);
+  await markTeamDaysForRows(rows);
   await setMeta('lastPushedAt', new Date().toISOString());
   return { synced: rows.length };
 }
@@ -396,14 +414,15 @@ export async function syncSelectedDiaries(localIds: string[]): Promise<{ synced:
     store.put({ ...row, cloudId, needsSync: false } satisfies LocalDiary);
   }
   await txDone(txWrite);
+  await markTeamDaysForRows(rows);
   await setMeta('lastPushedAt', new Date().toISOString());
   return { synced: rows.length };
 }
 
 export async function getHomeData(yearArg?: number, monthArg?: number): Promise<any> {
-  const session = await getMeta<{ id: string; createdAt: string }>('sessionUser');
+  const session = await getMeta<{ id: string; createdAt: string; role?: string }>('sessionUser');
   if (!session?.id) await ensureBootstrap();
-  const user = await getMeta<{ id: string; createdAt: string }>('sessionUser');
+  const user = await getMeta<{ id: string; createdAt: string; role?: string }>('sessionUser');
   if (!user?.id) throw new Error('local session missing');
   const totalUsers = (await getMeta<number>('totalUsers')) ?? 0;
   const todayDateStr = shanghaiDateStr();
@@ -426,6 +445,13 @@ export async function getHomeData(yearArg?: number, monthArg?: number): Promise<
     const set = teamMap.get(row.dateStr) ?? new Set<string>();
     set.add(row.userId);
     teamMap.set(row.dateStr, set);
+  }
+  if (user.role !== 'ADMIN') {
+    for (const dateStr of myDateSet) {
+      const set = teamMap.get(dateStr) ?? new Set<string>();
+      set.add(user.id);
+      teamMap.set(dateStr, set);
+    }
   }
 
   const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}-`;

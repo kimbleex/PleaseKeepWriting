@@ -398,21 +398,47 @@ const queryMonth = Astro.url.searchParams.get('m');
       if (noteEl) noteEl.innerHTML = '<span class="skel skel-line-sm"></span>';
     }
 
+    async function getHomeDataWithFallback(y: number, m: number) {
+      try {
+        await ensureBootstrap();
+        const data = await getHomeData(Number.isFinite(y) ? y : undefined, Number.isFinite(m) ? m : undefined);
+        const pending = await getPendingSyncCount().catch(() => 0);
+        return { data, pending };
+      } catch (localError) {
+        console.error('local home data failed, falling back to server api', localError);
+        const params = new URLSearchParams();
+        if (Number.isFinite(y)) params.set('y', String(y));
+        if (Number.isFinite(m)) params.set('m', String(m));
+        const res = await fetch(`/api/home-data${params.toString() ? `?${params}` : ''}`);
+        if (!res.ok) throw new Error(`首页数据加载失败：${res.status}`);
+        return { data: await res.json(), pending: 0 };
+      }
+    }
+
+    function showHomeLoadError(error: unknown) {
+      const titleEl = document.getElementById('cal-title');
+      const grid = document.getElementById('cal-grid');
+      const message = error instanceof Error ? error.message : '数据加载失败，请刷新重试';
+      if (titleEl) titleEl.textContent = '加载失败';
+      if (grid) grid.innerHTML = `<div style="grid-column:1/-1;display:flex;align-items:center;justify-content:center;color:#dc2626;font-weight:700;">${message}</div>`;
+    }
+
     async function loadData() {
       resetHomeSkeleton();
       const urlParams = new URLSearchParams(window.location.search);
       const y = parseInt(urlParams.get('y') || '', 10);
       const m = parseInt(urlParams.get('m') || '', 10);
       try {
-        await ensureBootstrap();
-        const data = await getHomeData(Number.isFinite(y) ? y : undefined, Number.isFinite(m) ? m : undefined);
+        const { data, pending } = await getHomeDataWithFallback(y, m);
         buildCalendar(data);
-        const pending = await getPendingSyncCount();
         const noteEl = document.getElementById('group-note');
         if (noteEl && pending > 0) {
           noteEl.textContent = `本地有 ${pending} 条未同步`;
         }
-      } catch(e) { console.error(e); }
+      } catch(e) {
+        console.error(e);
+        showHomeLoadError(e);
+      }
     }
 
     document.addEventListener('astro:page-load', () => {
