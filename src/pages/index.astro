@@ -2,8 +2,6 @@
 import Layout from '../layouts/Layout.astro';
 
 // We'll handle data fetching on the client side to avoid blocking page transitions.
-const queryYear = Astro.url.searchParams.get('y');
-const queryMonth = Astro.url.searchParams.get('m');
 ---
 
 <Layout title="日记主页">
@@ -262,8 +260,15 @@ const queryMonth = Astro.url.searchParams.get('m');
 
   <script>
     import { navigate } from 'astro:transitions/client';
-    import { ensureBootstrap, getHomeData, getPendingSyncCount } from '../lib/localFirst';
+    import {
+      getHomeData,
+      getLocalPrivacyUnlockUrl,
+      getPendingSyncCount,
+      isLocalPrivacyKeyMissing,
+      refreshLocalData,
+    } from '../lib/localFirst';
     const MONTH_NAMES = ["一月","二月","三月","四月","五月","六月","七月","八月","九月","十月","十一月","十二月"];
+    const homeWindow = window as typeof window & { __homeSyncListenerAttached?: boolean; __pickerClickAttached?: boolean };
 
     function syncHomeViewport() {
       const header = document.querySelector('.navbar');
@@ -271,7 +276,7 @@ const queryMonth = Astro.url.searchParams.get('m');
       document.documentElement.style.setProperty('--home-header-height', `${headerHeight}px`);
     }
 
-    function buildCalendar(data) {
+    function buildCalendar(data: any) {
       // Title
       const titleEl = document.getElementById('cal-title');
       if (titleEl) {
@@ -302,7 +307,7 @@ const queryMonth = Astro.url.searchParams.get('m');
       // Grid
       const grid = document.getElementById('cal-grid');
       if (grid) {
-        grid.innerHTML = data.calendarCells.map(cell => {
+        grid.innerHTML = data.calendarCells.map((cell: any) => {
           if (cell.isEmpty) return '<div class="cal-cell cal-empty"></div>';
           const cls = ['cal-cell cal-day', `intensity-${cell.intensity}`, cell.isToday?'is-today':'', cell.isMine?'is-mine':''].filter(Boolean).join(' ');
           const dots = cell.hasDiaries ? `<div class="cal-dots">${Array.from({length:cell.dots}).map(()=>'<span class="cal-dot"></span>').join('')}</div>` : '';
@@ -328,7 +333,7 @@ const queryMonth = Astro.url.searchParams.get('m');
       }
 
       // Stats
-      const statVals = document.querySelectorAll('.stat-val');
+      const statVals = document.querySelectorAll<HTMLElement>('.stat-val');
       const vals = [data.streak, data.totalMyDiaries, data.longestStreak, data.daysSinceJoined];
       statVals.forEach((el,i) => { el.textContent = vals[i]; el.classList.remove('skel','skel-num'); el.style.margin = ''; });
 
@@ -349,7 +354,7 @@ const queryMonth = Astro.url.searchParams.get('m');
       if (noteEl) noteEl.textContent = data.wroteToday === data.totalUsers ? '🎉 所有人今天都写了！' : `还有 ${data.totalUsers - data.wroteToday} 人未写`;
     }
 
-    function attachPickerEvents(initialYear) {
+    function attachPickerEvents(initialYear: number) {
       let currentYear = initialYear;
       const yVal = document.getElementById('y-val');
       document.getElementById('prevYear')?.addEventListener('click', e => { e.preventDefault(); currentYear--; if(yVal) yVal.textContent = currentYear+'年'; });
@@ -363,12 +368,13 @@ const queryMonth = Astro.url.searchParams.get('m');
     }
 
     // Attach document click listener once globally
-    if (!window.__pickerClickAttached) {
+    if (!homeWindow.__pickerClickAttached) {
       document.addEventListener('click', e => {
         const sel = document.getElementById('date-selector');
-        if (sel && sel.hasAttribute('open') && !sel.contains(e.target)) sel.removeAttribute('open');
+        const target = e.target instanceof Node ? e.target : null;
+        if (sel && sel.hasAttribute('open') && !sel.contains(target)) sel.removeAttribute('open');
       });
-      window.__pickerClickAttached = true;
+      homeWindow.__pickerClickAttached = true;
     }
 
     function resetHomeSkeleton() {
@@ -385,7 +391,7 @@ const queryMonth = Astro.url.searchParams.get('m');
         todayCard.className = 'card today-card-skel';
         todayCard.innerHTML = '<div class="skel" style="width:40px;height:40px;border-radius:12px;"></div><div style="flex:1;display:flex;flex-direction:column;gap:0.5rem;"><div class="skel" style="width:100px;height:1rem;"></div><div class="skel" style="width:150px;height:0.75rem;"></div></div>';
       }
-      document.querySelectorAll('.stat-val').forEach(el => { el.textContent = ''; el.classList.add('skel','skel-num'); el.style.margin = 'auto'; });
+      document.querySelectorAll<HTMLElement>('.stat-val').forEach(el => { el.textContent = ''; el.classList.add('skel','skel-num'); el.style.margin = 'auto'; });
       const pctEl = document.getElementById('ring-pct');
       const subEl = document.getElementById('ring-sub');
       const countEl = document.getElementById('group-count');
@@ -398,20 +404,37 @@ const queryMonth = Astro.url.searchParams.get('m');
       if (noteEl) noteEl.innerHTML = '<span class="skel skel-line-sm"></span>';
     }
 
-    async function getHomeDataWithFallback(y: number, m: number) {
+    async function getHomeDataWithFallback(y: number, m: number, skipRefresh = false) {
+      let autoSyncFailed = false;
+      if (!skipRefresh) {
+        try {
+          await refreshLocalData();
+        } catch (syncError) {
+          if (isLocalPrivacyKeyMissing(syncError)) {
+            navigate(getLocalPrivacyUnlockUrl());
+            throw syncError;
+          }
+          autoSyncFailed = true;
+          console.error('local refresh failed, rendering cached data', syncError);
+        }
+      }
+
       try {
-        await ensureBootstrap();
         const data = await getHomeData(Number.isFinite(y) ? y : undefined, Number.isFinite(m) ? m : undefined);
         const pending = await getPendingSyncCount().catch(() => 0);
-        return { data, pending };
+        return { data, pending, autoSyncFailed };
       } catch (localError) {
+        if (isLocalPrivacyKeyMissing(localError)) {
+          navigate(getLocalPrivacyUnlockUrl());
+          throw localError;
+        }
         console.error('local home data failed, falling back to server api', localError);
         const params = new URLSearchParams();
         if (Number.isFinite(y)) params.set('y', String(y));
         if (Number.isFinite(m)) params.set('m', String(m));
         const res = await fetch(`/api/home-data${params.toString() ? `?${params}` : ''}`);
         if (!res.ok) throw new Error(`首页数据加载失败：${res.status}`);
-        return { data: await res.json(), pending: 0 };
+        return { data: await res.json(), pending: 0, autoSyncFailed };
       }
     }
 
@@ -423,17 +446,19 @@ const queryMonth = Astro.url.searchParams.get('m');
       if (grid) grid.innerHTML = `<div style="grid-column:1/-1;display:flex;align-items:center;justify-content:center;color:#dc2626;font-weight:700;">${message}</div>`;
     }
 
-    async function loadData() {
+    async function loadData(skipRefresh = false) {
       resetHomeSkeleton();
       const urlParams = new URLSearchParams(window.location.search);
       const y = parseInt(urlParams.get('y') || '', 10);
       const m = parseInt(urlParams.get('m') || '', 10);
       try {
-        const { data, pending } = await getHomeDataWithFallback(y, m);
+        const { data, pending, autoSyncFailed } = await getHomeDataWithFallback(y, m, skipRefresh);
         buildCalendar(data);
         const noteEl = document.getElementById('group-note');
         if (noteEl && pending > 0) {
           noteEl.textContent = `本地有 ${pending} 条未同步`;
+        } else if (noteEl && autoSyncFailed) {
+          noteEl.textContent = '同步失败，已显示本地缓存';
         }
       } catch(e) {
         console.error(e);
@@ -445,6 +470,12 @@ const queryMonth = Astro.url.searchParams.get('m');
       syncHomeViewport();
       loadData();
     });
+    if (!homeWindow.__homeSyncListenerAttached) {
+      homeWindow.__homeSyncListenerAttached = true;
+      window.addEventListener('our-diary:local-sync-complete', () => {
+        loadData(true);
+      });
+    }
     window.addEventListener('resize', syncHomeViewport);
   </script>
 </Layout>

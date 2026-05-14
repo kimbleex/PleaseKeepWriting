@@ -5,7 +5,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const { url, cookies, redirect, locals } = context;
   
   // Public paths and static assets
-  const publicPaths = ["/login", "/api/login", "/favicon.ico", "/favicon.svg"];
+  const publicPaths = ["/login", "/api/login", "/api/client-login", "/favicon.ico", "/favicon.svg"];
   const isPublicPath = publicPaths.some(path => url.pathname === path);
   const isStaticAsset = url.pathname.includes('.') || url.pathname.startsWith('/_astro');
 

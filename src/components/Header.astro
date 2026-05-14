@@ -1,6 +1,7 @@
 ---
 const { user, url } = Astro.props;
 const pathname = (url as URL)?.pathname ?? '/';
+const showHomeSync = true ;
 
 type NavItem = { href: string; label: string; icon: string };
 const navItems: NavItem[] = [
@@ -56,6 +57,14 @@ if (user.role === 'ADMIN') {
     </nav>
 
     <div class="user-area">
+      {showHomeSync && (
+        <button type="button" class="home-sync-btn" id="home-sync-btn" title="同步数据" aria-live="polite">
+          <span class="home-sync-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 16v5h5"/><path d="M3 12A9 9 0 0 1 18.5 5.8L21 8"/><path d="M21 8V3h-5"/></svg>
+          </span>
+          <span class="home-sync-label">同步数据</span>
+        </button>
+      )}
       <div class="user-chip">
         <div class="user-avatar-sm">{user.username.charAt(0).toUpperCase()}</div>
         <span class="user-chip-name">{user.username}</span>
@@ -188,6 +197,63 @@ if (user.role === 'ADMIN') {
     border: 1px solid rgba(0, 0, 0, 0.08);
   }
 
+  .home-sync-btn {
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.42rem;
+    padding: 0 0.78rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.12));
+    border: 1px solid rgba(99, 102, 241, 0.22);
+    color: #5b5fee;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 8px 22px rgba(99, 102, 241, 0.12);
+    transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+    white-space: nowrap;
+  }
+
+  .home-sync-btn:hover {
+    transform: translateY(-1px);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.16), rgba(168, 85, 247, 0.18));
+    border-color: rgba(99, 102, 241, 0.34);
+    box-shadow: 0 10px 28px rgba(99, 102, 241, 0.18);
+  }
+
+  .home-sync-btn:disabled {
+    cursor: default;
+    transform: none;
+    opacity: 0.78;
+  }
+
+  .home-sync-btn.is-syncing .home-sync-icon {
+    animation: home-sync-spin 0.9s linear infinite;
+  }
+
+  .home-sync-btn.is-success {
+    color: #059669;
+    background: rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.22);
+  }
+
+  .home-sync-btn.is-error {
+    color: #dc2626;
+    background: rgba(239, 68, 68, 0.09);
+    border-color: rgba(239, 68, 68, 0.22);
+  }
+
+  .home-sync-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  @keyframes home-sync-spin {
+    to { transform: rotate(360deg); }
+  }
+
   .user-avatar-sm {
     width: 26px;
     height: 26px;
@@ -246,20 +312,64 @@ if (user.role === 'ADMIN') {
     .logo-text { display: none; }
     .nav-label { display: none; }
     .nav-pill { padding: 0.45rem; }
+    .home-sync-btn { width: 34px; padding: 0; justify-content: center; }
+    .home-sync-label { display: none; }
     .user-chip-name { display: none; }
     .header-inner { gap: 0.7rem; }
   }
 </style>
 
 <script>
+  import { getLocalPrivacyUnlockUrl, isLocalPrivacyKeyMissing, refreshLocalData } from '../lib/localFirst';
+
   document.addEventListener('astro:page-load', () => {
     const form = document.getElementById('logout-form') as HTMLFormElement | null;
     if (!form || form.dataset.bound === '1') return;
     form.dataset.bound = '1';
     form.addEventListener('submit', () => {
       try {
+        sessionStorage.removeItem('our-diary-local:privacy-key:v1');
         indexedDB.deleteDatabase('our-diary-local');
       } catch {}
+    });
+  });
+
+  document.addEventListener('astro:page-load', () => {
+    const btn = document.getElementById('home-sync-btn') as HTMLButtonElement | null;
+    if (!btn || btn.dataset.bound === '1') return;
+    btn.dataset.bound = '1';
+    const label = btn.querySelector<HTMLElement>('.home-sync-label');
+    let resetTimer: number | undefined;
+
+    const setState = (state: 'idle' | 'syncing' | 'success' | 'error') => {
+      window.clearTimeout(resetTimer);
+      btn.classList.toggle('is-syncing', state === 'syncing');
+      btn.classList.toggle('is-success', state === 'success');
+      btn.classList.toggle('is-error', state === 'error');
+      btn.disabled = state === 'syncing';
+      btn.title = state === 'idle' ? '同步数据' : state === 'syncing' ? '正在同步数据' : state === 'success' ? '数据已同步' : '同步失败';
+      if (label) {
+        label.textContent = state === 'idle' ? '同步数据' : state === 'syncing' ? '同步中...' : state === 'success' ? '已同步' : '同步失败';
+      }
+      if (state === 'success' || state === 'error') {
+        resetTimer = window.setTimeout(() => setState('idle'), 2200);
+      }
+    };
+
+    btn.addEventListener('click', async () => {
+      setState('syncing');
+      try {
+        await refreshLocalData();
+        window.dispatchEvent(new CustomEvent('our-diary:local-sync-complete'));
+        setState('success');
+      } catch (error) {
+        if (isLocalPrivacyKeyMissing(error)) {
+          window.location.assign(getLocalPrivacyUnlockUrl());
+          return;
+        }
+        console.error(error);
+        setState('error');
+      }
     });
   });
 </script>

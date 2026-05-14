@@ -1,3 +1,16 @@
+import {
+  decryptTextForUser,
+  encryptTextForUser,
+  getLocalPrivacyKeyUserId,
+  getLocalPrivacyUnlockUrl,
+  hasLocalPrivacyKey,
+  isLocalPrivacyKeyMissing,
+  LocalPrivacyKeyMissingError,
+  type EncryptedTextPayload,
+} from './localCrypto';
+
+export { getLocalPrivacyUnlockUrl, isLocalPrivacyKeyMissing };
+
 export type LocalDiary = {
   localId: string;
   cloudId: string | null;
@@ -9,6 +22,12 @@ export type LocalDiary = {
   needsSync: boolean;
 };
 
+type StoredDiary = Omit<LocalDiary, 'content'> & {
+  content?: string;
+  encryptedContent?: EncryptedTextPayload;
+  encryptionVersion?: 1;
+};
+
 export type ArchiveLocalDiary = {
   localId: string;
   cloudId: string | null;
@@ -17,6 +36,11 @@ export type ArchiveLocalDiary = {
   preview: string;
   updatedAt: string;
   needsSync: boolean;
+};
+
+export type LocalRefreshResult = {
+  pushed: number;
+  pulledAt: string;
 };
 
 type MetaRecord = {
@@ -45,12 +69,15 @@ type SyncBootstrapPayload = {
 };
 
 const DB_NAME = 'our-diary-local';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_DIARIES = 'diaries';
 const STORE_META = 'meta';
 const STORE_TEAM_DAYS = 'teamDays';
+const META_PRIVACY_VERIFIER = 'privacyKeyVerifier';
+const PRIVACY_VERIFIER_TEXT = 'local-first-v1';
 
 let dbPromise: Promise<IDBDatabase> | null = null;
+let refreshPromise: Promise<LocalRefreshResult> | null = null;
 
 function openDb(): Promise<IDBDatabase> {
   if (dbPromise) return dbPromise;
@@ -139,6 +166,77 @@ async function setMeta(key: string, value: unknown): Promise<void> {
   await txDone(tx);
 }
 
+function requireAnyLocalPrivacyKey(): string {
+  const keyUserId = getLocalPrivacyKeyUserId();
+  if (!keyUserId) throw new LocalPrivacyKeyMissingError();
+  return keyUserId;
+}
+
+function requireLocalPrivacyKey(userId: string): void {
+  if (!hasLocalPrivacyKey(userId)) throw new LocalPrivacyKeyMissingError();
+}
+
+async function encryptDiaryForStorage(row: LocalDiary): Promise<StoredDiary> {
+  const { content, ...stored } = row;
+  return {
+    ...stored,
+    encryptedContent: await encryptTextForUser(row.userId, content),
+    encryptionVersion: 1,
+  };
+}
+
+async function decodeStoredDiary(row: StoredDiary): Promise<LocalDiary> {
+  const content = row.encryptedContent
+    ? await decryptTextForUser(row.userId, row.encryptedContent)
+    : row.content ?? '';
+  const { content: _legacyContent, encryptedContent: _encryptedContent, encryptionVersion: _encryptionVersion, ...rest } = row;
+  return { ...rest, content };
+}
+
+async function getStoredDiariesByUser(userId: string): Promise<StoredDiary[]> {
+  const db = await openDb();
+  const tx = db.transaction(STORE_DIARIES, 'readonly');
+  const index = tx.objectStore(STORE_DIARIES).index('by_user_date');
+  const range = IDBKeyRange.bound([userId, '0000-01-01'], [userId, '9999-12-31']);
+  const list = await requestResult(index.getAll(range));
+  await txDone(tx);
+  return (list as StoredDiary[]).sort((a, b) => (a.dateStr < b.dateStr ? 1 : -1));
+}
+
+async function migratePlaintextDiaries(userId: string): Promise<void> {
+  requireLocalPrivacyKey(userId);
+  const rows = await getStoredDiariesByUser(userId);
+  const plaintextRows = rows.filter((row) => typeof row.content === 'string');
+  if (plaintextRows.length === 0) return;
+
+  const encryptedRows = await Promise.all(
+    plaintextRows.map((row) => encryptDiaryForStorage({ ...row, content: row.content ?? '' } satisfies LocalDiary)),
+  );
+  const db = await openDb();
+  const tx = db.transaction(STORE_DIARIES, 'readwrite');
+  const store = tx.objectStore(STORE_DIARIES);
+  for (const row of encryptedRows) {
+    store.put(row);
+  }
+  await txDone(tx);
+}
+
+async function verifyStoredPrivacyKey(userId: string): Promise<boolean> {
+  const verifier = await getMeta<EncryptedTextPayload>(META_PRIVACY_VERIFIER);
+  if (!verifier) return true;
+  try {
+    return (await decryptTextForUser(userId, verifier)) === PRIVACY_VERIFIER_TEXT;
+  } catch {
+    return false;
+  }
+}
+
+async function ensurePrivacyVerifier(userId: string): Promise<void> {
+  const verifier = await getMeta<EncryptedTextPayload>(META_PRIVACY_VERIFIER);
+  if (verifier) return;
+  await setMeta(META_PRIVACY_VERIFIER, await encryptTextForUser(userId, PRIVACY_VERIFIER_TEXT));
+}
+
 async function markTeamDaysForRows(rows: Array<Pick<LocalDiary, 'userId' | 'dateStr'>>): Promise<void> {
   if (rows.length === 0) return;
   const db = await openDb();
@@ -157,22 +255,19 @@ async function markTeamDaysForRows(rows: Array<Pick<LocalDiary, 'userId' | 'date
 }
 
 async function getAllDiariesByUser(userId: string): Promise<LocalDiary[]> {
-  const db = await openDb();
-  const tx = db.transaction(STORE_DIARIES, 'readonly');
-  const index = tx.objectStore(STORE_DIARIES).index('by_user_date');
-  const range = IDBKeyRange.bound([userId, '0000-01-01'], [userId, '9999-12-31']);
-  const list = await requestResult(index.getAll(range));
-  await txDone(tx);
-  return (list as LocalDiary[]).sort((a, b) => (a.dateStr < b.dateStr ? 1 : -1));
+  requireLocalPrivacyKey(userId);
+  const list = await getStoredDiariesByUser(userId);
+  return Promise.all(list.map((row) => decodeStoredDiary(row)));
 }
 
 async function getDiaryByDate(userId: string, dateStr: string): Promise<LocalDiary | null> {
+  requireLocalPrivacyKey(userId);
   const db = await openDb();
   const tx = db.transaction(STORE_DIARIES, 'readonly');
   const index = tx.objectStore(STORE_DIARIES).index('by_user_date');
   const row = await requestResult(index.get([userId, dateStr]));
   await txDone(tx);
-  return (row as LocalDiary | undefined) ?? null;
+  return row ? decodeStoredDiary(row as StoredDiary) : null;
 }
 
 export async function clearLocalForUser(userId: string): Promise<void> {
@@ -186,45 +281,76 @@ export async function clearLocalForUser(userId: string): Promise<void> {
   tx.objectStore(STORE_META).delete('sessionUser');
   tx.objectStore(STORE_META).delete('totalUsers');
   tx.objectStore(STORE_META).delete('lastPulledAt');
+  tx.objectStore(STORE_META).delete('lastPushedAt');
+  tx.objectStore(STORE_META).delete(META_PRIVACY_VERIFIER);
   tx.objectStore(STORE_TEAM_DAYS).clear();
   await txDone(tx);
 }
 
 export async function ensureBootstrap(force = false): Promise<void> {
+  const keyUserId = requireAnyLocalPrivacyKey();
   if (!force) {
     const existing = await getMeta<{ id: string }>('sessionUser');
-    if (existing?.id) return;
+    if (existing?.id) {
+      if (existing.id !== keyUserId) throw new LocalPrivacyKeyMissingError();
+      if (await verifyStoredPrivacyKey(existing.id)) {
+        await migratePlaintextDiaries(existing.id);
+        await ensurePrivacyVerifier(existing.id);
+        return;
+      }
+      await clearLocalForUser(existing.id);
+    }
   }
   const res = await fetch('/api/sync-bootstrap');
   if (!res.ok) throw new Error(`bootstrap failed: ${res.status}`);
   const payload = (await res.json()) as SyncBootstrapPayload;
+  if (payload.user.id !== keyUserId) throw new LocalPrivacyKeyMissingError();
+
+  const currentSession = await getMeta<{ id: string }>('sessionUser');
+  const existingRows = await getStoredDiariesByUser(payload.user.id);
+  const existingByDate = new Map(existingRows.map((row) => [row.dateStr, row]));
+  const cloudDateSet = new Set(payload.myDiaries.map((d) => d.dateStr));
+  const encryptedDiaries = await Promise.all(
+    payload.myDiaries.map(async (d) => {
+      const old = existingByDate.get(d.dateStr);
+      if (old?.needsSync) {
+        const local = await decodeStoredDiary(old);
+        return encryptDiaryForStorage({ ...local, cloudId: local.cloudId ?? d.id } satisfies LocalDiary);
+      }
+      const local: LocalDiary = {
+        localId: old?.localId ?? d.id,
+        cloudId: d.id,
+        userId: payload.user.id,
+        dateStr: d.dateStr,
+        content: d.content,
+        updatedAt: d.updatedAt,
+        createdAt: d.createdAt,
+        needsSync: old?.needsSync ?? false,
+      };
+      return encryptDiaryForStorage(local);
+    }),
+  );
+  const privacyVerifier = await encryptTextForUser(payload.user.id, PRIVACY_VERIFIER_TEXT);
+
   const db = await openDb();
   const tx = db.transaction([STORE_DIARIES, STORE_META, STORE_TEAM_DAYS], 'readwrite');
   const diaryStore = tx.objectStore(STORE_DIARIES);
-  const diaryIndex = diaryStore.index('by_user_date');
   const teamStore = tx.objectStore(STORE_TEAM_DAYS);
   const metaStore = tx.objectStore(STORE_META);
 
-  const currentSession = await requestResult(metaStore.get('sessionUser'));
-  const currentUserId = (currentSession as MetaRecord | undefined)?.value && (currentSession as MetaRecord).value as { id: string };
-  if (currentUserId && currentUserId.id !== payload.user.id) {
+  if (currentSession && currentSession.id !== payload.user.id) {
     diaryStore.clear();
     teamStore.clear();
   }
 
-  for (const d of payload.myDiaries) {
-    const old = (await requestResult(diaryIndex.get([payload.user.id, d.dateStr]))) as LocalDiary | undefined;
-    const local: LocalDiary = {
-      localId: old?.localId ?? d.id,
-      cloudId: d.id,
-      userId: payload.user.id,
-      dateStr: d.dateStr,
-      content: d.content,
-      updatedAt: d.updatedAt,
-      createdAt: d.createdAt,
-      needsSync: old?.needsSync ?? false,
-    };
-    diaryStore.put(local);
+  for (const row of existingRows) {
+    if (!row.needsSync && !cloudDateSet.has(row.dateStr)) {
+      diaryStore.delete(row.localId);
+    }
+  }
+
+  for (const row of encryptedDiaries) {
+    diaryStore.put(row);
   }
 
   teamStore.clear();
@@ -235,7 +361,24 @@ export async function ensureBootstrap(force = false): Promise<void> {
   metaStore.put({ key: 'sessionUser', value: payload.user } satisfies MetaRecord);
   metaStore.put({ key: 'totalUsers', value: payload.totalUsers } satisfies MetaRecord);
   metaStore.put({ key: 'lastPulledAt', value: new Date().toISOString() } satisfies MetaRecord);
+  metaStore.put({ key: META_PRIVACY_VERIFIER, value: privacyVerifier } satisfies MetaRecord);
   await txDone(tx);
+}
+
+export async function refreshLocalData(): Promise<LocalRefreshResult> {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = (async () => {
+    requireAnyLocalPrivacyKey();
+    const pending = await getPendingSyncCount();
+    const pushResult = pending > 0 ? await syncPendingDiaries() : { synced: 0 };
+    await ensureBootstrap(true);
+    return { pushed: pushResult.synced, pulledAt: new Date().toISOString() };
+  })();
+  try {
+    return await refreshPromise;
+  } finally {
+    refreshPromise = null;
+  }
 }
 
 export async function getDiaryPageData(): Promise<{
@@ -284,21 +427,21 @@ export async function saveDiaryLocal(dateStr: string, content: string): Promise<
   if (!user?.id) throw new Error('local session missing');
   const existing = await getDiaryByDate(user.id, dateStr);
   const nowIso = new Date().toISOString();
-  const db = await openDb();
-  const tx = db.transaction(STORE_DIARIES, 'readwrite');
-  const store = tx.objectStore(STORE_DIARIES);
   if (existing) {
-    store.put({
+    const encrypted = await encryptDiaryForStorage({
       ...existing,
       content,
       updatedAt: nowIso,
       needsSync: true,
     } satisfies LocalDiary);
+    const db = await openDb();
+    const tx = db.transaction(STORE_DIARIES, 'readwrite');
+    tx.objectStore(STORE_DIARIES).put(encrypted);
     await txDone(tx);
     return { localId: existing.localId, created: false };
   }
   const localId = `local-${uid()}`;
-  store.put({
+  const encrypted = await encryptDiaryForStorage({
     localId,
     cloudId: null,
     userId: user.id,
@@ -308,24 +451,31 @@ export async function saveDiaryLocal(dateStr: string, content: string): Promise<
     createdAt: nowIso,
     needsSync: true,
   } satisfies LocalDiary);
+  const db = await openDb();
+  const tx = db.transaction(STORE_DIARIES, 'readwrite');
+  tx.objectStore(STORE_DIARIES).put(encrypted);
   await txDone(tx);
   return { localId, created: true };
 }
 
 export async function getPendingSyncCount(): Promise<number> {
+  const keyUserId = requireAnyLocalPrivacyKey();
   const db = await openDb();
   const tx = db.transaction(STORE_DIARIES, 'readonly');
   const list = await requestResult(tx.objectStore(STORE_DIARIES).getAll());
   await txDone(tx);
-  return (list as LocalDiary[]).filter((row) => row.needsSync).length;
+  return (list as StoredDiary[]).filter((row) => row.userId === keyUserId && row.needsSync).length;
 }
 
 export async function syncPendingDiaries(): Promise<{ synced: number }> {
+  const keyUserId = requireAnyLocalPrivacyKey();
   const db = await openDb();
   const txRead = db.transaction(STORE_DIARIES, 'readonly');
   const pending = await requestResult(txRead.objectStore(STORE_DIARIES).getAll());
   await txDone(txRead);
-  const rows = (pending as LocalDiary[]).filter((row) => row.needsSync);
+  const rows = await Promise.all(
+    (pending as StoredDiary[]).filter((row) => row.userId === keyUserId && row.needsSync).map((row) => decodeStoredDiary(row)),
+  );
   if (rows.length === 0) return { synced: 0 };
 
   const res = await fetch('/api/sync-push-diaries', {
@@ -346,11 +496,16 @@ export async function syncPendingDiaries(): Promise<{ synced: number }> {
   if (!payload.ok) throw new Error('sync failed');
 
   const mapping = new Map(payload.mappings.map((m) => [m.localId, m.cloudId]));
+  const encryptedRows = await Promise.all(
+    rows.map((row) => {
+      const cloudId = mapping.get(row.localId) ?? row.cloudId;
+      return encryptDiaryForStorage({ ...row, cloudId, needsSync: false } satisfies LocalDiary);
+    }),
+  );
   const txWrite = db.transaction(STORE_DIARIES, 'readwrite');
   const store = txWrite.objectStore(STORE_DIARIES);
-  for (const row of rows) {
-    const cloudId = mapping.get(row.localId) ?? row.cloudId;
-    store.put({ ...row, cloudId, needsSync: false } satisfies LocalDiary);
+  for (const row of encryptedRows) {
+    store.put(row);
   }
   await txDone(txWrite);
   await markTeamDaysForRows(rows);
@@ -381,12 +536,15 @@ export async function getArchiveDiaryDaysLocal(): Promise<ArchiveLocalDiary[]> {
 
 export async function syncSelectedDiaries(localIds: string[]): Promise<{ synced: number }> {
   if (!localIds.length) return { synced: 0 };
+  const keyUserId = requireAnyLocalPrivacyKey();
   const db = await openDb();
   const txRead = db.transaction(STORE_DIARIES, 'readonly');
-  const allRows = (await requestResult(txRead.objectStore(STORE_DIARIES).getAll())) as LocalDiary[];
+  const allRows = (await requestResult(txRead.objectStore(STORE_DIARIES).getAll())) as StoredDiary[];
   await txDone(txRead);
   const allow = new Set(localIds);
-  const rows = allRows.filter((row) => row.needsSync && allow.has(row.localId));
+  const rows = await Promise.all(
+    allRows.filter((row) => row.userId === keyUserId && row.needsSync && allow.has(row.localId)).map((row) => decodeStoredDiary(row)),
+  );
   if (rows.length === 0) return { synced: 0 };
 
   const res = await fetch('/api/sync-push-diaries', {
@@ -407,11 +565,16 @@ export async function syncSelectedDiaries(localIds: string[]): Promise<{ synced:
   if (!payload.ok) throw new Error('sync failed');
 
   const mapping = new Map(payload.mappings.map((m) => [m.localId, m.cloudId]));
+  const encryptedRows = await Promise.all(
+    rows.map((row) => {
+      const cloudId = mapping.get(row.localId) ?? row.cloudId;
+      return encryptDiaryForStorage({ ...row, cloudId, needsSync: false } satisfies LocalDiary);
+    }),
+  );
   const txWrite = db.transaction(STORE_DIARIES, 'readwrite');
   const store = txWrite.objectStore(STORE_DIARIES);
-  for (const row of rows) {
-    const cloudId = mapping.get(row.localId) ?? row.cloudId;
-    store.put({ ...row, cloudId, needsSync: false } satisfies LocalDiary);
+  for (const row of encryptedRows) {
+    store.put(row);
   }
   await txDone(txWrite);
   await markTeamDaysForRows(rows);

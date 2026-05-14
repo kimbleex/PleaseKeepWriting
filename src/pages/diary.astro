@@ -172,7 +172,15 @@ import Layout from '../layouts/Layout.astro';
   </style>
 
   <script>
-    import { ensureBootstrap, getDiaryPageData, saveDiaryLocal, syncPendingDiaries } from '../lib/localFirst';
+    import { navigate } from 'astro:transitions/client';
+    import {
+      getDiaryPageData,
+      getLocalPrivacyUnlockUrl,
+      isLocalPrivacyKeyMissing,
+      refreshLocalData,
+      saveDiaryLocal,
+      syncPendingDiaries,
+    } from '../lib/localFirst';
 
     type HistoryDiary = {
       id: string;
@@ -275,7 +283,15 @@ import Layout from '../layouts/Layout.astro';
 
     async function loadDiaryData() {
       try {
-        await ensureBootstrap();
+        try {
+          await refreshLocalData();
+        } catch (syncError) {
+          if (isLocalPrivacyKeyMissing(syncError)) {
+            navigate(getLocalPrivacyUnlockUrl());
+            return;
+          }
+          console.error('local refresh failed, rendering cached diary data', syncError);
+        }
         const data = await getDiaryPageData();
 
         existingDiaryId = data.existingDiary?.id ?? null;
@@ -284,7 +300,7 @@ import Layout from '../layouts/Layout.astro';
         const dayEl = document.getElementById('date-day');
         const ymEl = document.getElementById('date-ym');
         const wdEl = document.getElementById('date-weekday');
-        if (dayEl) dayEl.textContent = data.todayDay;
+        if (dayEl) dayEl.textContent = String(data.todayDay);
         if (ymEl) ymEl.textContent = `${data.todayYear}年${data.todayMonth}月`;
         if (wdEl) wdEl.textContent = data.todayWeekday;
 
@@ -326,6 +342,10 @@ import Layout from '../layouts/Layout.astro';
         }).join('');
         attachHistoryButtons();
       } catch (e) {
+        if (isLocalPrivacyKeyMissing(e)) {
+          navigate(getLocalPrivacyUnlockUrl());
+          return;
+        }
         console.error(e);
       }
     }
@@ -374,7 +394,11 @@ import Layout from '../layouts/Layout.astro';
               true,
             );
           }
-        } catch {
+        } catch (error) {
+          if (isLocalPrivacyKeyMissing(error)) {
+            navigate(getLocalPrivacyUnlockUrl());
+            return;
+          }
           if (saveLabel) saveLabel.textContent = idleLabel;
           showMsg('保存失败，请重试', true);
         } finally {

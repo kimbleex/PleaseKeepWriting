@@ -1160,7 +1160,14 @@ import { DIARY_AGENT_NAME } from '../lib/agent/skills/diaryAssistantSkill';
 
   <script>
     import { DIARY_AGENT_NAME as CLIENT_DIARY_AGENT_NAME } from '../lib/agent/skills/diaryAssistantSkill';
-    import { ensureBootstrap, getArchiveDiaryDaysLocal, syncSelectedDiaries } from '../lib/localFirst';
+    import { navigate } from 'astro:transitions/client';
+    import {
+      getArchiveDiaryDaysLocal,
+      getLocalPrivacyUnlockUrl,
+      isLocalPrivacyKeyMissing,
+      refreshLocalData,
+      syncSelectedDiaries,
+    } from '../lib/localFirst';
 
     type DailyFilter = 'all' | 'synced' | 'unsynced';
     type DailyItem = {
@@ -1206,6 +1213,12 @@ import { DIARY_AGENT_NAME } from '../lib/agent/skills/diaryAssistantSkill';
       sending: false,
     };
     const archiveWindow = window as typeof window & { __dailyModalEscapeAttached?: boolean };
+
+    function redirectForPrivacyUnlock(error: unknown): boolean {
+      if (!isLocalPrivacyKeyMissing(error)) return false;
+      navigate(getLocalPrivacyUnlockUrl());
+      return true;
+    }
 
     function syncArchiveViewport() {
       const header = document.querySelector('.navbar');
@@ -1351,9 +1364,16 @@ import { DIARY_AGENT_NAME } from '../lib/agent/skills/diaryAssistantSkill';
       }
     }
 
-    async function loadDays() {
+    async function loadDays(skipRefresh = false) {
       try {
-        await ensureBootstrap();
+        if (!skipRefresh) {
+          try {
+            await refreshLocalData();
+          } catch (syncError) {
+            if (redirectForPrivacyUnlock(syncError)) throw syncError;
+            console.error('local refresh failed, rendering cached archive data', syncError);
+          }
+        }
         const rows = await getArchiveDiaryDaysLocal();
         state.days = rows.map((row) => ({
           id: row.localId,
@@ -1364,6 +1384,7 @@ import { DIARY_AGENT_NAME } from '../lib/agent/skills/diaryAssistantSkill';
           synced: !row.needsSync,
         }));
       } catch (localError) {
+        if (redirectForPrivacyUnlock(localError)) throw localError;
         console.error('local archive data failed, falling back to server api', localError);
         const res = await fetch('/api/archive-data');
         if (!res.ok) throw new Error(`归档数据加载失败：${res.status}`);
@@ -1749,8 +1770,8 @@ import { DIARY_AGENT_NAME } from '../lib/agent/skills/diaryAssistantSkill';
               markStreamStepsDone(shell.progress);
               await replayAgentAnswer(shell);
               if (shell.shouldRefreshDays) {
-                await ensureBootstrap(true);
-                await loadDays();
+                await refreshLocalData();
+                await loadDays(true);
               }
               setAgentStatus('就绪');
             }
@@ -1760,6 +1781,7 @@ import { DIARY_AGENT_NAME } from '../lib/agent/skills/diaryAssistantSkill';
           }
         }
       } catch (error) {
+        if (redirectForPrivacyUnlock(error)) return;
         if (shell) {
           ensureAgentAnswer(shell);
           markStreamStepsDone(shell.progress);
@@ -1818,9 +1840,16 @@ import { DIARY_AGENT_NAME } from '../lib/agent/skills/diaryAssistantSkill';
         if (!ids.length) return;
         syncBtn.disabled = true;
         syncBtn.textContent = '同步中...';
-        await syncSelectedDiaries(ids);
-        ids.forEach((id) => state.selectedIds.delete(id));
-        await loadDays();
+        try {
+          await syncSelectedDiaries(ids);
+          ids.forEach((id) => state.selectedIds.delete(id));
+          await loadDays();
+        } catch (error) {
+          if (redirectForPrivacyUnlock(error)) return;
+          throw error;
+        } finally {
+          refreshSyncButton();
+        }
       });
 
       const form = document.getElementById('agent-form') as HTMLFormElement | null;
@@ -1913,6 +1942,7 @@ import { DIARY_AGENT_NAME } from '../lib/agent/skills/diaryAssistantSkill';
       try {
         await loadDays();
       } catch (error) {
+        if (redirectForPrivacyUnlock(error)) return;
         console.error(error);
         const list = document.getElementById('daily-list');
         if (list) list.innerHTML = '<div class="empty-list">归档数据加载失败，请刷新重试</div>';
