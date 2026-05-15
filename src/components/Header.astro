@@ -941,6 +941,12 @@ if (user.role === 'ADMIN') {
     margin: 0 0 0.85rem;
   }
 
+  .announcement-markdown > *:last-child,
+  .announcement-markdown blockquote > *:last-child,
+  .announcement-markdown li > *:last-child {
+    margin-bottom: 0;
+  }
+
   .announcement-markdown ul {
     padding-left: 1.15rem;
   }
@@ -974,6 +980,47 @@ if (user.role === 'ADMIN') {
     font-size: 0.9rem;
     text-align: center;
   }
+
+  @keyframes sk-shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  .sk-block {
+    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+    background-size: 200% 100%;
+    animation: sk-shimmer 2s infinite linear;
+    border-radius: 6px;
+  }
+
+  .sk-list-item {
+    padding: 0.8rem;
+    margin-bottom: 0.5rem;
+    border-radius: 10px;
+    border: 1px solid rgba(15, 23, 42, 0.05);
+    background: #ffffff;
+  }
+  .sk-row { display: flex; justify-content: space-between; margin-bottom: 0.6rem; }
+  .sk-title { width: 60%; height: 1.1rem; }
+  .sk-badge { width: 15%; height: 1.1rem; border-radius: 999px; }
+  .sk-date { width: 30%; height: 0.9rem; }
+  .sk-tag { width: 20%; height: 0.9rem; border-radius: 999px; }
+  .sk-summary { width: 100%; height: 0.8rem; margin-bottom: 0.4rem; }
+  .sk-summary-short { width: 70%; height: 0.8rem; margin-bottom: 0; }
+
+  .sk-detail-card {
+    min-height: 100%;
+    border-radius: 12px;
+    border: 1px solid rgba(15, 23, 42, 0.05);
+    background: #ffffff;
+    padding: 1.25rem;
+  }
+  .sk-detail-title { width: 50%; height: 1.6rem; margin-bottom: 0.8rem; border-radius: 8px; }
+  .sk-detail-meta { width: 35%; height: 1rem; margin-bottom: 2rem; border-radius: 6px; }
+  .sk-detail-p1 { width: 100%; height: 0.9rem; margin-bottom: 0.6rem; }
+  .sk-detail-p2 { width: 90%; height: 0.9rem; margin-bottom: 0.6rem; }
+  .sk-detail-p3 { width: 95%; height: 0.9rem; margin-bottom: 0.6rem; }
+  .sk-detail-p4 { width: 60%; height: 0.9rem; margin-bottom: 1.5rem; }
 
   @media (max-width: 760px) {
     .logo-text { display: none; }
@@ -1020,6 +1067,7 @@ if (user.role === 'ADMIN') {
 
 <script>
   import { getLocalPrivacyUnlockUrl, isLocalPrivacyKeyMissing, refreshLocalData } from '../lib/localFirst';
+  import { marked } from 'marked';
 
   type AnnouncementItem = {
     id: string;
@@ -1089,59 +1137,7 @@ if (user.role === 'ADMIN') {
     return `${year}.${month}.${day}`;
   }
 
-  function renderInlineMarkdown(value: string): string {
-    let html = escapeHTML(value);
-    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    html = html.replace(/(^|[^*])\*([^*]+)\*(?!\*)/g, '$1<em>$2</em>');
-    html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
-    return html;
-  }
 
-  function renderAnnouncementMarkdown(markdown: string): string {
-    const lines = markdown.trim().split(/\r?\n/);
-    const html: string[] = [];
-    let listOpen = false;
-
-    const closeList = () => {
-      if (!listOpen) return;
-      html.push('</ul>');
-      listOpen = false;
-    };
-
-    for (const rawLine of lines) {
-      const line = rawLine.trim();
-      if (!line) {
-        closeList();
-        continue;
-      }
-
-      if (line.startsWith('- ') || line.startsWith('* ')) {
-        if (!listOpen) {
-          html.push('<ul>');
-          listOpen = true;
-        }
-        html.push(`<li>${renderInlineMarkdown(line.slice(2))}</li>`);
-        continue;
-      }
-
-      closeList();
-      if (line.startsWith('### ')) {
-        html.push(`<h3>${renderInlineMarkdown(line.slice(4))}</h3>`);
-      } else if (line.startsWith('## ')) {
-        html.push(`<h2>${renderInlineMarkdown(line.slice(3))}</h2>`);
-      } else if (line.startsWith('# ')) {
-        html.push(`<h1>${renderInlineMarkdown(line.slice(2))}</h1>`);
-      } else if (line.startsWith('>')) {
-        html.push(`<blockquote>${renderInlineMarkdown(line.replace(/^>\s?/, ''))}</blockquote>`);
-      } else {
-        html.push(`<p>${renderInlineMarkdown(line)}</p>`);
-      }
-    }
-
-    closeList();
-    return html.join('');
-  }
 
   function setAnnouncementDot(unreadCount: number): void {
     const btn = getAnnouncementButton();
@@ -1164,8 +1160,15 @@ if (user.role === 'ADMIN') {
     const list = document.getElementById('announcement-list');
     const detail = document.getElementById('announcement-detail');
     const markAll = document.getElementById('announcement-mark-all') as HTMLButtonElement | null;
-    if (list) list.innerHTML = '<div class="announcement-loading">公告加载中...</div>';
-    if (detail) detail.innerHTML = '<div class="announcement-empty">正在整理公告内容...</div>';
+    
+    const skListHtml = Array(4).fill(
+      '<div class="sk-list-item"><div class="sk-row"><div class="sk-block sk-title"></div><div class="sk-block sk-badge"></div></div><div class="sk-row"><div class="sk-block sk-date"></div><div class="sk-block sk-tag"></div></div><div class="sk-block sk-summary"></div><div class="sk-block sk-summary-short"></div></div>'
+    ).join('');
+    
+    const skDetailHtml = '<div class="sk-detail-card"><div class="sk-block sk-detail-title"></div><div class="sk-block sk-detail-meta"></div><div class="sk-block sk-detail-p1"></div><div class="sk-block sk-detail-p2"></div><div class="sk-block sk-detail-p3"></div><div class="sk-block sk-detail-p4"></div><div class="sk-block sk-detail-p1"></div><div class="sk-block sk-detail-p2"></div></div>';
+
+    if (list) list.innerHTML = skListHtml;
+    if (detail) detail.innerHTML = skDetailHtml;
     if (markAll) markAll.disabled = true;
   }
 
@@ -1237,7 +1240,7 @@ if (user.role === 'ADMIN') {
             ${current.unread ? '标为已读' : '已读'}
           </button>
         </div>
-        <div class="announcement-markdown">${renderAnnouncementMarkdown(current.body)}</div>
+        <div class="announcement-markdown">${marked.parse(current.body, { async: false })}</div>
       </div>
     `;
   }
