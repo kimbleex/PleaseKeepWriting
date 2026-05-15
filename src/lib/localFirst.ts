@@ -57,6 +57,7 @@ type TeamDiaryDay = {
 type SyncBootstrapPayload = {
   user: { id: string; username: string; role: string; createdAt: string };
   totalUsers: number;
+  users: Array<{ id: string; username: string; role: string; createdAt: string }>;
   myDiaries: Array<{
     id: string;
     dateStr: string;
@@ -69,10 +70,12 @@ type SyncBootstrapPayload = {
 };
 
 const DB_NAME = 'our-diary-local';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE_DIARIES = 'diaries';
 const STORE_META = 'meta';
 const STORE_TEAM_DAYS = 'teamDays';
+const STORE_USERS = 'users';
+const STORE_PERMISSIONS = 'permissions';
 const META_PRIVACY_VERIFIER = 'privacyKeyVerifier';
 const PRIVACY_VERIFIER_TEXT = 'local-first-v1';
 
@@ -97,6 +100,12 @@ function openDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(STORE_TEAM_DAYS)) {
         const team = db.createObjectStore(STORE_TEAM_DAYS, { keyPath: 'id' });
         team.createIndex('by_date', 'dateStr', { unique: false });
+      }
+      if (!db.objectStoreNames.contains(STORE_USERS)) {
+        db.createObjectStore(STORE_USERS, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(STORE_PERMISSIONS)) {
+        db.createObjectStore(STORE_PERMISSIONS, { keyPath: ['requesterId', 'targetId'] });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -281,7 +290,7 @@ async function getDiaryByDate(userId: string, dateStr: string): Promise<LocalDia
 
 export async function clearLocalForUser(userId: string): Promise<void> {
   const db = await openDb();
-  const tx = db.transaction([STORE_DIARIES, STORE_META, STORE_TEAM_DAYS], 'readwrite');
+  const tx = db.transaction([STORE_DIARIES, STORE_META, STORE_TEAM_DAYS, STORE_USERS, STORE_PERMISSIONS], 'readwrite');
   const diaryStore = tx.objectStore(STORE_DIARIES);
   const diaryIdx = diaryStore.index('by_user_date');
   const range = IDBKeyRange.bound([userId, '0000-01-01'], [userId, '9999-12-31']);
@@ -293,6 +302,8 @@ export async function clearLocalForUser(userId: string): Promise<void> {
   tx.objectStore(STORE_META).delete('lastPushedAt');
   tx.objectStore(STORE_META).delete(META_PRIVACY_VERIFIER);
   tx.objectStore(STORE_TEAM_DAYS).clear();
+  tx.objectStore(STORE_USERS).clear();
+  tx.objectStore(STORE_PERMISSIONS).clear();
   await txDone(tx);
 }
 
@@ -364,14 +375,18 @@ export async function ensureBootstrap(force = false): Promise<void> {
   const privacyVerifier = await encryptTextForUser(payload.user.id, PRIVACY_VERIFIER_TEXT);
 
   const db = await openDb();
-  const tx = db.transaction([STORE_DIARIES, STORE_META, STORE_TEAM_DAYS], 'readwrite');
+  const tx = db.transaction([STORE_DIARIES, STORE_META, STORE_TEAM_DAYS, STORE_USERS, STORE_PERMISSIONS], 'readwrite');
   const diaryStore = tx.objectStore(STORE_DIARIES);
   const teamStore = tx.objectStore(STORE_TEAM_DAYS);
   const metaStore = tx.objectStore(STORE_META);
+  const userStore = tx.objectStore(STORE_USERS);
+  const permStore = tx.objectStore(STORE_PERMISSIONS);
 
   if (currentSession && currentSession.id !== payload.user.id) {
     diaryStore.clear();
     teamStore.clear();
+    userStore.clear();
+    permStore.clear();
   }
 
   for (const row of existingRows) {
@@ -387,6 +402,16 @@ export async function ensureBootstrap(force = false): Promise<void> {
   teamStore.clear();
   for (const day of payload.teamDiaryDays) {
     teamStore.put({ id: `${day.userId}:${day.dateStr}`, userId: day.userId, dateStr: day.dateStr } satisfies TeamDiaryDay);
+  }
+
+  userStore.clear();
+  for (const u of payload.users) {
+    userStore.put(u);
+  }
+
+  permStore.clear();
+  for (const p of payload.permissions) {
+    permStore.put(p);
   }
 
   metaStore.put({ key: 'sessionUser', value: payload.user } satisfies MetaRecord);
@@ -445,6 +470,62 @@ export async function getDiaryPageData(): Promise<{
     todayWeekday: weekday,
     existingDiary: today ? { id: today.localId, content: today.content } : null,
     previousDiaries,
+  };
+}
+
+export async function getUsersPageDataLocal() {
+  const sessionUser = await requireLocalSessionUser<{ id: string }>();
+  const db = await openDb();
+  const tx = db.transaction([STORE_USERS, STORE_PERMISSIONS], 'readonly');
+  
+  const allUsers = (await requestResult(tx.objectStore(STORE_USERS).getAll())) as Array<{ id: string; username: string; role: string; createdAt: string }>;
+  const allPerms = (await requestResult(tx.objectStore(STORE_PERMISSIONS).getAll())) as Array<{ requesterId: string; targetId: string; status: string }>;
+  await txDone(tx);
+
+  const sentRequests = allPerms.filter(p => p.requesterId === sessionUser.id);
+  const receivedRequests = allPerms.filter(p => p.targetId === sessionUser.id && p.status === 'PENDING');
+
+  const requestsMap: Record<string, string> = {};
+  for (const req of sentRequests) {
+    requestsMap[req.targetId] = req.status;
+  }
+
+  allUsers.sort((a, b) => {
+    if (a.createdAt !== b.createdAt) return a.createdAt < b.createdAt ? -1 : 1;
+    return a.username < b.username ? -1 : 1;
+  });
+
+  const memberNumberMap = new Map(
+    allUsers.map((user, index) => [user.id, String(index + 1).padStart(4, '0')])
+  );
+
+  const currentUserRecord = allUsers.find(u => u.id === sessionUser.id) ?? null;
+  const otherUsers = allUsers.filter(u => u.id !== sessionUser.id);
+  const visibleUsers = currentUserRecord ? [currentUserRecord, ...otherUsers] : otherUsers;
+
+  const usersData = visibleUsers.map(u => ({
+    id: u.id,
+    username: u.username,
+    role: u.role,
+    status: requestsMap[u.id] ?? null,
+    initial: u.username.charAt(0).toUpperCase(),
+    isCurrentUser: u.id === sessionUser.id,
+    memberNumber: memberNumberMap.get(u.id) ?? '0000',
+  }));
+
+  const receivedRequestsData = receivedRequests.map(r => {
+    const requester = allUsers.find(u => u.id === r.requesterId);
+    const username = requester?.username ?? 'Unknown';
+    return {
+      id: r.requesterId, // Use requesterId as request id for client mapping
+      requesterName: username,
+      requesterInitial: username.charAt(0).toUpperCase(),
+    };
+  });
+
+  return {
+    users: usersData,
+    receivedRequests: receivedRequestsData,
   };
 }
 

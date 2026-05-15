@@ -18,7 +18,11 @@ export const GET: APIRoute = async ({ cookies }) => {
       orderBy: { date: 'desc' },
       select: { id: true, date: true, content: true, createdAt: true, updatedAt: true },
     }),
-    prisma.user.findMany({ where: { role: 'USER' }, select: { id: true } }),
+    prisma.user.findMany({
+      where: { role: 'USER' },
+      orderBy: [{ createdAt: 'asc' }, { username: 'asc' }],
+      select: { id: true, username: true, role: true, createdAt: true }
+    }),
     prisma.diary.findMany({
       select: { date: true, userId: true },
     }),
@@ -51,6 +55,12 @@ export const GET: APIRoute = async ({ cookies }) => {
         createdAt: me.createdAt.toISOString(),
       },
       totalUsers: allUserList.length,
+      users: allUserList.map(u => ({
+        id: u.id,
+        username: u.username,
+        role: u.role,
+        createdAt: u.createdAt.toISOString()
+      })),
       myDiaries: myDiaries.map((d) => ({
         id: d.id,
         dateStr: d.date.toISOString().split('T')[0],

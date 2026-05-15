@@ -702,6 +702,8 @@ import Layout from "../layouts/Layout.astro";
 </Layout>
 
 <script>
+  import { getUsersPageDataLocal, refreshLocalData } from "../lib/localFirst";
+
   type MemberUser = {
     id: string;
     username: string;
@@ -975,6 +977,7 @@ import Layout from "../layouts/Layout.astro";
         throw new Error(serverError || options.errorText);
       }
 
+      await refreshLocalData();
       showUsersToast(options.successText, "success");
       window.dispatchEvent(new CustomEvent("our-diary:permission-requests-changed"));
       await loadUsers();
@@ -1107,12 +1110,19 @@ import Layout from "../layouts/Layout.astro";
 
   async function loadUsers(): Promise<void> {
     try {
-      const res = await fetch("/api/users-data");
-      if (!res.ok) return;
-      const data = (await res.json()) as UsersData;
+      const data = await getUsersPageDataLocal();
       usersPageState.users = data.users;
       usersPageState.requests = data.receivedRequests;
       renderAll();
+      
+      // Background refresh
+      refreshLocalData().then(async () => {
+        const freshData = await getUsersPageDataLocal();
+        usersPageState.users = freshData.users;
+        usersPageState.requests = freshData.receivedRequests;
+        renderAll();
+      }).catch(console.error);
+
     } catch (e) {
       console.error(e);
     }
