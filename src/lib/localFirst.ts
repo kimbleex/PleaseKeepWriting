@@ -342,7 +342,7 @@ export async function ensureBootstrap(force = false): Promise<void> {
           dateStr: d.dateStr,
           updatedAt: d.updatedAt,
           createdAt: d.createdAt,
-          needsSync: old?.needsSync ?? false,
+          needsSync: true, // 强制同步以洗回明文
           encryptedContent: parsedEncrypted,
           encryptionVersion: 1,
         } as StoredDiary;
@@ -356,7 +356,7 @@ export async function ensureBootstrap(force = false): Promise<void> {
         content: d.content,
         updatedAt: d.updatedAt,
         createdAt: d.createdAt,
-        needsSync: true, // 强制同步以覆盖云端明文
+        needsSync: old?.needsSync ?? false,
       };
       return encryptDiaryForStorage(local);
     }),
@@ -501,15 +501,24 @@ export async function syncPendingDiaries(): Promise<{ synced: number }> {
   const pendingRows = (pending as StoredDiary[]).filter((row) => row.userId === keyUserId && row.needsSync);
   if (pendingRows.length === 0) return { synced: 0 };
 
+  const decryptedRows = await Promise.all(
+    pendingRows.map(async (row) => {
+      const content = row.encryptedContent
+        ? await decryptTextForUser(row.userId, row.encryptedContent)
+        : row.content ?? '';
+      return { ...row, content };
+    })
+  );
+
   const res = await fetch('/api/sync-push-diaries', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      diaries: pendingRows.map((d) => ({
+      diaries: decryptedRows.map((d) => ({
         localId: d.localId,
         cloudId: d.cloudId,
         dateStr: d.dateStr,
-        content: d.encryptedContent ? JSON.stringify(d.encryptedContent) : d.content ?? '',
+        content: d.content,
         updatedAt: d.updatedAt,
       })),
     }),
@@ -563,15 +572,24 @@ export async function syncSelectedDiaries(localIds: string[]): Promise<{ synced:
   const pendingRows = allRows.filter((row) => row.userId === keyUserId && row.needsSync && allow.has(row.localId));
   if (pendingRows.length === 0) return { synced: 0 };
 
+  const decryptedRows = await Promise.all(
+    pendingRows.map(async (row) => {
+      const content = row.encryptedContent
+        ? await decryptTextForUser(row.userId, row.encryptedContent)
+        : row.content ?? '';
+      return { ...row, content };
+    })
+  );
+
   const res = await fetch('/api/sync-push-diaries', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      diaries: pendingRows.map((d) => ({
+      diaries: decryptedRows.map((d) => ({
         localId: d.localId,
         cloudId: d.cloudId,
         dateStr: d.dateStr,
-        content: d.encryptedContent ? JSON.stringify(d.encryptedContent) : d.content ?? '',
+        content: d.content,
         updatedAt: d.updatedAt,
       })),
     }),
