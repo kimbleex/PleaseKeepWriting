@@ -2,6 +2,7 @@
 import '../styles/global.css';
 
 const unlock = Astro.url.searchParams.get('unlock') === '1';
+const passwordChanged = Astro.url.searchParams.get('passwordChanged') === '1';
 ---
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -39,6 +40,11 @@ const unlock = Astro.url.searchParams.get('unlock') === '1';
         font-size: 0.9rem;
         line-height: 1.5;
       }
+      .login-note.success-note {
+        background: rgba(16, 185, 129, 0.1);
+        border-color: rgba(16, 185, 129, 0.2);
+        color: #047857;
+      }
     </style>
   </head>
   <body>
@@ -46,6 +52,7 @@ const unlock = Astro.url.searchParams.get('unlock') === '1';
       <div class="glass-panel login-box">
         <h1>欢迎回来</h1>
         {unlock && <div class="login-note">本地日记已加密，请重新输入密码。</div>}
+        {passwordChanged && <div class="login-note success-note">密码已更新，请使用新密码重新登录。</div>}
         <div class="alert" id="client-error" hidden></div>
         <form method="POST" id="login-form" data-ready="0" onsubmit="if (this.dataset.ready !== '1') return false;">
           <div class="input-group">

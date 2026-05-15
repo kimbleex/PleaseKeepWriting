@@ -54,6 +54,14 @@ type TeamDiaryDay = {
   userId: string;
 };
 
+type StoredPermission = {
+  id?: string;
+  requesterId: string;
+  targetId: string;
+  status: string;
+  updatedAt?: string;
+};
+
 type SyncBootstrapPayload = {
   user: { id: string; username: string; role: string; createdAt: string };
   totalUsers: number;
@@ -66,7 +74,7 @@ type SyncBootstrapPayload = {
     updatedAt: string;
   }>;
   teamDiaryDays: Array<{ dateStr: string; userId: string }>;
-  permissions: Array<{ requesterId: string; targetId: string; status: string }>;
+  permissions: Array<Required<StoredPermission>>;
 };
 
 const DB_NAME = 'our-diary-local';
@@ -479,7 +487,7 @@ export async function getUsersPageDataLocal() {
   const tx = db.transaction([STORE_USERS, STORE_PERMISSIONS], 'readonly');
   
   const allUsers = (await requestResult(tx.objectStore(STORE_USERS).getAll())) as Array<{ id: string; username: string; role: string; createdAt: string }>;
-  const allPerms = (await requestResult(tx.objectStore(STORE_PERMISSIONS).getAll())) as Array<{ requesterId: string; targetId: string; status: string }>;
+  const allPerms = (await requestResult(tx.objectStore(STORE_PERMISSIONS).getAll())) as StoredPermission[];
   await txDone(tx);
 
   const sentRequests = allPerms.filter(p => p.requesterId === sessionUser.id);
@@ -517,7 +525,7 @@ export async function getUsersPageDataLocal() {
     const requester = allUsers.find(u => u.id === r.requesterId);
     const username = requester?.username ?? 'Unknown';
     return {
-      id: r.requesterId, // Use requesterId as request id for client mapping
+      id: r.id ?? r.requesterId,
       requesterName: username,
       requesterInitial: username.charAt(0).toUpperCase(),
     };
@@ -526,6 +534,46 @@ export async function getUsersPageDataLocal() {
   return {
     users: usersData,
     receivedRequests: receivedRequestsData,
+  };
+}
+
+export async function getPermissionsPageDataLocal() {
+  const sessionUser = await requireLocalSessionUser<{ id: string }>();
+  const db = await openDb();
+  const tx = db.transaction([STORE_USERS, STORE_PERMISSIONS], 'readonly');
+
+  const allUsers = (await requestResult(tx.objectStore(STORE_USERS).getAll())) as Array<{ id: string; username: string; role: string; createdAt: string }>;
+  const allPerms = (await requestResult(tx.objectStore(STORE_PERMISSIONS).getAll())) as StoredPermission[];
+  await txDone(tx);
+
+  const userById = new Map(allUsers.map((user) => [user.id, user]));
+  const toPermissionUser = (permission: StoredPermission, userId: string) => {
+    const user = userById.get(userId);
+    if (!user || user.role !== 'USER') return null;
+    return {
+      requestId: permission.id ?? '',
+      userId: user.id,
+      username: user.username,
+      initial: user.username.charAt(0).toUpperCase(),
+      updatedAt: permission.updatedAt ?? '',
+    };
+  };
+
+  const viewers = allPerms
+    .filter((permission) => permission.targetId === sessionUser.id && permission.status === 'APPROVED')
+    .map((permission) => toPermissionUser(permission, permission.requesterId))
+    .filter((user): user is NonNullable<typeof user> => user !== null)
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+
+  const viewableUsers = allPerms
+    .filter((permission) => permission.requesterId === sessionUser.id && permission.status === 'APPROVED')
+    .map((permission) => toPermissionUser(permission, permission.targetId))
+    .filter((user): user is NonNullable<typeof user> => user !== null)
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+
+  return {
+    viewers,
+    viewableUsers,
   };
 }
 

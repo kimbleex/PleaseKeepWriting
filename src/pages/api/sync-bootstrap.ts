@@ -30,7 +30,7 @@ export const GET: APIRoute = async ({ cookies }) => {
       where: {
         OR: [{ requesterId: user.id }, { targetId: user.id }],
       },
-      select: { requesterId: true, targetId: true, status: true },
+      select: { id: true, requesterId: true, targetId: true, status: true, updatedAt: true },
     }),
   ]);
 
@@ -69,7 +69,13 @@ export const GET: APIRoute = async ({ cookies }) => {
         updatedAt: d.updatedAt.toISOString(),
       })),
       teamDiaryDays,
-      permissions,
+      permissions: permissions.map((permission) => ({
+        id: permission.id,
+        requesterId: permission.requesterId,
+        targetId: permission.targetId,
+        status: permission.status,
+        updatedAt: permission.updatedAt.toISOString(),
+      })),
     }),
     { headers: { 'Content-Type': 'application/json' } },
   );

@@ -497,6 +497,14 @@ import Layout from "../layouts/Layout.astro";
 </Layout>
 
 <script>
+  import { navigate } from "astro:transitions/client";
+  import {
+    getLocalPrivacyUnlockUrl,
+    getPermissionsPageDataLocal,
+    isLocalPrivacyKeyMissing,
+    refreshLocalData,
+  } from "../lib/localFirst";
+
   type PermissionUser = {
     requestId: string;
     userId: string;
@@ -683,6 +691,7 @@ import Layout from "../layouts/Layout.astro";
   }
 
   function renderViewerRow(user: PermissionUser): string {
+    const revokeDisabled = user.requestId ? "" : " disabled";
     return `<div class="permission-row">
       <div class="permission-left">
         <div class="permission-avatar">${escapeHTML(user.initial)}</div>
@@ -692,7 +701,7 @@ import Layout from "../layouts/Layout.astro";
         </div>
       </div>
       <div class="permission-actions">
-        <button type="button" class="revoke-btn" data-action="revoke" data-id="${escapeHTML(user.requestId)}">
+        <button type="button" class="revoke-btn" data-action="revoke" data-id="${escapeHTML(user.requestId)}"${revokeDisabled}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
           收回权限
         </button>
@@ -747,7 +756,24 @@ import Layout from "../layouts/Layout.astro";
       }
 
       showPermissionsToast("已收回权限", "success");
-      await loadPermissions();
+      permissionsPageState.viewers = permissionsPageState.viewers.filter((user) => user.requestId !== requestId);
+      renderAllPermissions();
+      try {
+        await refreshLocalData();
+        window.dispatchEvent(new CustomEvent("our-diary:permission-requests-changed"));
+        await loadPermissions(false);
+      } catch (refreshError) {
+        if (isLocalPrivacyKeyMissing(refreshError)) {
+          navigate(getLocalPrivacyUnlockUrl());
+          return;
+        }
+        console.error(refreshError);
+        try {
+          await loadPermissionsFromServer();
+        } catch (serverError) {
+          console.error(serverError);
+        }
+      }
     } catch (error) {
       console.error(error);
       showPermissionsToast("收回权限时发生错误", "error");
@@ -834,18 +860,48 @@ import Layout from "../layouts/Layout.astro";
     bindPaginationHandlers();
   }
 
-  async function loadPermissions(): Promise<void> {
-    try {
-      const res = await fetch("/api/permissions-data");
-      if (!res.ok) return;
-      const data = (await res.json()) as PermissionsData;
+  function applyPermissionsData(data: PermissionsData): void {
+    permissionsPageState.viewers = data.viewers;
+    permissionsPageState.viewableUsers = data.viewableUsers;
+    renderAllPermissions();
+  }
 
-      permissionsPageState.viewers = data.viewers;
-      permissionsPageState.viewableUsers = data.viewableUsers;
-      renderAllPermissions();
+  async function loadPermissionsFromServer(): Promise<void> {
+    const res = await fetch("/api/permissions-data");
+    if (!res.ok) throw new Error(`权限数据加载失败：${res.status}`);
+    applyPermissionsData((await res.json()) as PermissionsData);
+  }
+
+  async function refreshPermissionsInBackground(): Promise<void> {
+    try {
+      await refreshLocalData();
+      applyPermissionsData(await getPermissionsPageDataLocal());
     } catch (error) {
+      if (isLocalPrivacyKeyMissing(error)) {
+        navigate(getLocalPrivacyUnlockUrl());
+        return;
+      }
       console.error(error);
-      showPermissionsToast("加载权限失败，请稍后再试", "error");
+    }
+  }
+
+  async function loadPermissions(refreshInBackground = true): Promise<void> {
+    try {
+      applyPermissionsData(await getPermissionsPageDataLocal());
+      if (refreshInBackground) void refreshPermissionsInBackground();
+    } catch (error) {
+      if (isLocalPrivacyKeyMissing(error)) {
+        navigate(getLocalPrivacyUnlockUrl());
+        return;
+      }
+      console.error("local permissions data failed, falling back to server api", error);
+      try {
+        await loadPermissionsFromServer();
+        if (refreshInBackground) void refreshPermissionsInBackground();
+      } catch (serverError) {
+        console.error(serverError);
+        showPermissionsToast("加载权限失败，请稍后再试", "error");
+      }
     }
   }
 
