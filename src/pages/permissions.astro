@@ -1,0 +1,860 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="权限管理">
+  <div class="permissions-wrap">
+    <div class="permissions-grid">
+      <section class="permissions-card">
+        <div class="permissions-card-header">
+          <div class="permissions-icon viewers-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.68 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
+          </div>
+          <div>
+            <h2 class="permissions-title">谁可以看我的日记</h2>
+            <p class="permissions-sub" id="viewers-count">
+              <span class="perm-skel count-skel"></span>
+            </p>
+          </div>
+        </div>
+
+        <div id="permissions-msg"></div>
+
+        <div class="permissions-list" id="viewers-list">
+          {Array.from({ length: 3 }).map(() => (
+            <div class="permission-row">
+              <div class="permission-left">
+                <span class="perm-skel avatar-skel"></span>
+                <div class="permission-info">
+                  <span class="perm-skel name-skel"></span>
+                  <span class="perm-skel meta-skel"></span>
+                </div>
+              </div>
+              <span class="perm-skel action-skel"></span>
+            </div>
+          ))}
+        </div>
+        <div class="list-pagination" id="viewers-pagination"></div>
+      </section>
+
+      <section class="permissions-card">
+        <div class="permissions-card-header">
+          <div class="permissions-icon access-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v4"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+          </div>
+          <div>
+            <h2 class="permissions-title">我可以看谁的日记</h2>
+            <p class="permissions-sub" id="viewable-count">
+              <span class="perm-skel count-skel"></span>
+            </p>
+          </div>
+        </div>
+
+        <div class="permissions-list" id="viewable-list">
+          {Array.from({ length: 3 }).map(() => (
+            <div class="permission-row">
+              <div class="permission-left">
+                <span class="perm-skel avatar-skel"></span>
+                <div class="permission-info">
+                  <span class="perm-skel name-skel"></span>
+                  <span class="perm-skel meta-skel"></span>
+                </div>
+              </div>
+              <span class="perm-skel action-skel"></span>
+            </div>
+          ))}
+        </div>
+        <div class="list-pagination" id="viewable-pagination"></div>
+      </section>
+    </div>
+  </div>
+
+  <style is:global>
+    .perm-skel {
+      display: inline-block;
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: permissions-shimmer 1.4s infinite;
+      border-radius: 6px;
+    }
+    @keyframes permissions-shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    .count-skel { width: 64px; height: 0.75rem; }
+    .avatar-skel { width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0; }
+    .name-skel { width: 92px; height: 0.9rem; }
+    .meta-skel { width: 120px; height: 0.72rem; }
+    .action-skel { width: 86px; height: 2rem; border-radius: 8px; }
+
+    .permissions-wrap {
+      max-width: none;
+      width: 100%;
+      height: 100%;
+      margin: 0 auto;
+      min-height: 0;
+    }
+    body:has(.permissions-wrap) {
+      height: 100dvh;
+      overflow: hidden;
+    }
+    .main-content:has(.permissions-wrap) {
+      height: calc(100dvh - var(--permissions-header-height, 90px));
+      overflow: hidden;
+      display: flex;
+      align-items: stretch;
+      padding: 1rem clamp(1rem, 2vw, 1.65rem) !important;
+    }
+    .permissions-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: clamp(0.62rem, 1.2vw, 0.9rem);
+      align-items: stretch;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+    }
+    .permissions-card {
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.07);
+      border-radius: 20px;
+      padding: 1.35rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .permissions-card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+      flex-shrink: 0;
+    }
+    .permissions-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .viewers-icon {
+      background: rgba(99, 102, 241, 0.1);
+      color: #4f46e5;
+      border: 1px solid rgba(99, 102, 241, 0.2);
+    }
+    .access-icon {
+      background: rgba(16, 185, 129, 0.1);
+      color: #059669;
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+    .permissions-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #0f172a;
+      line-height: 1.2;
+      margin: 0;
+    }
+    .permissions-sub {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      margin-top: 0.15rem;
+    }
+    .permissions-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      flex: 1;
+      min-height: 0;
+      max-height: none;
+      overflow: hidden;
+      padding-right: 0.25rem;
+    }
+    .list-pagination {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.45rem;
+      min-height: clamp(44px, 6svh, 52px);
+      margin-top: auto;
+      margin-right: -1.35rem;
+      margin-bottom: -1.35rem;
+      margin-left: -1.35rem;
+      padding: clamp(0.32rem, 0.65svh, 0.46rem) 1.35rem;
+      border-top: 1px solid rgba(0, 0, 0, 0.06);
+      border-radius: 0 0 20px 20px;
+      background: #fbfdff;
+      box-sizing: border-box;
+    }
+    .list-pagination:empty {
+      display: none;
+    }
+    .page-info {
+      min-width: 110px;
+      color: #64748b;
+      font-size: 0.76rem;
+      font-weight: 800;
+      text-align: center;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    .page-btn {
+      min-height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(15, 23, 42, 0.1);
+      background: #fff;
+      color: #475569;
+      border-radius: 9px;
+      padding: 0.34rem 0.65rem;
+      font: inherit;
+      font-size: 0.76rem;
+      font-weight: 800;
+      line-height: 1;
+      cursor: pointer;
+      transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+    }
+    .page-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      border-color: rgba(14, 165, 233, 0.24);
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.07);
+    }
+    .page-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .permissions-list::-webkit-scrollbar { width: 4px; }
+    .permissions-list::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.1);
+      border-radius: 2px;
+    }
+    .permission-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.62rem 0.85rem;
+      border-radius: 12px;
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      background: #f8fafc;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .permission-row:hover {
+      background: #f1f5f9;
+      border-color: rgba(0, 0, 0, 0.1);
+    }
+    .permission-row.is-processing {
+      border-color: rgba(14, 165, 233, 0.28);
+      background: rgba(14, 165, 233, 0.04);
+    }
+    .permission-left {
+      display: flex;
+      align-items: center;
+      gap: 0.72rem;
+      min-width: 0;
+    }
+    .permission-avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #ffffff;
+      font-size: 0.9rem;
+      font-weight: 750;
+    }
+    .permission-info {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.12rem;
+    }
+    .permission-name {
+      font-size: 0.92rem;
+      font-weight: 650;
+      color: #0f172a;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .permission-meta {
+      font-size: 0.74rem;
+      color: #94a3b8;
+    }
+    .permission-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      flex-shrink: 0;
+    }
+    .permission-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.34rem 0.68rem;
+      border-radius: 8px;
+      border: 1px solid rgba(16, 185, 129, 0.22);
+      background: rgba(16, 185, 129, 0.1);
+      color: #059669;
+      font-size: 0.78rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .permission-link,
+    .revoke-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.32rem;
+      padding: 0.34rem 0.72rem;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      font-family: inherit;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background 0.18s, color 0.18s, border-color 0.18s, opacity 0.18s;
+      white-space: nowrap;
+    }
+    .permission-link {
+      color: #4f46e5;
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      background: rgba(99, 102, 241, 0.08);
+    }
+    .permission-link:hover {
+      color: #4338ca;
+      background: rgba(99, 102, 241, 0.14);
+    }
+    .revoke-btn {
+      color: #dc2626;
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      background: rgba(239, 68, 68, 0.08);
+    }
+    .revoke-btn:hover {
+      color: #b91c1c;
+      background: rgba(239, 68, 68, 0.14);
+    }
+    .revoke-btn:disabled,
+    .revoke-btn.is-loading {
+      cursor: wait;
+      opacity: 0.68;
+    }
+    .btn-spinner {
+      width: 0.82rem;
+      height: 0.82rem;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 999px;
+      animation: button-spin 0.68s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes button-spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+    .permissions-msg {
+      padding: 0.68rem 0.85rem;
+      border-radius: 10px;
+      font-size: 0.84rem;
+      font-weight: 650;
+      margin-bottom: 1rem;
+    }
+    .permissions-msg.success {
+      color: #047857;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+    .permissions-msg.error {
+      color: #dc2626;
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.18);
+    }
+    .permissions-empty {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #94a3b8;
+    }
+    .permissions-empty-icon {
+      font-size: 2.35rem;
+      margin-bottom: 0.7rem;
+    }
+    .permissions-empty p {
+      font-size: 0.88rem;
+    }
+    .permissions-toast-stack {
+      position: fixed;
+      top: calc(var(--permissions-header-height, 90px) + 0.75rem);
+      right: clamp(1rem, 2vw, 1.65rem);
+      z-index: 80;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.5rem;
+      pointer-events: none;
+    }
+    .permissions-toast {
+      max-width: min(320px, calc(100vw - 2rem));
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.65rem 0.9rem;
+      border-radius: 10px;
+      background: #ffffff;
+      border: 1px solid rgba(15, 23, 42, 0.1);
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+      color: #334155;
+      font-size: 0.82rem;
+      font-weight: 700;
+      animation: toast-in 0.18s ease;
+    }
+    .permissions-toast::before {
+      content: "";
+      width: 0.45rem;
+      height: 0.45rem;
+      border-radius: 999px;
+      background: #0ea5e9;
+      flex-shrink: 0;
+    }
+    .permissions-toast-success {
+      color: #047857;
+      border-color: rgba(16, 185, 129, 0.22);
+      background: #f0fdf9;
+    }
+    .permissions-toast-success::before {
+      background: #10b981;
+    }
+    .permissions-toast-error {
+      color: #b91c1c;
+      border-color: rgba(239, 68, 68, 0.22);
+      background: #fff5f5;
+    }
+    .permissions-toast-error::before {
+      background: #ef4444;
+    }
+    .permissions-toast.is-hiding {
+      opacity: 0;
+      transform: translateY(-6px);
+      transition: opacity 0.18s ease, transform 0.18s ease;
+    }
+    @keyframes toast-in {
+      from {
+        opacity: 0;
+        transform: translateY(-6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    @media (max-width: 860px) {
+      .permissions-grid {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+      }
+    }
+    @media (max-width: 520px) {
+      .permission-row {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      .permission-actions {
+        width: 100%;
+        justify-content: flex-end;
+      }
+    }
+    @media (max-height: 760px) {
+      .main-content:has(.permissions-wrap) {
+        padding: 0.75rem clamp(1rem, 2vw, 1.65rem) !important;
+      }
+      .permissions-card {
+        padding: 1rem;
+      }
+      .permissions-card-header {
+        margin-bottom: 0.8rem;
+        padding-bottom: 0.8rem;
+      }
+      .permission-row {
+        padding: 0.5rem 0.75rem;
+      }
+      .list-pagination {
+        margin-right: -1rem;
+        margin-bottom: -1rem;
+        margin-left: -1rem;
+        padding-right: 1rem;
+        padding-left: 1rem;
+      }
+    }
+  </style>
+</Layout>
+
+<script>
+  type PermissionUser = {
+    requestId: string;
+    userId: string;
+    username: string;
+    initial: string;
+    updatedAt: string;
+  };
+
+  type PermissionsData = {
+    viewers: PermissionUser[];
+    viewableUsers: PermissionUser[];
+  };
+
+  type ToastType = "success" | "error";
+
+  const permissionsPageState = {
+    viewers: [] as PermissionUser[],
+    viewableUsers: [] as PermissionUser[],
+    viewersPage: 0,
+    viewablePage: 0,
+    viewersPageSize: 5,
+    viewablePageSize: 5,
+  };
+
+  function setPermissionsViewportHeight(): void {
+    const navbar = document.querySelector<HTMLElement>(".navbar");
+    const headerHeight = navbar?.getBoundingClientRect().height ?? 90;
+    document.documentElement.style.setProperty(
+      "--permissions-header-height",
+      `${Math.ceil(headerHeight)}px`,
+    );
+  }
+
+  function escapeHTML(value: unknown): string {
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function formatDateLabel(value: string): string {
+    return value ? value.slice(0, 10) : "";
+  }
+
+  function setText(id: string, text: string): void {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
+
+  function getPermissionsToastStack(): HTMLElement {
+    let stack = document.getElementById("permissions-toast-stack");
+    if (!stack) {
+      stack = document.createElement("div");
+      stack.id = "permissions-toast-stack";
+      stack.className = "permissions-toast-stack";
+      stack.setAttribute("aria-live", "polite");
+      stack.setAttribute("aria-atomic", "true");
+      document.body.append(stack);
+    }
+    return stack;
+  }
+
+  function showPermissionsToast(message: string, type: ToastType = "success"): void {
+    const stack = getPermissionsToastStack();
+    const toast = document.createElement("div");
+    toast.className = `permissions-toast permissions-toast-${type}`;
+    toast.setAttribute("role", type === "error" ? "alert" : "status");
+    toast.textContent = message;
+    stack.append(toast);
+
+    window.setTimeout(() => {
+      toast.classList.add("is-hiding");
+      window.setTimeout(() => toast.remove(), 180);
+    }, 2600);
+  }
+
+  function renderEmpty(text: string): string {
+    return `<div class="permissions-empty"><div class="permissions-empty-icon">○</div><p>${escapeHTML(text)}</p></div>`;
+  }
+
+  function clampPage(page: number, total: number, pageSize: number): number {
+    const maxPage = Math.max(0, Math.ceil(total / pageSize) - 1);
+    return Math.min(Math.max(page, 0), maxPage);
+  }
+
+  function measurePageSize(
+    listId: string,
+    rowSelector: string,
+    currentPageSize: number,
+  ): number {
+    const list = document.getElementById(listId);
+    const firstRow = list?.querySelector<HTMLElement>(rowSelector);
+    if (!list || !firstRow) return currentPageSize;
+
+    const listHeight = list.clientHeight;
+    const rowHeight = firstRow.getBoundingClientRect().height;
+    const listStyle = window.getComputedStyle(list);
+    const gap = Number.parseFloat(listStyle.rowGap || listStyle.gap || "0") || 0;
+    if (listHeight <= 0 || rowHeight <= 0) return currentPageSize;
+
+    return Math.max(1, Math.floor((listHeight + gap) / (rowHeight + gap)));
+  }
+
+  function clampPages(): void {
+    permissionsPageState.viewersPage = clampPage(
+      permissionsPageState.viewersPage,
+      permissionsPageState.viewers.length,
+      permissionsPageState.viewersPageSize,
+    );
+    permissionsPageState.viewablePage = clampPage(
+      permissionsPageState.viewablePage,
+      permissionsPageState.viewableUsers.length,
+      permissionsPageState.viewablePageSize,
+    );
+  }
+
+  function syncPageSizesFromLayout(): boolean {
+    const nextViewersPageSize = measurePageSize(
+      "viewers-list",
+      ".permission-row",
+      permissionsPageState.viewersPageSize,
+    );
+    const nextViewablePageSize = measurePageSize(
+      "viewable-list",
+      ".permission-row",
+      permissionsPageState.viewablePageSize,
+    );
+    const changed =
+      nextViewersPageSize !== permissionsPageState.viewersPageSize ||
+      nextViewablePageSize !== permissionsPageState.viewablePageSize;
+
+    permissionsPageState.viewersPageSize = nextViewersPageSize;
+    permissionsPageState.viewablePageSize = nextViewablePageSize;
+    clampPages();
+    return changed;
+  }
+
+  function getPageItems<T>(items: T[], page: number, pageSize: number): T[] {
+    return items.slice(page * pageSize, page * pageSize + pageSize);
+  }
+
+  function renderPagination(
+    containerId: string,
+    total: number,
+    page: number,
+    pageSize: number,
+    target: "viewers" | "viewable",
+  ): void {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+    container.innerHTML = `
+      <button type="button" class="page-btn" data-page-target="${target}" data-page-dir="-1" ${page === 0 ? "disabled" : ""}>上一页</button>
+      <span class="page-info">${page + 1} / ${totalPages} · 每页 ${pageSize} 位</span>
+      <button type="button" class="page-btn" data-page-target="${target}" data-page-dir="1" ${page >= totalPages - 1 ? "disabled" : ""}>下一页</button>`;
+  }
+
+  function bindPaginationHandlers(): void {
+    document.querySelectorAll<HTMLButtonElement>(".page-btn[data-page-target]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const target = button.dataset.pageTarget;
+        const dir = Number(button.dataset.pageDir ?? 0);
+
+        if (target === "viewers") {
+          permissionsPageState.viewersPage = clampPage(
+            permissionsPageState.viewersPage + dir,
+            permissionsPageState.viewers.length,
+            permissionsPageState.viewersPageSize,
+          );
+        } else if (target === "viewable") {
+          permissionsPageState.viewablePage = clampPage(
+            permissionsPageState.viewablePage + dir,
+            permissionsPageState.viewableUsers.length,
+            permissionsPageState.viewablePageSize,
+          );
+        }
+
+        renderAllPermissions();
+      });
+    });
+  }
+
+  function renderViewerRow(user: PermissionUser): string {
+    return `<div class="permission-row">
+      <div class="permission-left">
+        <div class="permission-avatar">${escapeHTML(user.initial)}</div>
+        <div class="permission-info">
+          <span class="permission-name">${escapeHTML(user.username)}</span>
+          <span class="permission-meta">授权于 ${escapeHTML(formatDateLabel(user.updatedAt))}</span>
+        </div>
+      </div>
+      <div class="permission-actions">
+        <button type="button" class="revoke-btn" data-action="revoke" data-id="${escapeHTML(user.requestId)}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          收回权限
+        </button>
+      </div>
+    </div>`;
+  }
+
+  function renderViewableRow(user: PermissionUser): string {
+    return `<div class="permission-row">
+      <div class="permission-left">
+        <div class="permission-avatar">${escapeHTML(user.initial)}</div>
+        <div class="permission-info">
+          <span class="permission-name">${escapeHTML(user.username)}</span>
+          <span class="permission-meta">授权于 ${escapeHTML(formatDateLabel(user.updatedAt))}</span>
+        </div>
+      </div>
+      <div class="permission-actions">
+        <span class="permission-badge">可查看</span>
+        <a href="/user-diary/${encodeURIComponent(user.userId)}" class="permission-link" data-astro-prefetch>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          查看
+        </a>
+      </div>
+    </div>`;
+  }
+
+  async function revokePermission(requestId: string, button: HTMLButtonElement): Promise<void> {
+    const row = button.closest<HTMLElement>(".permission-row");
+    button.disabled = true;
+    const oldHTML = button.innerHTML;
+    row?.classList.add("is-processing");
+    button.classList.add("is-loading");
+    button.setAttribute("aria-busy", "true");
+    button.innerHTML = `<span class="btn-spinner" aria-hidden="true"></span>处理中`;
+
+    try {
+      const body = new FormData();
+      body.set("action", "revoke");
+      body.set("requestId", requestId);
+      const res = await fetch("/api/permissions-data", { method: "POST", body });
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok || !json.ok) {
+        const serverError = json.error === "Unauthorized" ? "登录状态已过期，请重新登录" : json.error;
+        showPermissionsToast(serverError || "收回权限失败", "error");
+        button.disabled = false;
+        row?.classList.remove("is-processing");
+        button.classList.remove("is-loading");
+        button.removeAttribute("aria-busy");
+        button.innerHTML = oldHTML;
+        return;
+      }
+
+      showPermissionsToast("已收回权限", "success");
+      await loadPermissions();
+    } catch (error) {
+      console.error(error);
+      showPermissionsToast("收回权限时发生错误", "error");
+      button.disabled = false;
+      row?.classList.remove("is-processing");
+      button.classList.remove("is-loading");
+      button.removeAttribute("aria-busy");
+      button.innerHTML = oldHTML;
+    }
+  }
+
+  function renderViewers(): void {
+    setText(
+      "viewers-count",
+      permissionsPageState.viewers.length > 0
+        ? `${permissionsPageState.viewers.length} 位成员`
+        : "暂无授权",
+    );
+
+    const viewersList = document.getElementById("viewers-list");
+    if (!viewersList) return;
+
+    viewersList.innerHTML = permissionsPageState.viewers.length > 0
+      ? getPageItems(
+        permissionsPageState.viewers,
+        permissionsPageState.viewersPage,
+        permissionsPageState.viewersPageSize,
+      ).map(renderViewerRow).join("")
+      : renderEmpty("还没有成员可以查看你的日记");
+
+    viewersList.querySelectorAll<HTMLButtonElement>('[data-action="revoke"]').forEach((button) => {
+      button.addEventListener("click", () => {
+        if (button.disabled) return;
+        const requestId = button.dataset.id ?? "";
+        if (requestId) void revokePermission(requestId, button);
+      });
+    });
+
+    renderPagination(
+      "viewers-pagination",
+      permissionsPageState.viewers.length,
+      permissionsPageState.viewersPage,
+      permissionsPageState.viewersPageSize,
+      "viewers",
+    );
+  }
+
+  function renderViewable(): void {
+    setText(
+      "viewable-count",
+      permissionsPageState.viewableUsers.length > 0
+        ? `${permissionsPageState.viewableUsers.length} 位成员`
+        : "暂无授权",
+    );
+
+    const viewableList = document.getElementById("viewable-list");
+    if (!viewableList) return;
+
+    viewableList.innerHTML = permissionsPageState.viewableUsers.length > 0
+      ? getPageItems(
+        permissionsPageState.viewableUsers,
+        permissionsPageState.viewablePage,
+        permissionsPageState.viewablePageSize,
+      ).map(renderViewableRow).join("")
+      : renderEmpty("暂时还没有成员授权你查看日记");
+
+    renderPagination(
+      "viewable-pagination",
+      permissionsPageState.viewableUsers.length,
+      permissionsPageState.viewablePage,
+      permissionsPageState.viewablePageSize,
+      "viewable",
+    );
+  }
+
+  function renderAllPermissions(allowRemeasure = true): void {
+    clampPages();
+    renderViewers();
+    renderViewable();
+    if (allowRemeasure && syncPageSizesFromLayout()) {
+      renderAllPermissions(false);
+      return;
+    }
+    bindPaginationHandlers();
+  }
+
+  async function loadPermissions(): Promise<void> {
+    try {
+      const res = await fetch("/api/permissions-data");
+      if (!res.ok) return;
+      const data = (await res.json()) as PermissionsData;
+
+      permissionsPageState.viewers = data.viewers;
+      permissionsPageState.viewableUsers = data.viewableUsers;
+      renderAllPermissions();
+    } catch (error) {
+      console.error(error);
+      showPermissionsToast("加载权限失败，请稍后再试", "error");
+    }
+  }
+
+  document.addEventListener("astro:page-load", () => {
+    setPermissionsViewportHeight();
+    void loadPermissions();
+  });
+  window.addEventListener("resize", () => {
+    setPermissionsViewportHeight();
+    renderAllPermissions();
+  });
+</script>

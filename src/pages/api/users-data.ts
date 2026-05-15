@@ -8,11 +8,11 @@ export const GET: APIRoute = async ({ cookies }) => {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
 
-  const [otherUsers, sentRequests, receivedRequests] = await Promise.all([
+  const [regularUsers, sentRequests, receivedRequests] = await Promise.all([
     prisma.user.findMany({
-      where: { id: { not: currentUser.id } },
-      orderBy: { username: 'asc' },
-      select: { id: true, username: true, role: true },
+      where: { role: 'USER' },
+      orderBy: [{ createdAt: 'asc' }, { username: 'asc' }],
+      select: { id: true, username: true, role: true, createdAt: true },
     }),
     prisma.permissionRequest.findMany({
       where: { requesterId: currentUser.id },
@@ -26,15 +26,23 @@ export const GET: APIRoute = async ({ cookies }) => {
 
   const requestsMap: Record<string, string> = {};
   sentRequests.forEach((req) => { requestsMap[req.targetId] = req.status; });
+  const memberNumberMap = new Map(
+    regularUsers.map((user, index) => [user.id, String(index + 1).padStart(4, '0')]),
+  );
+  const currentUserRecord = regularUsers.find((user) => user.id === currentUser.id) ?? null;
+  const otherUsers = regularUsers.filter((user) => user.id !== currentUser.id);
+  const visibleUsers = currentUserRecord ? [currentUserRecord, ...otherUsers] : otherUsers;
 
   return new Response(
     JSON.stringify({
-      users: otherUsers.map((u) => ({
+      users: visibleUsers.map((u) => ({
         id: u.id,
         username: u.username,
         role: u.role,
         status: requestsMap[u.id] ?? null,
         initial: u.username.charAt(0).toUpperCase(),
+        isCurrentUser: u.id === currentUser.id,
+        memberNumber: memberNumberMap.get(u.id) ?? '0000',
       })),
       receivedRequests: receivedRequests.map((r) => ({
         id: r.id,

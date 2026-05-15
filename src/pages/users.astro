@@ -56,6 +56,7 @@ import Layout from "../layouts/Layout.astro";
             ))
           }
         </div>
+        <div class="list-pagination" id="user-pagination"></div>
       </div>
 
       <!-- Incoming requests column -->
@@ -138,6 +139,7 @@ import Layout from "../layouts/Layout.astro";
             ))
           }
         </div>
+        <div class="list-pagination" id="request-pagination"></div>
       </div>
     </div>
   </div>
@@ -158,8 +160,22 @@ import Layout from "../layouts/Layout.astro";
       }
     }
     .users-wrap {
-      max-width: 1100px;
+      max-width: none;
+      width: 100%;
+      height: 100%;
       margin: 0 auto;
+      min-height: 0;
+    }
+    body:has(.users-wrap) {
+      height: 100dvh;
+      overflow: hidden;
+    }
+    .main-content:has(.users-wrap) {
+      height: calc(100dvh - var(--users-header-height, 90px));
+      overflow: hidden;
+      display: flex;
+      align-items: stretch;
+      padding: 1rem clamp(1rem, 2vw, 1.65rem) !important;
     }
     .notif-badge {
       display: flex;
@@ -189,27 +205,33 @@ import Layout from "../layouts/Layout.astro";
     .users-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 1.5rem;
-      align-items: start;
+      gap: clamp(0.62rem, 1.2vw, 0.9rem);
+      align-items: stretch;
+      height: 100%;
+      min-height: 0;
     }
     @media (max-width: 800px) {
       .users-grid {
         grid-template-columns: 1fr;
+        grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
       }
     }
-    .card {
+    .users-wrap .card {
       background: #ffffff;
       border: 1px solid rgba(0, 0, 0, 0.07);
       border-radius: 20px;
-      padding: 1.75rem;
+      padding: 1.35rem;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
     }
     .card-header {
       display: flex;
       align-items: center;
       gap: 0.85rem;
-      margin-bottom: 1.5rem;
-      padding-bottom: 1.25rem;
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
       border-bottom: 1px solid rgba(0, 0, 0, 0.06);
     }
     .card-icon {
@@ -247,9 +269,66 @@ import Layout from "../layouts/Layout.astro";
       display: flex;
       flex-direction: column;
       gap: 0.5rem;
-      max-height: 460px;
-      overflow-y: auto;
+      flex: 1;
+      min-height: 0;
+      max-height: none;
+      overflow: hidden;
       padding-right: 0.25rem;
+    }
+    .list-pagination {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.45rem;
+      min-height: clamp(44px, 6svh, 52px);
+      margin-top: auto;
+      margin-right: -1.35rem;
+      margin-bottom: -1.35rem;
+      margin-left: -1.35rem;
+      padding: clamp(0.32rem, 0.65svh, 0.46rem) 1.35rem;
+      border-top: 1px solid rgba(0, 0, 0, 0.06);
+      border-radius: 0 0 20px 20px;
+      background: #fbfdff;
+      box-sizing: border-box;
+    }
+    .list-pagination:empty {
+      display: none;
+    }
+    .page-info {
+      min-width: 110px;
+      color: #64748b;
+      font-size: 0.76rem;
+      font-weight: 800;
+      text-align: center;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    .page-btn {
+      min-height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(15, 23, 42, 0.1);
+      background: #fff;
+      color: #475569;
+      border-radius: 9px;
+      padding: 0.34rem 0.65rem;
+      font: inherit;
+      font-size: 0.76rem;
+      font-weight: 800;
+      line-height: 1;
+      cursor: pointer;
+      transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+    }
+    .page-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      border-color: rgba(14, 165, 233, 0.24);
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.07);
+    }
+    .page-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
     }
     .user-list::-webkit-scrollbar,
     .request-list::-webkit-scrollbar {
@@ -276,7 +355,7 @@ import Layout from "../layouts/Layout.astro";
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0.7rem 0.9rem;
+      padding: 0.62rem 0.85rem;
       border-radius: 12px;
       border: 1px solid rgba(0, 0, 0, 0.05);
       background: #f8fafc;
@@ -286,6 +365,14 @@ import Layout from "../layouts/Layout.astro";
     .user-row:hover {
       background: #f1f5f9;
       border-color: rgba(0, 0, 0, 0.1);
+    }
+    .user-row.is-self {
+      background: rgba(16, 185, 129, 0.08);
+      border-color: rgba(16, 185, 129, 0.24);
+    }
+    .user-row.is-self:hover {
+      background: rgba(16, 185, 129, 0.12);
+      border-color: rgba(16, 185, 129, 0.32);
     }
     .user-left {
       display: flex;
@@ -309,7 +396,7 @@ import Layout from "../layouts/Layout.astro";
     .user-info-box {
       display: flex;
       flex-direction: column;
-      gap: 0.1rem;
+      gap: 0.22rem;
       min-width: 0;
     }
     .user-name {
@@ -329,6 +416,32 @@ import Layout from "../layouts/Layout.astro";
       border-radius: 4px;
       width: fit-content;
     }
+    .self-tag {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: #059669;
+      background: rgba(16, 185, 129, 0.12);
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      width: fit-content;
+    }
+    .user-tags {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+    }
+    .member-number-tag {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: #475569;
+      background: rgba(148, 163, 184, 0.14);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      width: fit-content;
+      font-variant-numeric: tabular-nums;
+    }
     .user-action {
       flex-shrink: 0;
     }
@@ -345,6 +458,31 @@ import Layout from "../layouts/Layout.astro";
       cursor: pointer;
       transition: all 0.18s;
       text-decoration: none;
+    }
+    .action-btn:disabled,
+    .act-btn:disabled {
+      opacity: 0.68;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    .action-btn.is-loading,
+    .act-btn.is-loading {
+      cursor: wait;
+    }
+    .btn-spinner {
+      width: 0.82rem;
+      height: 0.82rem;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 999px;
+      animation: button-spin 0.68s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes button-spin {
+      to {
+        transform: rotate(360deg);
+      }
     }
     .btn-view {
       background: rgba(99, 102, 241, 0.1);
@@ -378,11 +516,16 @@ import Layout from "../layouts/Layout.astro";
       color: #d97706;
       border: 1px solid rgba(245, 158, 11, 0.2);
     }
+    .badge-self {
+      background: rgba(16, 185, 129, 0.12);
+      color: #059669;
+      border: 1px solid rgba(16, 185, 129, 0.24);
+    }
     .request-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0.9rem 1rem;
+      padding: 0.78rem 0.9rem;
       border-radius: 12px;
       border: 1px solid rgba(245, 158, 11, 0.15);
       background: rgba(245, 158, 11, 0.05);
@@ -390,6 +533,11 @@ import Layout from "../layouts/Layout.astro";
     }
     .request-row:hover {
       background: rgba(245, 158, 11, 0.1);
+    }
+    .user-row.is-processing,
+    .request-row.is-processing {
+      border-color: rgba(14, 165, 233, 0.28);
+      background: rgba(14, 165, 233, 0.04);
     }
     .request-left {
       display: flex;
@@ -460,128 +608,522 @@ import Layout from "../layouts/Layout.astro";
       background: rgba(239, 68, 68, 0.2);
       transform: translateY(-1px);
     }
+    .users-toast-stack {
+      position: fixed;
+      top: calc(var(--users-header-height, 90px) + 0.75rem);
+      right: clamp(1rem, 2vw, 1.65rem);
+      z-index: 80;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.5rem;
+      pointer-events: none;
+    }
+    .users-toast {
+      max-width: min(320px, calc(100vw - 2rem));
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.65rem 0.9rem;
+      border-radius: 10px;
+      background: #ffffff;
+      border: 1px solid rgba(15, 23, 42, 0.1);
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+      color: #334155;
+      font-size: 0.82rem;
+      font-weight: 700;
+      animation: toast-in 0.18s ease;
+    }
+    .users-toast::before {
+      content: "";
+      width: 0.45rem;
+      height: 0.45rem;
+      border-radius: 999px;
+      background: #0ea5e9;
+      flex-shrink: 0;
+    }
+    .users-toast-success {
+      color: #047857;
+      border-color: rgba(16, 185, 129, 0.22);
+      background: #f0fdf9;
+    }
+    .users-toast-success::before {
+      background: #10b981;
+    }
+    .users-toast-error {
+      color: #b91c1c;
+      border-color: rgba(239, 68, 68, 0.22);
+      background: #fff5f5;
+    }
+    .users-toast-error::before {
+      background: #ef4444;
+    }
+    .users-toast.is-hiding {
+      opacity: 0;
+      transform: translateY(-6px);
+      transition: opacity 0.18s ease, transform 0.18s ease;
+    }
+    @keyframes toast-in {
+      from {
+        opacity: 0;
+        transform: translateY(-6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    @media (max-height: 760px) {
+      .main-content:has(.users-wrap) {
+        padding: 0.75rem clamp(1rem, 2vw, 1.65rem) !important;
+      }
+      .users-wrap .card {
+        padding: 1rem;
+      }
+      .users-wrap .card-header {
+        margin-bottom: 0.8rem;
+        padding-bottom: 0.8rem;
+      }
+      .user-row {
+        padding: 0.5rem 0.75rem;
+      }
+      .request-row {
+        padding: 0.62rem 0.75rem;
+      }
+      .list-pagination {
+        margin-right: -1rem;
+        margin-bottom: -1rem;
+        margin-left: -1rem;
+        padding-right: 1rem;
+        padding-left: 1rem;
+      }
+    }
   </style>
 </Layout>
 
 <script>
-  async function loadUsers() {
+  type MemberUser = {
+    id: string;
+    username: string;
+    role: string;
+    status: string | null;
+    initial: string;
+    isCurrentUser: boolean;
+    memberNumber: string;
+  };
+
+  type ReceivedRequest = {
+    id: string;
+    requesterName: string;
+    requesterInitial: string;
+  };
+
+  type UsersData = {
+    users: MemberUser[];
+    receivedRequests: ReceivedRequest[];
+  };
+
+  type ToastType = "success" | "error" | "info";
+
+  type PermissionActionOptions = {
+    trigger: HTMLButtonElement;
+    loadingText: string;
+    successText: string;
+    errorText: string;
+  };
+
+  const usersPageState = {
+    users: [] as MemberUser[],
+    requests: [] as ReceivedRequest[],
+    userPage: 0,
+    requestPage: 0,
+    userPageSize: 1,
+    requestPageSize: 1,
+  };
+
+  function setUsersViewportHeight(): void {
+    const navbar = document.querySelector<HTMLElement>(".navbar");
+    const headerHeight = navbar?.getBoundingClientRect().height ?? 90;
+    document.documentElement.style.setProperty(
+      "--users-header-height",
+      `${Math.ceil(headerHeight)}px`,
+    );
+  }
+
+  function escapeHTML(value: unknown): string {
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function getUsersToastStack(): HTMLElement {
+    let stack = document.getElementById("users-toast-stack");
+    if (!stack) {
+      stack = document.createElement("div");
+      stack.id = "users-toast-stack";
+      stack.className = "users-toast-stack";
+      stack.setAttribute("aria-live", "polite");
+      stack.setAttribute("aria-atomic", "true");
+      document.body.append(stack);
+    }
+    return stack;
+  }
+
+  function showUsersToast(message: string, type: ToastType = "success"): void {
+    const stack = getUsersToastStack();
+    const toast = document.createElement("div");
+    toast.className = `users-toast users-toast-${type}`;
+    toast.setAttribute("role", type === "error" ? "alert" : "status");
+    toast.textContent = message;
+    stack.append(toast);
+
+    window.setTimeout(() => {
+      toast.classList.add("is-hiding");
+      window.setTimeout(() => toast.remove(), 180);
+    }, 2600);
+  }
+
+  function clampPage(page: number, total: number, pageSize: number): number {
+    const maxPage = Math.max(0, Math.ceil(total / pageSize) - 1);
+    return Math.min(Math.max(page, 0), maxPage);
+  }
+
+  function measurePageSize(
+    listId: string,
+    rowSelector: string,
+    currentPageSize: number,
+  ): number {
+    const list = document.getElementById(listId);
+    const firstRow = list?.querySelector<HTMLElement>(rowSelector);
+    if (!list || !firstRow) return currentPageSize;
+
+    const listHeight = list.clientHeight;
+    const rowHeight = firstRow.getBoundingClientRect().height;
+    const listStyle = window.getComputedStyle(list);
+    const gap = Number.parseFloat(listStyle.rowGap || listStyle.gap || "0") || 0;
+    if (listHeight <= 0 || rowHeight <= 0) return currentPageSize;
+
+    return Math.max(1, Math.floor((listHeight + gap) / (rowHeight + gap)));
+  }
+
+  function clampPages(): void {
+    usersPageState.userPage = clampPage(
+      usersPageState.userPage,
+      usersPageState.users.length,
+      usersPageState.userPageSize,
+    );
+    usersPageState.requestPage = clampPage(
+      usersPageState.requestPage,
+      usersPageState.requests.length,
+      usersPageState.requestPageSize,
+    );
+  }
+
+  function syncPageSizesFromLayout(): boolean {
+    const nextUserPageSize = measurePageSize(
+      "user-list",
+      ".user-row",
+      usersPageState.userPageSize,
+    );
+    const nextRequestPageSize = measurePageSize(
+      "request-list",
+      ".request-row",
+      usersPageState.requestPageSize,
+    );
+    const changed =
+      nextUserPageSize !== usersPageState.userPageSize ||
+      nextRequestPageSize !== usersPageState.requestPageSize;
+
+    usersPageState.userPageSize = nextUserPageSize;
+    usersPageState.requestPageSize = nextRequestPageSize;
+    clampPages();
+    return changed;
+  }
+
+  function getPageItems<T>(items: T[], page: number, pageSize: number): T[] {
+    return items.slice(page * pageSize, page * pageSize + pageSize);
+  }
+
+  function renderPagination(
+    containerId: string,
+    total: number,
+    page: number,
+    pageSize: number,
+    target: "users" | "requests",
+    unit: string,
+  ): void {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+    container.innerHTML = `
+      <button type="button" class="page-btn" data-page-target="${target}" data-page-dir="-1" ${page === 0 ? "disabled" : ""}>上一页</button>
+      <span class="page-info">${page + 1} / ${totalPages} · 每页 ${pageSize} ${unit}</span>
+      <button type="button" class="page-btn" data-page-target="${target}" data-page-dir="1" ${page >= totalPages - 1 ? "disabled" : ""}>下一页</button>`;
+  }
+
+  function bindPaginationHandlers(): void {
+    document.querySelectorAll<HTMLButtonElement>(".page-btn[data-page-target]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const target = btn.dataset.pageTarget;
+        const dir = Number(btn.dataset.pageDir ?? 0);
+        if (target === "users") {
+          usersPageState.userPage = clampPage(
+            usersPageState.userPage + dir,
+            usersPageState.users.length,
+            usersPageState.userPageSize,
+          );
+        } else if (target === "requests") {
+          usersPageState.requestPage = clampPage(
+            usersPageState.requestPage + dir,
+            usersPageState.requests.length,
+            usersPageState.requestPageSize,
+          );
+        }
+        renderAll();
+      });
+    });
+  }
+
+  function renderMemberRow(u: MemberUser): string {
+    let actionHTML = "";
+    if (u.isCurrentUser) {
+      actionHTML = `<span class="action-badge badge-self">当前账号</span>`;
+    } else if (u.status === "APPROVED") {
+      actionHTML = `<a href="/user-diary/${encodeURIComponent(u.id)}" class="action-btn btn-view" data-astro-prefetch><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>查看日记</a>`;
+    } else if (u.status === "PENDING") {
+      actionHTML = `<span class="action-badge badge-pending"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>请求中</span>`;
+    } else {
+      actionHTML = `<button class="action-btn btn-request" data-action="request" data-target="${escapeHTML(u.id)}">${u.status === "REJECTED" ? "重新申请" : "申请查看"}</button>`;
+    }
+
+    return `<div class="user-row${u.isCurrentUser ? " is-self" : ""}">
+      <div class="user-left">
+        <div class="user-avatar">${escapeHTML(u.initial)}</div>
+        <div class="user-info-box">
+          <span class="user-name">${escapeHTML(u.username)}</span>
+          <div class="user-tags">
+            <span class="member-number-tag">成员编号 ${escapeHTML(u.memberNumber)}</span>
+            ${u.isCurrentUser ? '<span class="self-tag">你自己</span>' : ""}
+            ${u.role === "ADMIN" ? '<span class="admin-tag">管理员</span>' : ""}
+          </div>
+        </div>
+      </div>
+      <div class="user-action">${actionHTML}</div>
+    </div>`;
+  }
+
+  function renderRequestRow(r: ReceivedRequest): string {
+    return `<div class="request-row">
+      <div class="request-left">
+        <div class="request-avatar">${escapeHTML(r.requesterInitial)}</div>
+        <div class="request-info"><span class="request-name">${escapeHTML(r.requesterName)}</span><span class="request-desc">申请查看你的日记</span></div>
+      </div>
+      <div class="request-actions">
+        <button class="act-btn act-approve" data-action="approve" data-id="${escapeHTML(r.id)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>同意</button>
+        <button class="act-btn act-reject" data-action="reject" data-id="${escapeHTML(r.id)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>拒绝</button>
+      </div>
+    </div>`;
+  }
+
+  function beginButtonProgress(trigger: HTMLButtonElement, label: string): () => void {
+    const row = trigger.closest<HTMLElement>(".user-row, .request-row");
+    const actionGroup = trigger.closest(".request-actions");
+    const controls = actionGroup
+      ? Array.from(actionGroup.querySelectorAll<HTMLButtonElement>("button"))
+      : [trigger];
+    const previousStates = controls.map((button) => ({
+      button,
+      disabled: button.disabled,
+    }));
+    const originalHTML = trigger.innerHTML;
+
+    row?.classList.add("is-processing");
+    controls.forEach((button) => {
+      button.disabled = true;
+    });
+    trigger.classList.add("is-loading");
+    trigger.setAttribute("aria-busy", "true");
+    trigger.innerHTML = `<span class="btn-spinner" aria-hidden="true"></span>${escapeHTML(label)}`;
+
+    return () => {
+      row?.classList.remove("is-processing");
+      previousStates.forEach(({ button, disabled }) => {
+        button.disabled = disabled;
+        button.removeAttribute("aria-busy");
+      });
+      trigger.classList.remove("is-loading");
+      trigger.innerHTML = originalHTML;
+    };
+  }
+
+  async function postPermission(
+    body: FormData,
+    options: PermissionActionOptions,
+  ): Promise<void> {
+    const restoreButton = beginButtonProgress(options.trigger, options.loadingText);
+
+    try {
+      const res = await fetch("/api/permission", { method: "POST", body });
+      const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+
+      if (!res.ok || json.ok === false) {
+        const serverError = json.error === "Unauthorized" ? "登录状态已过期，请重新登录" : json.error;
+        throw new Error(serverError || options.errorText);
+      }
+
+      showUsersToast(options.successText, "success");
+      window.dispatchEvent(new CustomEvent("our-diary:permission-requests-changed"));
+      await loadUsers();
+    } catch (error) {
+      console.error(error);
+      const message = error instanceof Error && error.message ? error.message : options.errorText;
+      showUsersToast(message, "error");
+    } finally {
+      restoreButton();
+    }
+  }
+
+  function bindMemberHandlers(): void {
+    document.querySelectorAll<HTMLButtonElement>('#user-list [data-action="request"]').forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (btn.disabled) return;
+        const targetId = btn.dataset.target ?? "";
+        const body = new FormData();
+        body.set("action", "request");
+        body.set("targetId", targetId);
+        void postPermission(body, {
+          trigger: btn,
+          loadingText: "申请中",
+          successText: "已发送查看申请",
+          errorText: "申请发送失败，请重试",
+        });
+      });
+    });
+  }
+
+  function bindRequestHandlers(): void {
+    document.querySelectorAll<HTMLButtonElement>('#request-list [data-action="approve"], #request-list [data-action="reject"]').forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (btn.disabled) return;
+        const action = btn.dataset.action ?? "";
+        const id = btn.dataset.id ?? "";
+        const body = new FormData();
+        body.set("action", action);
+        body.set("requestId", id);
+        void postPermission(body, {
+          trigger: btn,
+          loadingText: action === "approve" ? "同意中" : "拒绝中",
+          successText: action === "approve" ? "已同意查看申请" : "已拒绝查看申请",
+          errorText: action === "approve" ? "同意申请失败，请重试" : "拒绝申请失败，请重试",
+        });
+      });
+    });
+  }
+
+  function renderMembers(): void {
+    const memberCount = document.getElementById("member-count");
+    if (memberCount) memberCount.textContent = `${usersPageState.users.length} 位成员`;
+
+    const userList = document.getElementById("user-list");
+    if (!userList) return;
+
+    if (usersPageState.users.length === 0) {
+      userList.innerHTML = `<div class="empty-state"><div class="empty-icon">👥</div><p>还没有其他成员</p></div>`;
+    } else {
+      userList.innerHTML = getPageItems(
+        usersPageState.users,
+        usersPageState.userPage,
+        usersPageState.userPageSize,
+      ).map(renderMemberRow).join("");
+      bindMemberHandlers();
+    }
+
+    renderPagination(
+      "user-pagination",
+      usersPageState.users.length,
+      usersPageState.userPage,
+      usersPageState.userPageSize,
+      "users",
+      "位",
+    );
+  }
+
+  function renderRequests(): void {
+    const reqCount = document.getElementById("req-count");
+    const notifBadge = document.getElementById("notif-badge");
+    const notifText = document.getElementById("notif-text");
+    if (reqCount) {
+      reqCount.textContent = usersPageState.requests.length > 0
+        ? `${usersPageState.requests.length} 条待处理`
+        : "暂无申请";
+    }
+    if (notifBadge && notifText) {
+      if (usersPageState.requests.length > 0) {
+        notifBadge.style.display = "flex";
+        notifText.textContent = `${usersPageState.requests.length} 条待处理申请`;
+      } else {
+        notifBadge.style.display = "none";
+      }
+    }
+
+    const reqList = document.getElementById("request-list");
+    if (!reqList) return;
+
+    if (usersPageState.requests.length === 0) {
+      reqList.innerHTML = `<div class="empty-state"><div class="empty-icon">📬</div><p>暂无待处理的申请</p></div>`;
+    } else {
+      reqList.innerHTML = getPageItems(
+        usersPageState.requests,
+        usersPageState.requestPage,
+        usersPageState.requestPageSize,
+      ).map(renderRequestRow).join("");
+      bindRequestHandlers();
+    }
+
+    renderPagination(
+      "request-pagination",
+      usersPageState.requests.length,
+      usersPageState.requestPage,
+      usersPageState.requestPageSize,
+      "requests",
+      "条",
+    );
+  }
+
+  function renderAll(allowRemeasure = true): void {
+    clampPages();
+    renderMembers();
+    renderRequests();
+    if (allowRemeasure && syncPageSizesFromLayout()) {
+      renderAll(false);
+      return;
+    }
+    bindPaginationHandlers();
+  }
+
+  async function loadUsers(): Promise<void> {
     try {
       const res = await fetch("/api/users-data");
       if (!res.ok) return;
-      const data = await res.json();
-
-      const memberCount = document.getElementById("member-count");
-      if (memberCount)
-        memberCount.textContent = `${data.users.filter((u: { role: string }) => u.role === "USER").length} 位成员`;
-
-      const userList = document.getElementById("user-list");
-      if (userList) {
-        if (data.users.length === 0) {
-          userList.innerHTML = `<div class="empty-state"><div class="empty-icon">👥</div><p>还没有其他成员</p></div>`;
-        } else {
-          userList.innerHTML = data.users
-            .map(
-              (u: {
-                id: string;
-                username: string;
-                role: string;
-                status: string | null;
-                initial: string;
-              }) => {
-                let actionHTML = "";
-                if (u.status === "APPROVED") {
-                  actionHTML = `<a href="/user-diary/${u.id}" class="action-btn btn-view" data-astro-prefetch><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>查看日记</a>`;
-                } else if (u.status === "PENDING") {
-                  actionHTML = `<span class="action-badge badge-pending"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>请求中</span>`;
-                } else {
-                  actionHTML = `<button class="action-btn btn-request" data-action="request" data-target="${u.id}">${u.status === "REJECTED" ? "重新申请" : "申请查看"}</button>`;
-                }
-                return `<div class="user-row">
-              <div class="user-left">
-                <div class="user-avatar">${u.initial}</div>
-                <div class="user-info-box">
-                  <span class="user-name">${u.username}</span>
-                  ${u.role === "ADMIN" ? '<span class="admin-tag">管理员</span>' : ""}
-                </div>
-              </div>
-              <div class="user-action">${actionHTML}</div>
-            </div>`;
-              },
-            )
-            .join("");
-        }
-        // Attach request handlers
-        userList.querySelectorAll('[data-action="request"]').forEach((btn) => {
-          btn.addEventListener("click", async () => {
-            const targetId = btn.getAttribute("data-target") ?? "";
-            const body = new FormData();
-            body.set("action", "request");
-            body.set("targetId", targetId);
-            await fetch("/api/permission", { method: "POST", body });
-            loadUsers();
-          });
-        });
-      }
-
-      const reqCount = document.getElementById("req-count");
-      const notifBadge = document.getElementById("notif-badge");
-      const notifText = document.getElementById("notif-text");
-      const reqList = document.getElementById("request-list");
-      if (reqCount)
-        reqCount.textContent =
-          data.receivedRequests.length > 0
-            ? `${data.receivedRequests.length} 条待处理`
-            : "暂无申请";
-      if (notifBadge && notifText) {
-        if (data.receivedRequests.length > 0) {
-          notifBadge.style.display = "flex";
-          notifText.textContent = `${data.receivedRequests.length} 条待处理申请`;
-        } else {
-          notifBadge.style.display = "none";
-        }
-      }
-      if (reqList) {
-        if (data.receivedRequests.length === 0) {
-          reqList.innerHTML = `<div class="empty-state"><div class="empty-icon">📬</div><p>暂无待处理的申请</p></div>`;
-        } else {
-          reqList.innerHTML = data.receivedRequests
-            .map(
-              (r: {
-                id: string;
-                requesterName: string;
-                requesterInitial: string;
-              }) => `
-            <div class="request-row">
-              <div class="request-left">
-                <div class="request-avatar">${r.requesterInitial}</div>
-                <div class="request-info"><span class="request-name">${r.requesterName}</span><span class="request-desc">申请查看你的日记</span></div>
-              </div>
-              <div class="request-actions">
-                <button class="act-btn act-approve" data-action="approve" data-id="${r.id}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>同意</button>
-                <button class="act-btn act-reject" data-action="reject" data-id="${r.id}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>拒绝</button>
-              </div>
-            </div>`,
-            )
-            .join("");
-          reqList
-            .querySelectorAll('[data-action="approve"],[data-action="reject"]')
-            .forEach((btn) => {
-              btn.addEventListener("click", async () => {
-                const action = btn.getAttribute("data-action") ?? "";
-                const id = btn.getAttribute("data-id") ?? "";
-                const body = new FormData();
-                body.set("action", action);
-                body.set("requestId", id);
-                await fetch("/api/permission", { method: "POST", body });
-                loadUsers();
-              });
-            });
-        }
-      }
+      const data = (await res.json()) as UsersData;
+      usersPageState.users = data.users;
+      usersPageState.requests = data.receivedRequests;
+      renderAll();
     } catch (e) {
       console.error(e);
     }
   }
 
-  document.addEventListener("astro:page-load", loadUsers);
+  document.addEventListener("astro:page-load", () => {
+    setUsersViewportHeight();
+    void loadUsers();
+  });
+  window.addEventListener("resize", () => {
+    setUsersViewportHeight();
+    renderAll();
+  });
 </script>

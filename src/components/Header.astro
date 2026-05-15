@@ -48,15 +48,23 @@ if (user.role === 'ADMIN') {
       {navItems.map((item) => {
         const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
         return (
-          <a href={item.href} class={`nav-pill${isActive ? ' active' : ''}`} data-astro-prefetch>
+          <a href={item.href} class={`nav-pill${isActive ? ' active' : ''}`} data-nav-key={item.href === '/users' ? 'members' : undefined} data-astro-prefetch>
             <span class="nav-icon" set:html={item.icon} />
             <span class="nav-label">{item.label}</span>
+            {item.href === '/users' && <span class="nav-alert-dot" data-member-request-dot aria-label="有待处理的成员申请"></span>}
           </a>
         );
       })}
     </nav>
 
     <div class="user-area">
+      <button type="button" class="announcement-btn" id="announcement-btn" title="查看公告" aria-haspopup="dialog" aria-expanded="false">
+        <span class="announcement-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 0 1-5.8-1.6"/></svg>
+        </span>
+        <span class="announcement-label">公告</span>
+        <span class="announcement-alert-dot" aria-label="有未读公告"></span>
+      </button>
       {showHomeSync && (
         <button type="button" class="home-sync-btn" id="home-sync-btn" title="同步数据" aria-live="polite">
           <span class="home-sync-icon">
@@ -65,21 +73,69 @@ if (user.role === 'ADMIN') {
           <span class="home-sync-label">同步数据</span>
         </button>
       )}
-      <div class="user-chip">
-        <div class="user-avatar-sm">{user.username.charAt(0).toUpperCase()}</div>
-        <span class="user-chip-name">{user.username}</span>
-        {user.role === 'ADMIN' && <span class="admin-dot" title="管理员"></span>}
-      </div>
-      <form method="POST" action="/api/logout" id="logout-form">
-        <button type="submit" class="logout-btn" title="退出登录">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      <div class="user-menu">
+        <button type="button" class={`user-chip user-menu-trigger${pathname.startsWith('/permissions') ? ' active' : ''}`} aria-haspopup="menu" aria-expanded="false" title="打开账号菜单">
+          <div class="user-avatar-sm">{user.username.charAt(0).toUpperCase()}</div>
+          <span class="user-chip-name">{user.username}</span>
+          {user.role === 'ADMIN' && <span class="admin-dot" title="管理员"></span>}
+          <span class="user-chevron" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </span>
         </button>
-      </form>
+        <div class="user-dropdown" role="menu">
+          <div class="user-menu-head">
+            <div class="user-avatar-sm menu-avatar">{user.username.charAt(0).toUpperCase()}</div>
+            <div class="user-menu-meta">
+              <span class="user-menu-name">{user.username}</span>
+              <span class="user-menu-role">{user.role === 'ADMIN' ? '管理员' : '成员'}</span>
+            </div>
+          </div>
+          <a href="/permissions" class={`user-menu-item${pathname.startsWith('/permissions') ? ' active' : ''}`} role="menuitem" data-astro-prefetch>
+            <span class="user-menu-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.68 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
+            </span>
+            <span>权限管理</span>
+          </a>
+          <form method="POST" action="/api/logout" id="logout-form" class="user-menu-form">
+            <button type="submit" class="user-menu-item danger" role="menuitem">
+              <span class="user-menu-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              </span>
+              <span>退出登录</span>
+            </button>
+          </form>
+        </div>
+      </div>
     </div>
   </div>
 </header>
 
-<style>
+<div class="announcement-overlay" id="announcement-modal" aria-hidden="true">
+  <section class="announcement-dialog" role="dialog" aria-modal="true" aria-labelledby="announcement-modal-title">
+    <div class="announcement-head">
+      <div class="announcement-head-main">
+        <span class="announcement-kicker">更新公告</span>
+        <h2 id="announcement-modal-title">公告</h2>
+      </div>
+      <div class="announcement-head-actions">
+        <button type="button" class="announcement-mark-all" id="announcement-mark-all">全部已读</button>
+        <button type="button" class="announcement-close" id="announcement-close" title="关闭公告" aria-label="关闭公告">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="announcement-shell">
+      <aside class="announcement-list" id="announcement-list" aria-label="公告列表">
+        <div class="announcement-loading">公告加载中...</div>
+      </aside>
+      <article class="announcement-detail" id="announcement-detail">
+        <div class="announcement-empty">选择一篇公告查看内容</div>
+      </article>
+    </div>
+  </section>
+</div>
+
+<style is:global>
   .navbar {
     position: sticky;
     top: 0;
@@ -146,11 +202,12 @@ if (user.role === 'ADMIN') {
   }
 
   .nav-pill {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 0.4rem;
     padding: 0.42rem 0.85rem;
-    border-radius: 8px;
+    border-radius: 6px;
     font-size: 0.875rem;
     font-weight: 500;
     color: #64748b;
@@ -171,6 +228,64 @@ if (user.role === 'ADMIN') {
     border-color: rgba(99, 102, 241, 0.18);
   }
 
+  .nav-alert-dot {
+    position: absolute;
+    top: 0.36rem;
+    right: 0.5rem;
+    width: 0.42rem;
+    height: 0.42rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #fb7185, #ef4444);
+    border: 1.5px solid rgba(255, 255, 255, 0.96);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.34);
+    opacity: 0;
+    transform: scale(0.6);
+    pointer-events: none;
+    transition: opacity 0.16s ease, transform 0.16s ease;
+  }
+
+  .nav-alert-dot::after {
+    content: "";
+    position: absolute;
+    inset: -0.32rem;
+    border-radius: inherit;
+    border: 1px solid rgba(239, 68, 68, 0.28);
+    opacity: 0;
+    transform: scale(0.35);
+  }
+
+  .nav-pill.has-alert .nav-alert-dot {
+    opacity: 1;
+    transform: scale(1);
+    animation: nav-alert-breathe 1.8s ease-in-out infinite;
+  }
+
+  .nav-pill.has-alert .nav-alert-dot::after {
+    animation: nav-alert-ring 1.8s ease-out infinite;
+  }
+
+  @keyframes nav-alert-breathe {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.3);
+    }
+    50% {
+      box-shadow: 0 0 0 0.18rem rgba(239, 68, 68, 0);
+    }
+  }
+
+  @keyframes nav-alert-ring {
+    0% {
+      opacity: 0.65;
+      transform: scale(0.35);
+    }
+    70%,
+    100% {
+      opacity: 0;
+      transform: scale(1.1);
+    }
+  }
+
   .nav-icon {
     display: flex;
     align-items: center;
@@ -187,14 +302,105 @@ if (user.role === 'ADMIN') {
     flex-shrink: 0;
   }
 
+  .announcement-btn {
+    position: relative;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.42rem;
+    padding: 0 0.78rem;
+    border-radius: 8px;
+    background:
+      linear-gradient(135deg, rgba(254, 243, 199, 0.95), rgba(209, 250, 229, 0.9)),
+      #ffffff;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    color: #92400e;
+    font-size: 0.78rem;
+    font-weight: 750;
+    font-family: inherit;
+    cursor: pointer;
+    box-shadow: 0 8px 22px rgba(245, 158, 11, 0.16);
+    transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+    white-space: nowrap;
+  }
+
+  .announcement-btn:hover,
+  .announcement-btn.is-open {
+    transform: translateY(-1px);
+    background:
+      linear-gradient(135deg, rgba(253, 230, 138, 0.98), rgba(167, 243, 208, 0.94)),
+      #ffffff;
+    border-color: rgba(245, 158, 11, 0.48);
+    color: #78350f;
+    box-shadow: 0 10px 28px rgba(245, 158, 11, 0.22);
+  }
+
+  .announcement-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .announcement-alert-dot {
+    position: absolute;
+    top: 0.34rem;
+    right: 0.42rem;
+    width: 0.42rem;
+    height: 0.42rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #fb7185, #ef4444);
+    border: 1.5px solid rgba(255, 255, 255, 0.96);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.34);
+    opacity: 0;
+    transform: scale(0.6);
+    pointer-events: none;
+    transition: opacity 0.16s ease, transform 0.16s ease;
+  }
+
+  .announcement-alert-dot::after {
+    content: "";
+    position: absolute;
+    inset: -0.32rem;
+    border-radius: inherit;
+    border: 1px solid rgba(239, 68, 68, 0.28);
+    opacity: 0;
+    transform: scale(0.35);
+  }
+
+  .announcement-btn.has-alert .announcement-alert-dot {
+    opacity: 1;
+    transform: scale(1);
+    animation: nav-alert-breathe 1.8s ease-in-out infinite;
+  }
+
+  .announcement-btn.has-alert .announcement-alert-dot::after {
+    animation: nav-alert-ring 1.8s ease-out infinite;
+  }
+
+  .user-menu {
+    position: relative;
+  }
+
   .user-chip {
-    display: flex;
+    height: 34px;
+    display: inline-flex;
     align-items: center;
     gap: 0.5rem;
     padding: 0.28rem 0.75rem 0.28rem 0.32rem;
-    border-radius: 999px;
+    border-radius: 6px;
     background: #ffffff;
     border: 1px solid rgba(0, 0, 0, 0.08);
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.18s, border-color 0.18s, box-shadow 0.18s;
+  }
+
+  .user-chip:hover,
+  .user-chip.active,
+  .user-menu.is-open .user-chip {
+    background: rgba(99, 102, 241, 0.06);
+    border-color: rgba(99, 102, 241, 0.2);
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.12);
   }
 
   .home-sync-btn {
@@ -203,7 +409,7 @@ if (user.role === 'ADMIN') {
     align-items: center;
     gap: 0.42rem;
     padding: 0 0.78rem;
-    border-radius: 999px;
+    border-radius: 8px;
     background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.12));
     border: 1px solid rgba(99, 102, 241, 0.22);
     color: #5b5fee;
@@ -287,40 +493,912 @@ if (user.role === 'ADMIN') {
     flex-shrink: 0;
   }
 
-  .logout-btn {
-    width: 34px;
-    height: 34px;
-    border-radius: 8px;
-    background: #ffffff;
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    color: #94a3b8;
-    display: flex;
+  .user-chevron {
+    display: inline-flex;
     align-items: center;
     justify-content: center;
+    color: #94a3b8;
+    transition: transform 0.18s, color 0.18s;
+  }
+
+  .user-menu.is-open .user-chevron {
+    transform: rotate(180deg);
+    color: #6366f1;
+  }
+
+  .user-dropdown {
+    position: absolute;
+    top: calc(100% + 0.55rem);
+    right: 0;
+    width: 220px;
+    padding: 0.5rem;
+    border-radius: 14px;
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.14);
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+    pointer-events: none;
+    transition: opacity 0.16s ease, transform 0.16s ease;
+    z-index: 130;
+  }
+
+  .user-menu.is-open .user-dropdown {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+  }
+
+  .user-menu-head {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.45rem 0.5rem 0.65rem;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+    margin-bottom: 0.35rem;
+  }
+
+  .menu-avatar {
+    width: 32px;
+    height: 32px;
+  }
+
+  .user-menu-meta {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.25;
+  }
+
+  .user-menu-name {
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: #0f172a;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .user-menu-role {
+    font-size: 0.72rem;
+    color: #94a3b8;
+  }
+
+  .user-menu-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.62rem 0.7rem;
+    border-radius: 10px;
+    border: 0;
+    background: transparent;
+    color: #475569;
+    font-size: 0.84rem;
+    font-weight: 650;
+    font-family: inherit;
+    text-decoration: none;
     cursor: pointer;
-    transition: all 0.18s;
+    transition: background 0.16s, color 0.16s;
+  }
+
+  .user-menu-item:hover,
+  .user-menu-item.active {
+    color: #4f46e5;
+    background: rgba(99, 102, 241, 0.08);
+  }
+
+  .user-menu-item.danger {
+    color: #dc2626;
+  }
+
+  .user-menu-item.danger:hover {
+    color: #b91c1c;
+    background: rgba(239, 68, 68, 0.08);
+  }
+
+  .user-menu-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
   }
 
-  .logout-btn:hover {
-    background: rgba(239, 68, 68, 0.08);
-    border-color: rgba(239, 68, 68, 0.2);
-    color: #ef4444;
+  .user-menu-form {
+    margin: 0;
+  }
+
+  .announcement-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 240;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.25rem;
+    background: rgba(15, 23, 42, 0.38);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease;
+  }
+
+  .announcement-overlay.is-open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  body.announcement-lock {
+    overflow: hidden;
+  }
+
+  .announcement-dialog {
+    width: min(980px, 100%);
+    height: min(680px, calc(100dvh - 3rem));
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden;
+    border-radius: 18px;
+    background: #ffffff;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
+    transform: translateY(10px) scale(0.985);
+    transition: transform 0.18s ease;
+  }
+
+  .announcement-overlay.is-open .announcement-dialog {
+    transform: translateY(0) scale(1);
+  }
+
+  .announcement-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.05rem 1.15rem;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    background:
+      linear-gradient(135deg, rgba(15, 118, 110, 0.08), rgba(59, 130, 246, 0.06)),
+      #ffffff;
+  }
+
+  .announcement-head-main {
+    min-width: 0;
+  }
+
+  .announcement-kicker {
+    display: block;
+    margin-bottom: 0.1rem;
+    color: #0f766e;
+    font-size: 0.72rem;
+    font-weight: 800;
+  }
+
+  .announcement-head h2 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.18rem;
+    line-height: 1.2;
+  }
+
+  .announcement-head-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-shrink: 0;
+  }
+
+  .announcement-mark-all,
+  .announcement-read-btn {
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 0.8rem;
+    border-radius: 8px;
+    border: 1px solid rgba(15, 118, 110, 0.2);
+    background: rgba(15, 118, 110, 0.08);
+    color: #0f766e;
+    font-size: 0.8rem;
+    font-weight: 750;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+    white-space: nowrap;
+  }
+
+  .announcement-mark-all:hover:not(:disabled),
+  .announcement-read-btn:hover:not(:disabled) {
+    background: rgba(15, 118, 110, 0.13);
+    border-color: rgba(15, 118, 110, 0.35);
+  }
+
+  .announcement-mark-all:disabled,
+  .announcement-read-btn:disabled {
+    cursor: default;
+    color: #94a3b8;
+    background: #f8fafc;
+    border-color: rgba(15, 23, 42, 0.08);
+  }
+
+  .announcement-close {
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    background: #ffffff;
+    color: #64748b;
+    cursor: pointer;
+    transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+  }
+
+  .announcement-close:hover {
+    background: #f8fafc;
+    color: #0f172a;
+    border-color: rgba(15, 23, 42, 0.16);
+  }
+
+  .announcement-shell {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr);
+    background: #f8fafc;
+  }
+
+  .announcement-list {
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0.75rem;
+    border-right: 1px solid rgba(15, 23, 42, 0.08);
+    background: #ffffff;
+  }
+
+  .announcement-list::-webkit-scrollbar,
+  .announcement-detail::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .announcement-list::-webkit-scrollbar-thumb,
+  .announcement-detail::-webkit-scrollbar-thumb {
+    background: rgba(100, 116, 139, 0.22);
+    border-radius: 999px;
+  }
+
+  .announcement-list-item {
+    width: 100%;
+    display: grid;
+    gap: 0.42rem;
+    padding: 0.8rem;
+    margin-bottom: 0.5rem;
+    border-radius: 10px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: #ffffff;
+    text-align: left;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+  }
+
+  .announcement-list-item:hover,
+  .announcement-list-item.is-active {
+    background: rgba(15, 118, 110, 0.06);
+    border-color: rgba(15, 118, 110, 0.2);
+  }
+
+  .announcement-list-item.is-active {
+    box-shadow: inset 3px 0 0 #0f766e;
+  }
+
+  .announcement-list-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.7rem;
+  }
+
+  .announcement-list-title {
+    min-width: 0;
+    color: #0f172a;
+    font-size: 0.9rem;
+    font-weight: 760;
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .announcement-list-date,
+  .announcement-detail-meta,
+  .announcement-list-summary {
+    color: #64748b;
+    font-size: 0.76rem;
+    line-height: 1.45;
+  }
+
+  .announcement-list-summary {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .announcement-state {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.5rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .announcement-state.is-unread {
+    color: #be123c;
+    background: rgba(244, 63, 94, 0.1);
+    border: 1px solid rgba(244, 63, 94, 0.16);
+  }
+
+  .announcement-state.is-read {
+    color: #64748b;
+    background: #f1f5f9;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+  }
+
+  .announcement-detail {
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 1.15rem 1.25rem 1.5rem;
+    background: #f8fafc;
+  }
+
+  .announcement-detail-card {
+    min-height: 100%;
+    border-radius: 12px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: #ffffff;
+    padding: 1.25rem;
+  }
+
+  .announcement-detail-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  }
+
+  .announcement-detail-title {
+    margin: 0 0 0.4rem;
+    color: #0f172a;
+    font-size: 1.35rem;
+    line-height: 1.25;
+  }
+
+  .announcement-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.18rem 0.5rem;
+    border-radius: 999px;
+    color: #1d4ed8;
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.14);
+    font-size: 0.72rem;
+    font-weight: 800;
+  }
+
+  .announcement-pin {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.18rem 0.5rem;
+    border-radius: 999px;
+    color: #b45309;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.18);
+    font-size: 0.72rem;
+    font-weight: 800;
+  }
+
+  .announcement-markdown {
+    color: #334155;
+    font-size: 0.94rem;
+    line-height: 1.75;
+  }
+
+  .announcement-markdown h1,
+  .announcement-markdown h2,
+  .announcement-markdown h3 {
+    color: #0f172a;
+    line-height: 1.25;
+  }
+
+  .announcement-markdown h1 {
+    margin: 0 0 0.9rem;
+    font-size: 1.45rem;
+  }
+
+  .announcement-markdown h2 {
+    margin: 1.25rem 0 0.55rem;
+    font-size: 1.05rem;
+  }
+
+  .announcement-markdown h3 {
+    margin: 1rem 0 0.45rem;
+    font-size: 0.98rem;
+  }
+
+  .announcement-markdown p,
+  .announcement-markdown ul,
+  .announcement-markdown blockquote {
+    margin: 0 0 0.85rem;
+  }
+
+  .announcement-markdown ul {
+    padding-left: 1.15rem;
+  }
+
+  .announcement-markdown li {
+    margin: 0.25rem 0;
+  }
+
+  .announcement-markdown code {
+    padding: 0.12rem 0.34rem;
+    border-radius: 5px;
+    background: #f1f5f9;
+    color: #0f766e;
+    font-size: 0.88em;
+  }
+
+  .announcement-markdown blockquote {
+    padding: 0.6rem 0.8rem;
+    border-left: 3px solid #0f766e;
+    background: rgba(15, 118, 110, 0.06);
+    color: #475569;
+  }
+
+  .announcement-empty,
+  .announcement-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 160px;
+    color: #94a3b8;
+    font-size: 0.9rem;
+    text-align: center;
   }
 
   @media (max-width: 760px) {
     .logo-text { display: none; }
     .nav-label { display: none; }
     .nav-pill { padding: 0.45rem; }
+    .announcement-btn { width: 34px; padding: 0; justify-content: center; }
+    .announcement-label { display: none; }
     .home-sync-btn { width: 34px; padding: 0; justify-content: center; }
     .home-sync-label { display: none; }
     .user-chip-name { display: none; }
+    .user-chip { padding-right: 0.42rem; }
+    .user-dropdown { width: 210px; }
     .header-inner { gap: 0.7rem; }
+    .announcement-overlay { padding: 0.75rem; align-items: stretch; }
+    .announcement-dialog { height: calc(100dvh - 1.5rem); border-radius: 14px; }
+    .announcement-head { padding: 0.9rem; }
+    .announcement-shell { grid-template-columns: 1fr; grid-template-rows: 190px minmax(0, 1fr); }
+    .announcement-list { border-right: 0; border-bottom: 1px solid rgba(15, 23, 42, 0.08); }
+    .announcement-detail { padding: 0.8rem; }
+    .announcement-detail-card { padding: 1rem; border-radius: 10px; }
+    .announcement-detail-top { flex-direction: column; }
+  }
+
+  @media (max-width: 430px) {
+    .container.header-inner {
+      padding-left: 0.65rem;
+      padding-right: 0.65rem;
+    }
+
+    .header-inner { gap: 0.35rem; }
+    .nav-pills { gap: 0.08rem; }
+    .nav-pill { padding: 0.34rem; }
+    .user-area { gap: 0.28rem; }
+    .announcement-btn,
+    .home-sync-btn,
+    .user-chip { height: 32px; }
+    .announcement-btn,
+    .home-sync-btn { width: 32px; }
+    .user-chip { padding: 0.22rem 0.26rem; }
+    .user-avatar-sm { width: 24px; height: 24px; }
+    .user-chevron { display: none; }
   }
 </style>
 
 <script>
   import { getLocalPrivacyUnlockUrl, isLocalPrivacyKeyMissing, refreshLocalData } from '../lib/localFirst';
+
+  type AnnouncementItem = {
+    id: string;
+    title: string;
+    publishedAt: string;
+    tag: string;
+    summary: string;
+    pinned?: boolean;
+    body: string;
+    readAt: string | null;
+    unread: boolean;
+  };
+
+  type AnnouncementPayload = {
+    unreadCount: number;
+    announcements: AnnouncementItem[];
+  };
+
+  type AnnouncementState = {
+    payload: AnnouncementPayload | null;
+    currentId: string | null;
+    loading: boolean;
+  };
+
+  const headerWindow = window as typeof window & {
+    __userDropdownInstalled?: boolean;
+    __announcementModalInstalled?: boolean;
+    __announcementState?: AnnouncementState;
+  };
+
+  const announcementState = (headerWindow.__announcementState ??= {
+    payload: null,
+    currentId: null,
+    loading: false,
+  });
+
+  function closeUserDropdowns(except?: HTMLElement): void {
+    document.querySelectorAll<HTMLElement>('.user-menu.is-open').forEach((menu) => {
+      if (except && menu === except) return;
+      menu.classList.remove('is-open');
+      menu.querySelector<HTMLButtonElement>('.user-menu-trigger')?.setAttribute('aria-expanded', 'false');
+    });
+  }
+
+  function getAnnouncementButton(): HTMLButtonElement | null {
+    return document.getElementById('announcement-btn') as HTMLButtonElement | null;
+  }
+
+  function getAnnouncementModal(): HTMLElement | null {
+    return document.getElementById('announcement-modal');
+  }
+
+  function escapeHTML(value: unknown): string {
+    const entities: Record<string, string> = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+    };
+    return String(value).replace(/[&<>"']/g, (char: string) => entities[char] ?? char);
+  }
+
+  function formatAnnouncementDate(value: string): string {
+    const [year, month, day] = value.split('-');
+    if (!year || !month || !day) return value;
+    return `${year}.${month}.${day}`;
+  }
+
+  function renderInlineMarkdown(value: string): string {
+    let html = escapeHTML(value);
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/(^|[^*])\*([^*]+)\*(?!\*)/g, '$1<em>$2</em>');
+    html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
+    return html;
+  }
+
+  function renderAnnouncementMarkdown(markdown: string): string {
+    const lines = markdown.trim().split(/\r?\n/);
+    const html: string[] = [];
+    let listOpen = false;
+
+    const closeList = () => {
+      if (!listOpen) return;
+      html.push('</ul>');
+      listOpen = false;
+    };
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) {
+        closeList();
+        continue;
+      }
+
+      if (line.startsWith('- ') || line.startsWith('* ')) {
+        if (!listOpen) {
+          html.push('<ul>');
+          listOpen = true;
+        }
+        html.push(`<li>${renderInlineMarkdown(line.slice(2))}</li>`);
+        continue;
+      }
+
+      closeList();
+      if (line.startsWith('### ')) {
+        html.push(`<h3>${renderInlineMarkdown(line.slice(4))}</h3>`);
+      } else if (line.startsWith('## ')) {
+        html.push(`<h2>${renderInlineMarkdown(line.slice(3))}</h2>`);
+      } else if (line.startsWith('# ')) {
+        html.push(`<h1>${renderInlineMarkdown(line.slice(2))}</h1>`);
+      } else if (line.startsWith('>')) {
+        html.push(`<blockquote>${renderInlineMarkdown(line.replace(/^>\s?/, ''))}</blockquote>`);
+      } else {
+        html.push(`<p>${renderInlineMarkdown(line)}</p>`);
+      }
+    }
+
+    closeList();
+    return html.join('');
+  }
+
+  function setAnnouncementDot(unreadCount: number): void {
+    const btn = getAnnouncementButton();
+    if (!btn) return;
+    btn.classList.toggle('has-alert', unreadCount > 0);
+    btn.title = unreadCount > 0 ? `有 ${unreadCount} 条未读公告` : '查看公告';
+  }
+
+  function setAnnouncementOpen(open: boolean): void {
+    const modal = getAnnouncementModal();
+    const btn = getAnnouncementButton();
+    modal?.classList.toggle('is-open', open);
+    modal?.setAttribute('aria-hidden', String(!open));
+    btn?.classList.toggle('is-open', open);
+    btn?.setAttribute('aria-expanded', String(open));
+    document.body.classList.toggle('announcement-lock', open);
+  }
+
+  function renderAnnouncementLoading(): void {
+    const list = document.getElementById('announcement-list');
+    const detail = document.getElementById('announcement-detail');
+    const markAll = document.getElementById('announcement-mark-all') as HTMLButtonElement | null;
+    if (list) list.innerHTML = '<div class="announcement-loading">公告加载中...</div>';
+    if (detail) detail.innerHTML = '<div class="announcement-empty">正在整理公告内容...</div>';
+    if (markAll) markAll.disabled = true;
+  }
+
+  function renderAnnouncementError(): void {
+    const list = document.getElementById('announcement-list');
+    const detail = document.getElementById('announcement-detail');
+    if (list) list.innerHTML = '<div class="announcement-loading">公告加载失败</div>';
+    if (detail) detail.innerHTML = '<div class="announcement-empty">暂时无法读取公告，请稍后再试</div>';
+  }
+
+  function renderAnnouncementList(): void {
+    const list = document.getElementById('announcement-list');
+    const payload = announcementState.payload;
+    if (!list || !payload) return;
+
+    if (payload.announcements.length === 0) {
+      list.innerHTML = '<div class="announcement-loading">暂无公告</div>';
+      return;
+    }
+
+    if (!announcementState.currentId || !payload.announcements.some((item) => item.id === announcementState.currentId)) {
+      announcementState.currentId = payload.announcements[0]?.id ?? null;
+    }
+
+    list.innerHTML = payload.announcements
+      .map((item) => {
+        const active = item.id === announcementState.currentId ? ' is-active' : '';
+        return `
+          <button type="button" class="announcement-list-item${active}" data-announcement-id="${escapeHTML(item.id)}">
+            <span class="announcement-list-row">
+              <span class="announcement-list-title">${escapeHTML(item.title)}</span>
+              <span class="announcement-state ${item.unread ? 'is-unread' : 'is-read'}">${item.unread ? '未读' : '已读'}</span>
+            </span>
+            <span class="announcement-list-row">
+              <span class="announcement-list-date">${escapeHTML(formatAnnouncementDate(item.publishedAt))}</span>
+              <span class="announcement-list-row">
+                ${item.pinned ? '<span class="announcement-pin">置顶</span>' : ''}
+                <span class="announcement-tag">${escapeHTML(item.tag)}</span>
+              </span>
+            </span>
+            <span class="announcement-list-summary">${escapeHTML(item.summary)}</span>
+          </button>
+        `;
+      })
+      .join('');
+  }
+
+  function renderAnnouncementDetail(): void {
+    const detail = document.getElementById('announcement-detail');
+    const payload = announcementState.payload;
+    if (!detail || !payload) return;
+
+    const current = payload.announcements.find((item) => item.id === announcementState.currentId) ?? payload.announcements[0];
+    if (!current) {
+      detail.innerHTML = '<div class="announcement-empty">暂无公告</div>';
+      return;
+    }
+
+    detail.innerHTML = `
+      <div class="announcement-detail-card">
+        <div class="announcement-detail-top">
+          <div>
+            <h3 class="announcement-detail-title">${escapeHTML(current.title)}</h3>
+            <div class="announcement-detail-meta">
+              ${current.pinned ? '置顶 · ' : ''}${escapeHTML(formatAnnouncementDate(current.publishedAt))} · ${escapeHTML(current.tag)}
+            </div>
+          </div>
+          <button type="button" class="announcement-read-btn" data-announcement-mark-read="${escapeHTML(current.id)}" ${current.unread ? '' : 'disabled'}>
+            ${current.unread ? '标为已读' : '已读'}
+          </button>
+        </div>
+        <div class="announcement-markdown">${renderAnnouncementMarkdown(current.body)}</div>
+      </div>
+    `;
+  }
+
+  function renderAnnouncements(): void {
+    const payload = announcementState.payload;
+    const markAll = document.getElementById('announcement-mark-all') as HTMLButtonElement | null;
+    if (markAll) markAll.disabled = !payload || payload.unreadCount === 0;
+    renderAnnouncementList();
+    renderAnnouncementDetail();
+    if (payload) setAnnouncementDot(payload.unreadCount);
+  }
+
+  async function loadAnnouncements(summaryOnly = false): Promise<AnnouncementPayload | null> {
+    if (announcementState.loading && !summaryOnly) return announcementState.payload;
+    if (!summaryOnly) announcementState.loading = true;
+
+    try {
+      const res = await fetch(`/api/announcements${summaryOnly ? '?summary=1' : ''}`, { credentials: 'same-origin' });
+      if (!res.ok) throw new Error('announcements failed');
+      const data = (await res.json()) as AnnouncementPayload;
+      setAnnouncementDot(data.unreadCount);
+      if (!summaryOnly) {
+        announcementState.payload = data;
+        renderAnnouncements();
+      }
+      return data;
+    } catch (error) {
+      console.error(error);
+      if (!summaryOnly) renderAnnouncementError();
+      if (summaryOnly) setAnnouncementDot(0);
+      return null;
+    } finally {
+      if (!summaryOnly) announcementState.loading = false;
+    }
+  }
+
+  async function openAnnouncementModal(): Promise<void> {
+    closeUserDropdowns();
+    setAnnouncementOpen(true);
+    if (!announcementState.payload) renderAnnouncementLoading();
+    await loadAnnouncements(false);
+    document.getElementById('announcement-close')?.focus();
+  }
+
+  function closeAnnouncementModal(): void {
+    setAnnouncementOpen(false);
+  }
+
+  async function postAnnouncementAction(action: 'mark-read' | 'mark-all-read', announcementId?: string): Promise<void> {
+    const res = await fetch('/api/announcements', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, announcementId }),
+    });
+    if (!res.ok) throw new Error('announcement action failed');
+    const data = (await res.json()) as { ok: boolean; error?: string } & AnnouncementPayload;
+    if (!data.ok) throw new Error(data.error ?? 'announcement action failed');
+    announcementState.payload = {
+      unreadCount: data.unreadCount,
+      announcements: data.announcements,
+    };
+    renderAnnouncements();
+    window.dispatchEvent(new CustomEvent('our-diary:announcements-changed'));
+  }
+
+  if (!headerWindow.__userDropdownInstalled) {
+    headerWindow.__userDropdownInstalled = true;
+
+    document.addEventListener('click', (event) => {
+      const target = event.target as Element | null;
+      const trigger = target?.closest<HTMLButtonElement>('.user-menu-trigger');
+      if (trigger) {
+        const menu = trigger.closest<HTMLElement>('.user-menu');
+        if (!menu) return;
+        const willOpen = !menu.classList.contains('is-open');
+        closeUserDropdowns(menu);
+        menu.classList.toggle('is-open', willOpen);
+        trigger.setAttribute('aria-expanded', String(willOpen));
+        return;
+      }
+
+      if (!target?.closest('.user-menu')) {
+        closeUserDropdowns();
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        closeUserDropdowns();
+      }
+    });
+  }
+
+  if (!headerWindow.__announcementModalInstalled) {
+    headerWindow.__announcementModalInstalled = true;
+
+    document.addEventListener('click', (event) => {
+      const target = event.target as Element | null;
+      if (!target) return;
+
+      if (target.closest('#announcement-btn')) {
+        void openAnnouncementModal();
+        return;
+      }
+
+      if (target.closest('#announcement-close') || target.id === 'announcement-modal') {
+        closeAnnouncementModal();
+        return;
+      }
+
+      const listItem = target.closest<HTMLElement>('[data-announcement-id]');
+      if (listItem) {
+        const id = listItem.dataset.announcementId;
+        if (id) {
+          announcementState.currentId = id;
+          renderAnnouncements();
+        }
+        return;
+      }
+
+      const markRead = target.closest<HTMLButtonElement>('[data-announcement-mark-read]');
+      if (markRead) {
+        const id = markRead.dataset.announcementMarkRead;
+        if (!id || markRead.disabled) return;
+        markRead.disabled = true;
+        markRead.textContent = '处理中...';
+        postAnnouncementAction('mark-read', id).catch((error) => {
+          console.error(error);
+          renderAnnouncements();
+        });
+        return;
+      }
+
+      const markAll = target.closest<HTMLButtonElement>('#announcement-mark-all');
+      if (markAll) {
+        if (markAll.disabled) return;
+        markAll.disabled = true;
+        markAll.textContent = '处理中...';
+        postAnnouncementAction('mark-all-read')
+          .catch((error) => {
+            console.error(error);
+            renderAnnouncements();
+          })
+          .finally(() => {
+            markAll.textContent = '全部已读';
+          });
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && getAnnouncementModal()?.classList.contains('is-open')) {
+        closeAnnouncementModal();
+      }
+    });
+
+    window.addEventListener('our-diary:announcements-changed', () => {
+      void loadAnnouncements(true);
+    });
+  }
 
   document.addEventListener('astro:page-load', () => {
     const form = document.getElementById('logout-form') as HTMLFormElement | null;
@@ -332,6 +1410,34 @@ if (user.role === 'ADMIN') {
         indexedDB.deleteDatabase('our-diary-local');
       } catch {}
     });
+  });
+
+  async function refreshMemberRequestDot(): Promise<void> {
+    const membersNav = document.querySelector<HTMLElement>('[data-nav-key="members"]');
+    if (!membersNav) return;
+
+    try {
+      const res = await fetch('/api/users-data');
+      if (!res.ok) {
+        membersNav.classList.remove('has-alert');
+        return;
+      }
+      const data = (await res.json()) as { receivedRequests?: unknown[] };
+      membersNav.classList.toggle('has-alert', (data.receivedRequests?.length ?? 0) > 0);
+    } catch (error) {
+      console.error(error);
+      membersNav.classList.remove('has-alert');
+    }
+  }
+
+  document.addEventListener('astro:page-load', () => {
+    void refreshMemberRequestDot();
+    void loadAnnouncements(true);
+    setAnnouncementOpen(false);
+  });
+
+  window.addEventListener('our-diary:permission-requests-changed', () => {
+    void refreshMemberRequestDot();
   });
 
   document.addEventListener('astro:page-load', () => {

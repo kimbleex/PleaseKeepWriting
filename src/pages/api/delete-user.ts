@@ -33,6 +33,7 @@ export const POST: APIRoute = async ({ cookies, request }) => {
       prisma.permissionRequest.deleteMany({ where: { OR: [{ requesterId: userId }, { targetId: userId }] } }),
       prisma.diary.deleteMany({ where: { userId } }),
       prisma.diaryReport.deleteMany({ where: { userId } }),
+      prisma.announcementRead.deleteMany({ where: { userId } }),
       prisma.user.delete({ where: { id: userId } }),
     ]);
 

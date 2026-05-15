@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
   engineType = "library"
 }
 
@@ -14,10 +14,11 @@ model User {
   role         Role     @default(USER)
   createdAt    DateTime @default(now())
 
-  diaries      Diary[]
-  reports      DiaryReport[]
-  sentRequests PermissionRequest[] @relation("Requester")
-  receivedRequests PermissionRequest[] @relation("Target")
+  diaries           Diary[]
+  reports           DiaryReport[]
+  sentRequests      PermissionRequest[] @relation("Requester")
+  receivedRequests  PermissionRequest[] @relation("Target")
+  announcementReads AnnouncementRead[]
 }
 
 enum Role {
@@ -69,15 +70,15 @@ enum ReportStatus {
 }
 
 model PermissionRequest {
-  id          String   @id @default(uuid())
+  id          String        @id @default(uuid())
   requesterId String
   targetId    String
   status      RequestStatus @default(PENDING)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
-  requester   User     @relation("Requester", fields: [requesterId], references: [id])
-  target      User     @relation("Target", fields: [targetId], references: [id])
+  requester User @relation("Requester", fields: [requesterId], references: [id])
+  target    User @relation("Target", fields: [targetId], references: [id])
 
   @@unique([requesterId, targetId])
 }
@@ -86,4 +87,16 @@ enum RequestStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+model AnnouncementRead {
+  id             String   @id @default(uuid())
+  userId         String
+  announcementId String
+  readAt         DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, announcementId])
+  @@index([userId, readAt])
 }
