@@ -323,9 +323,31 @@ export async function ensureBootstrap(force = false): Promise<void> {
     payload.myDiaries.map(async (d) => {
       const old = existingByDate.get(d.dateStr);
       if (old?.needsSync) {
-        const local = await decodeStoredDiary(old);
-        return encryptDiaryForStorage({ ...local, cloudId: local.cloudId ?? d.id } satisfies LocalDiary);
+        return { ...old, cloudId: old.cloudId ?? d.id } as StoredDiary;
       }
+      
+      let parsedEncrypted: EncryptedTextPayload | null = null;
+      try {
+        const parsed = JSON.parse(d.content);
+        if (parsed && parsed.v === 1 && parsed.alg === 'AES-GCM') {
+          parsedEncrypted = parsed;
+        }
+      } catch {}
+
+      if (parsedEncrypted) {
+        return {
+          localId: old?.localId ?? d.id,
+          cloudId: d.id,
+          userId: payload.user.id,
+          dateStr: d.dateStr,
+          updatedAt: d.updatedAt,
+          createdAt: d.createdAt,
+          needsSync: old?.needsSync ?? false,
+          encryptedContent: parsedEncrypted,
+          encryptionVersion: 1,
+        } as StoredDiary;
+      }
+
       const local: LocalDiary = {
         localId: old?.localId ?? d.id,
         cloudId: d.id,
@@ -334,7 +356,7 @@ export async function ensureBootstrap(force = false): Promise<void> {
         content: d.content,
         updatedAt: d.updatedAt,
         createdAt: d.createdAt,
-        needsSync: old?.needsSync ?? false,
+        needsSync: true, // 强制同步以覆盖云端明文
       };
       return encryptDiaryForStorage(local);
     }),
@@ -476,20 +498,18 @@ export async function syncPendingDiaries(): Promise<{ synced: number }> {
   const txRead = db.transaction(STORE_DIARIES, 'readonly');
   const pending = await requestResult(txRead.objectStore(STORE_DIARIES).getAll());
   await txDone(txRead);
-  const rows = await Promise.all(
-    (pending as StoredDiary[]).filter((row) => row.userId === keyUserId && row.needsSync).map((row) => decodeStoredDiary(row)),
-  );
-  if (rows.length === 0) return { synced: 0 };
+  const pendingRows = (pending as StoredDiary[]).filter((row) => row.userId === keyUserId && row.needsSync);
+  if (pendingRows.length === 0) return { synced: 0 };
 
   const res = await fetch('/api/sync-push-diaries', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      diaries: rows.map((d) => ({
+      diaries: pendingRows.map((d) => ({
         localId: d.localId,
         cloudId: d.cloudId,
         dateStr: d.dateStr,
-        content: d.content,
+        content: d.encryptedContent ? JSON.stringify(d.encryptedContent) : d.content ?? '',
         updatedAt: d.updatedAt,
       })),
     }),
@@ -499,21 +519,19 @@ export async function syncPendingDiaries(): Promise<{ synced: number }> {
   if (!payload.ok) throw new Error('sync failed');
 
   const mapping = new Map(payload.mappings.map((m) => [m.localId, m.cloudId]));
-  const encryptedRows = await Promise.all(
-    rows.map((row) => {
-      const cloudId = mapping.get(row.localId) ?? row.cloudId;
-      return encryptDiaryForStorage({ ...row, cloudId, needsSync: false } satisfies LocalDiary);
-    }),
-  );
+  const updatedRows = pendingRows.map((row) => {
+    const cloudId = mapping.get(row.localId) ?? row.cloudId;
+    return { ...row, cloudId, needsSync: false } as StoredDiary;
+  });
   const txWrite = db.transaction(STORE_DIARIES, 'readwrite');
   const store = txWrite.objectStore(STORE_DIARIES);
-  for (const row of encryptedRows) {
+  for (const row of updatedRows) {
     store.put(row);
   }
   await txDone(txWrite);
-  await markTeamDaysForRows(rows);
+  await markTeamDaysForRows(pendingRows);
   await setMeta('lastPushedAt', new Date().toISOString());
-  return { synced: rows.length };
+  return { synced: pendingRows.length };
 }
 
 export async function getArchiveDiaryDaysLocal(): Promise<ArchiveLocalDiary[]> {
@@ -542,20 +560,18 @@ export async function syncSelectedDiaries(localIds: string[]): Promise<{ synced:
   const allRows = (await requestResult(txRead.objectStore(STORE_DIARIES).getAll())) as StoredDiary[];
   await txDone(txRead);
   const allow = new Set(localIds);
-  const rows = await Promise.all(
-    allRows.filter((row) => row.userId === keyUserId && row.needsSync && allow.has(row.localId)).map((row) => decodeStoredDiary(row)),
-  );
-  if (rows.length === 0) return { synced: 0 };
+  const pendingRows = allRows.filter((row) => row.userId === keyUserId && row.needsSync && allow.has(row.localId));
+  if (pendingRows.length === 0) return { synced: 0 };
 
   const res = await fetch('/api/sync-push-diaries', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      diaries: rows.map((d) => ({
+      diaries: pendingRows.map((d) => ({
         localId: d.localId,
         cloudId: d.cloudId,
         dateStr: d.dateStr,
-        content: d.content,
+        content: d.encryptedContent ? JSON.stringify(d.encryptedContent) : d.content ?? '',
         updatedAt: d.updatedAt,
       })),
     }),
@@ -565,21 +581,19 @@ export async function syncSelectedDiaries(localIds: string[]): Promise<{ synced:
   if (!payload.ok) throw new Error('sync failed');
 
   const mapping = new Map(payload.mappings.map((m) => [m.localId, m.cloudId]));
-  const encryptedRows = await Promise.all(
-    rows.map((row) => {
-      const cloudId = mapping.get(row.localId) ?? row.cloudId;
-      return encryptDiaryForStorage({ ...row, cloudId, needsSync: false } satisfies LocalDiary);
-    }),
-  );
+  const updatedRows = pendingRows.map((row) => {
+    const cloudId = mapping.get(row.localId) ?? row.cloudId;
+    return { ...row, cloudId, needsSync: false } as StoredDiary;
+  });
   const txWrite = db.transaction(STORE_DIARIES, 'readwrite');
   const store = txWrite.objectStore(STORE_DIARIES);
-  for (const row of encryptedRows) {
+  for (const row of updatedRows) {
     store.put(row);
   }
   await txDone(txWrite);
-  await markTeamDaysForRows(rows);
+  await markTeamDaysForRows(pendingRows);
   await setMeta('lastPushedAt', new Date().toISOString());
-  return { synced: rows.length };
+  return { synced: pendingRows.length };
 }
 
 export async function getHomeData(yearArg?: number, monthArg?: number): Promise<any> {
