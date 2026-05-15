@@ -8,6 +8,11 @@ import {
   LocalPrivacyKeyMissingError,
   type EncryptedTextPayload,
 } from './localCrypto';
+import {
+  buildAchievementsPageData,
+  type AchievementTeamDiaryDay,
+  type AchievementUser,
+} from './achievements';
 
 export { getLocalPrivacyUnlockUrl, isLocalPrivacyKeyMissing };
 
@@ -575,6 +580,27 @@ export async function getPermissionsPageDataLocal() {
     viewers,
     viewableUsers,
   };
+}
+
+export async function getAchievementsPageDataLocal() {
+  const sessionUser = await requireLocalSessionUser<AchievementUser>();
+  const db = await openDb();
+  const tx = db.transaction([STORE_USERS, STORE_TEAM_DAYS], 'readonly');
+
+  const allUsers = (await requestResult(tx.objectStore(STORE_USERS).getAll())) as AchievementUser[];
+  const teamDiaryDays = (await requestResult(tx.objectStore(STORE_TEAM_DAYS).getAll())) as AchievementTeamDiaryDay[];
+  await txDone(tx);
+
+  const users = sessionUser.role === 'USER' && !allUsers.some((user) => user.id === sessionUser.id)
+    ? [...allUsers, sessionUser]
+    : allUsers;
+
+  return buildAchievementsPageData({
+    users,
+    teamDiaryDays,
+    currentUserId: sessionUser.id,
+    todayDateStr: shanghaiDateStr(),
+  });
 }
 
 export async function saveDiaryLocal(dateStr: string, content: string): Promise<{ localId: string; created: boolean }> {

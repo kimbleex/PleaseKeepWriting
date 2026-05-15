@@ -1,0 +1,1234 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="成就">
+  <div class="achievements-page">
+    <div class="achievements-grid">
+      <aside class="rank-panel">
+        <div class="panel-head">
+          <div>
+            <h2>成员排行</h2>
+            <p id="rank-summary"><span class="ach-skel mini"></span></p>
+          </div>
+          <button type="button" class="catalog-btn" id="open-catalog-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"/></svg>
+            <span>全部成就</span>
+          </button>
+        </div>
+        <div class="rank-list" id="rank-list">
+          {Array.from({ length: 5 }).map(() => (
+            <div class="rank-row">
+              <span class="ach-skel rank-num"></span>
+              <span class="ach-skel line"></span>
+              <span class="ach-skel pill"></span>
+            </div>
+          ))}
+        </div>
+      </aside>
+
+      <section class="mine-panel">
+        <div class="panel-head mine-head">
+          <div>
+            <h2>我的成就</h2>
+            <p id="mine-summary"><span class="ach-skel mini"></span></p>
+          </div>
+          <div class="score-chip" id="mine-score">-- 点</div>
+        </div>
+
+        <div class="mine-scroll">
+          <div class="achievement-section">
+            <div class="section-title-row">
+              <h3>已获得</h3>
+              <span id="earned-count">--</span>
+            </div>
+            <div class="achievement-cards" id="earned-achievements">
+              <div class="achievement-empty">成就加载中...</div>
+            </div>
+          </div>
+
+          <div class="achievement-section">
+            <div class="section-title-row">
+              <h3>未获得</h3>
+              <span id="locked-count">--</span>
+            </div>
+            <div class="achievement-cards" id="locked-achievements">
+              <div class="achievement-empty">成就加载中...</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="achievement-modal" id="member-achievement-modal" aria-hidden="true">
+    <section class="achievement-dialog member-dialog" role="dialog" aria-modal="true" aria-labelledby="member-achievement-title">
+      <div class="achievement-dialog-head">
+        <div>
+          <p class="achievements-kicker">成员记录</p>
+          <h2 id="member-achievement-title">成员成就</h2>
+        </div>
+        <button type="button" class="achievement-close" data-close-achievement-modal aria-label="关闭成员成就">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+      <div class="achievement-dialog-body" id="member-achievement-body"></div>
+    </section>
+  </div>
+
+  <div class="achievement-modal" id="catalog-achievement-modal" aria-hidden="true">
+    <section class="achievement-dialog catalog-dialog" role="dialog" aria-modal="true" aria-labelledby="catalog-achievement-title">
+      <div class="achievement-dialog-head">
+        <div>
+          <p class="achievements-kicker">系统图鉴</p>
+          <h2 id="catalog-achievement-title">全部成就</h2>
+        </div>
+        <button type="button" class="achievement-close" data-close-achievement-modal aria-label="关闭全部成就">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+      <div class="achievement-dialog-body" id="catalog-achievement-body"></div>
+    </section>
+  </div>
+
+  <style is:global>
+    .achievements-page {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      display: block;
+    }
+
+    html:has(.achievements-page) {
+      height: 100svh;
+      overflow-y: scroll;
+      scrollbar-gutter: stable;
+    }
+
+    body:has(.achievements-page) {
+      height: 100svh;
+      overflow: hidden;
+    }
+
+    main.container:has(.achievements-page) {
+      height: calc(100svh - var(--achievements-header-height, 82px));
+      overflow: hidden;
+      padding: clamp(0.5rem, 1svh, 0.78rem) clamp(1rem, 2vw, 1.65rem) clamp(0.48rem, 0.8svh, 0.72rem) !important;
+    }
+
+    .achievements-kicker {
+      margin: 0 0 0.1rem;
+      color: #0f766e;
+      font-size: 0.72rem;
+      font-weight: 850;
+    }
+
+    .panel-head h2,
+    .achievement-dialog-head h2 {
+      margin: 0;
+      color: #0f172a;
+      line-height: 1.2;
+    }
+
+    .catalog-btn {
+      height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      padding: 0 0.8rem;
+      border-radius: 10px;
+      border: 1px solid rgba(15, 118, 110, 0.22);
+      background: rgba(15, 118, 110, 0.09);
+      color: #0f766e;
+      font: inherit;
+      font-size: 0.86rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+    }
+
+    .catalog-btn:hover {
+      transform: translateY(-1px);
+      background: rgba(15, 118, 110, 0.14);
+      box-shadow: 0 12px 24px rgba(15, 118, 110, 0.13);
+    }
+
+    .achievements-grid {
+      height: 100%;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(340px, 430px) minmax(0, 1fr);
+      gap: clamp(0.62rem, 1.2vw, 0.9rem);
+    }
+
+    .rank-panel,
+    .mine-panel {
+      min-height: 0;
+      overflow: hidden;
+      border-radius: 16px;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      background: #ffffff;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.07);
+    }
+
+    .rank-panel,
+    .mine-panel {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.85rem;
+      padding: 1rem;
+      border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+      background: #fbfdff;
+      flex-shrink: 0;
+    }
+
+    .panel-head h2 {
+      font-size: 1rem;
+    }
+
+    .panel-head p {
+      margin: 0.18rem 0 0;
+      color: #64748b;
+      font-size: 0.78rem;
+      font-weight: 650;
+    }
+
+    .score-chip {
+      min-width: 76px;
+      height: 36px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 0.8rem;
+      border-radius: 999px;
+      color: #1d4ed8;
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.16);
+      font-size: 0.82rem;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+
+    .rank-list {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding: 0.65rem;
+    }
+
+    .rank-list-items {
+      min-height: 0;
+      flex: 1 1 auto;
+      overflow: hidden;
+    }
+
+    .rank-pagination {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-top: auto;
+      margin-bottom: -0.65rem;
+      margin-left: -0.65rem;
+      margin-right: -0.65rem;
+      min-height: clamp(48px, 7svh, 58px);
+      padding: clamp(0.45rem, 0.9svh, 0.58rem) clamp(0.65rem, 1.1vw, 0.78rem);
+      border-top: 1px solid rgba(15, 23, 42, 0.07);
+      background: #fbfdff;
+    }
+
+    .rank-page-btn {
+      min-height: 30px;
+      padding: 0.32rem 0.62rem;
+      border-radius: 9px;
+      border: 1px solid rgba(15, 23, 42, 0.1);
+      background: #fff;
+      color: #475569;
+      font: inherit;
+      font-size: 0.74rem;
+      font-weight: 850;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .rank-page-btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+
+    .rank-page-info {
+      color: #64748b;
+      font-size: 0.74rem;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+
+    .rank-row {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 34px 36px minmax(0, 1fr) auto auto;
+      align-items: center;
+      gap: 0.62rem;
+      padding: 0.62rem;
+      margin-bottom: 0.48rem;
+      border-radius: 12px;
+      border: 1px solid rgba(15, 23, 42, 0.06);
+      background: #f8fafc;
+      text-align: left;
+      font: inherit;
+      cursor: default;
+      transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+    }
+
+    .rank-row:hover,
+    .rank-row.is-active {
+      transform: translateY(-1px);
+      border-color: rgba(99, 102, 241, 0.18);
+      background: #ffffff;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+    }
+
+    .rank-row.is-active {
+      border-color: rgba(15, 118, 110, 0.24);
+      background:
+        linear-gradient(135deg, rgba(15, 118, 110, 0.07), rgba(99, 102, 241, 0.05)),
+        #ffffff;
+    }
+
+    .rank-avatar {
+      width: 36px;
+      height: 36px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      color: #ffffff;
+      background: linear-gradient(135deg, #0f766e, #2563eb);
+      font-size: 0.78rem;
+      font-weight: 850;
+    }
+
+    .rank-main {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.42rem;
+    }
+
+    .rank-name {
+      min-width: 0;
+      color: #0f172a;
+      font-size: 0.9rem;
+      font-weight: 800;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .rank-number {
+      width: 34px;
+      height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+      color: #334155;
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.65), transparent),
+        #e2e8f0;
+      border: 1px solid rgba(148, 163, 184, 0.26);
+      font-size: 0.82rem;
+      font-weight: 900;
+      box-shadow: inset 0 -3px 8px rgba(15, 23, 42, 0.06);
+    }
+
+    .rank-row.rank-top-1 .rank-number {
+      color: #713f12;
+      background: linear-gradient(135deg, #fef3c7, #facc15);
+      border-color: rgba(245, 158, 11, 0.32);
+    }
+
+    .rank-row.rank-top-2 .rank-number {
+      color: #334155;
+      background: linear-gradient(135deg, #f8fafc, #cbd5e1);
+      border-color: rgba(100, 116, 139, 0.24);
+    }
+
+    .rank-row.rank-top-3 .rank-number {
+      color: #7c2d12;
+      background: linear-gradient(135deg, #ffedd5, #fdba74);
+      border-color: rgba(249, 115, 22, 0.28);
+    }
+
+    .self-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.08rem 0.36rem;
+      border-radius: 999px;
+      color: #0f766e;
+      background: rgba(15, 118, 110, 0.1);
+      border: 1px solid rgba(15, 118, 110, 0.16);
+      font-size: 0.64rem;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+
+    .view-achievements-btn {
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.28rem;
+      padding: 0 0.58rem;
+      border-radius: 9px;
+      border: 1px solid rgba(99, 102, 241, 0.16);
+      background: rgba(99, 102, 241, 0.08);
+      color: #4f46e5;
+      font: inherit;
+      font-size: 0.72rem;
+      font-weight: 850;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: transform 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .view-achievements-btn:hover {
+      transform: translateY(-1px);
+      background: rgba(99, 102, 241, 0.13);
+      box-shadow: 0 8px 16px rgba(99, 102, 241, 0.14);
+    }
+
+    .rank-points-bubble {
+      min-width: 82px;
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 0.56rem;
+      border-radius: 4px;
+      color: #0f766e;
+      background:
+        linear-gradient(135deg, rgba(236, 253, 245, 0.95), rgba(240, 253, 250, 0.95)),
+        #ecfdf5;
+      border: 1px solid rgba(15, 118, 110, 0.16);
+      font-size: 0.7rem;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+
+    .mine-scroll {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+    }
+
+    .achievement-section {
+      padding: 1rem;
+      border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+    }
+
+    .achievement-section:last-child {
+      border-bottom: 0;
+    }
+
+    .section-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .section-title-row h3 {
+      margin: 0;
+      color: #0f172a;
+      font-size: 0.92rem;
+    }
+
+    .section-title-row span {
+      color: #64748b;
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+
+    .achievement-cards {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.48rem;
+    }
+
+    .achievement-card {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: 92px minmax(0, 1fr);
+      gap: 0.72rem;
+      align-items: start;
+      padding: 0.62rem 0.85rem;
+      border-radius: 12px;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      background:
+        linear-gradient(90deg, color-mix(in srgb, var(--badge-from) 14%, white), color-mix(in srgb, var(--badge-to) 7%, white) 38%, #ffffff),
+        #ffffff;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+    }
+
+    .achievement-card.is-locked {
+      background: #f8fafc;
+      opacity: 0.82;
+    }
+
+    .achievement-body {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.32rem;
+    }
+
+    .achievement-title-row {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      flex-wrap: wrap;
+    }
+
+    .achievement-title {
+      color: #0f172a;
+      font-size: 0.96rem;
+      font-weight: 850;
+    }
+
+    .level-label,
+    .max-label {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.12rem 0.45rem;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+
+    .level-label {
+      color: var(--badge-ink);
+      background: color-mix(in srgb, var(--badge-via) 24%, white);
+      border: 1px solid color-mix(in srgb, var(--badge-via) 34%, white);
+    }
+
+    .max-label {
+      color: #7c2d12;
+      background: linear-gradient(135deg, #fef3c7, #fbcfe8);
+      border: 1px solid rgba(250, 204, 21, 0.45);
+    }
+
+    .achievement-desc,
+    .achievement-detail-line {
+      margin: 0;
+      color: #475569;
+      font-size: 0.78rem;
+      line-height: 1.38;
+    }
+
+    .achievement-detail-line {
+      color: #64748b;
+      font-weight: 650;
+    }
+
+    .achievement-progress-panel {
+      display: grid;
+      gap: 0.32rem;
+      padding-top: 0;
+    }
+
+    .progress-track {
+      height: 6px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.22);
+    }
+
+    .progress-fill {
+      display: block;
+      width: var(--progress, 0%);
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--badge-from), var(--badge-to));
+    }
+
+    .level-ladder {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.18rem;
+      padding-top: 0;
+    }
+
+    .level-dot {
+      width: 17px;
+      height: 17px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      color: #64748b;
+      background: #e2e8f0;
+      font-size: 0.56rem;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .level-dot.is-earned {
+      color: var(--dot-ink);
+      background: linear-gradient(135deg, var(--dot-from), var(--dot-to));
+      box-shadow: 0 4px 10px var(--dot-glow);
+    }
+
+    .achievement-empty {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 120px;
+      color: #94a3b8;
+      font-size: 0.88rem;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .cartoon-badge {
+      --badge-from: #cbd5e1;
+      --badge-via: #e2e8f0;
+      --badge-to: #f8fafc;
+      --badge-ink: #64748b;
+      --badge-glow: rgba(100, 116, 139, 0.16);
+      position: relative;
+      width: 88px;
+      min-height: 92px;
+      display: grid;
+      justify-items: center;
+      align-content: start;
+    }
+
+    .badge-medal-img {
+      width: 86px;
+      height: 86px;
+      object-fit: contain;
+      object-position: center;
+      padding: 0;
+      filter: saturate(1.08) contrast(1.02);
+      mix-blend-mode: multiply;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .badge-ribbons {
+      display: flex;
+      gap: 0.25rem;
+      margin-top: -12px;
+      z-index: 0;
+    }
+
+    .badge-ribbons span {
+      width: 18px;
+      height: 26px;
+      background: linear-gradient(180deg, var(--badge-from), var(--badge-to));
+      clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
+      filter: drop-shadow(0 8px 10px var(--badge-glow));
+    }
+
+    .badge-level {
+      position: absolute;
+      top: 70px;
+      left: 50%;
+      min-width: 46px;
+      padding: 0.16rem 0.42rem;
+      border-radius: 999px;
+      color: var(--badge-ink);
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid rgba(255, 255, 255, 0.95);
+      box-shadow: 0 8px 16px rgba(15, 23, 42, 0.08);
+      font-size: 0.66rem;
+      font-weight: 900;
+      text-align: center;
+      transform: translateX(-50%);
+      z-index: 3;
+    }
+
+    .cartoon-badge.is-locked {
+      filter: grayscale(0.72);
+      opacity: 0.72;
+    }
+
+    .achievement-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 250;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      background: rgba(15, 23, 42, 0.42);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.18s ease;
+    }
+
+    .achievement-modal.is-open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    body.achievement-modal-lock {
+      overflow: hidden;
+    }
+
+    .achievement-dialog {
+      width: min(860px, 100%);
+      max-height: min(760px, calc(100dvh - 2rem));
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      overflow: hidden;
+      border-radius: 18px;
+      border: 1px solid rgba(15, 23, 42, 0.1);
+      background: #ffffff;
+      box-shadow: 0 28px 80px rgba(15, 23, 42, 0.26);
+      transform: translateY(10px) scale(0.985);
+      transition: transform 0.18s ease;
+    }
+
+    .achievement-modal.is-open .achievement-dialog {
+      transform: translateY(0) scale(1);
+    }
+
+    .achievement-dialog-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1rem 1.1rem;
+      background:
+        linear-gradient(135deg, rgba(15, 118, 110, 0.09), rgba(124, 58, 237, 0.07)),
+        #ffffff;
+      border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    }
+
+    .achievement-dialog-head h2 {
+      font-size: 1.1rem;
+    }
+
+    .achievement-close {
+      width: 36px;
+      height: 36px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 9px;
+      border: 1px solid rgba(15, 23, 42, 0.1);
+      background: #ffffff;
+      color: #64748b;
+      cursor: pointer;
+    }
+
+    .achievement-dialog-body {
+      min-height: 0;
+      overflow-y: auto;
+      padding: 1rem;
+      background: #f8fafc;
+    }
+
+    .member-modal-summary {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 0.9rem;
+      margin-bottom: 0.85rem;
+      padding: 0.9rem;
+      border-radius: 14px;
+      border: 1px solid rgba(15, 23, 42, 0.07);
+      background: #ffffff;
+    }
+
+    .member-modal-name {
+      color: #0f172a;
+      font-size: 1rem;
+      font-weight: 850;
+    }
+
+    .member-modal-meta {
+      color: #64748b;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .modal-achievement-list,
+    .catalog-list {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .catalog-item {
+      display: grid;
+      grid-template-columns: 108px minmax(0, 1fr);
+      gap: 0.9rem;
+      padding: 0.9rem;
+      border-radius: 14px;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      background: #ffffff;
+    }
+
+    .catalog-levels {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.32rem;
+      margin-top: 0.65rem;
+    }
+
+    .catalog-level-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.22rem 0.48rem;
+      border-radius: 999px;
+      color: var(--dot-ink);
+      background: linear-gradient(135deg, var(--dot-from), var(--dot-to));
+      box-shadow: 0 5px 12px var(--dot-glow);
+      font-size: 0.68rem;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+
+    .ach-skel {
+      display: inline-block;
+      border-radius: 8px;
+      background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+      background-size: 200% 100%;
+      animation: ach-shimmer 1.4s infinite;
+    }
+
+    .ach-skel.rank-num { width: 34px; height: 34px; border-radius: 10px; }
+    .ach-skel.line { width: 100%; height: 0.9rem; }
+    .ach-skel.pill { width: 58px; height: 1.5rem; border-radius: 999px; }
+    .ach-skel.mini { width: 70px; height: 0.72rem; }
+
+    @keyframes ach-shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    @media (max-width: 980px) {
+      html:has(.achievements-page),
+      body:has(.achievements-page) {
+        height: auto;
+        overflow-y: auto;
+      }
+
+      main.container:has(.achievements-page) {
+        height: auto;
+        overflow: visible;
+        padding: clamp(0.62rem, 1.4svh, 0.9rem) !important;
+      }
+
+      .achievements-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .rank-list,
+      .mine-panel,
+      .mine-scroll {
+        overflow: visible;
+      }
+
+    }
+
+    @media (max-width: 720px) {
+      .achievement-cards {
+        grid-template-columns: 1fr;
+      }
+
+      .achievement-card,
+      .catalog-item {
+        grid-template-columns: 98px minmax(0, 1fr);
+      }
+
+      .achievement-body {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .rank-row {
+        grid-template-columns: 32px 34px minmax(0, 1fr) auto auto;
+        gap: 0.5rem;
+      }
+
+      .view-achievements-btn span,
+      .rank-points-bubble .points-label {
+        display: none;
+      }
+
+      .rank-points-bubble {
+        min-width: 42px;
+      }
+
+      .member-modal-summary {
+        grid-template-columns: auto minmax(0, 1fr);
+      }
+
+      .member-modal-summary .score-chip {
+        grid-column: 1 / -1;
+        width: 100%;
+      }
+    }
+  </style>
+
+  <script>
+    import { navigate } from "astro:transitions/client";
+    import {
+      getAchievementsPageDataLocal,
+      getLocalPrivacyUnlockUrl,
+      isLocalPrivacyKeyMissing,
+      refreshLocalData,
+    } from "../lib/localFirst";
+
+    type AchievementPageData = Awaited<ReturnType<typeof getAchievementsPageDataLocal>>;
+    type AchievementMember = AchievementPageData["members"][number];
+    type AchievementRecord = AchievementMember["achievements"][number];
+    type CatalogItem = AchievementPageData["catalog"][number];
+    type AchievementTone = AchievementRecord["tone"];
+
+    let achievementData: AchievementPageData | null = null;
+    let rankPage = 1;
+    let rankPageSize = 1;
+
+    function setAchievementsViewportHeight(): void {
+      const navbar = document.querySelector<HTMLElement>(".navbar");
+      const headerHeight = navbar?.getBoundingClientRect().height ?? 90;
+      document.documentElement.style.setProperty("--achievements-header-height", `${Math.ceil(headerHeight)}px`);
+    }
+
+    function escapeHTML(value: unknown): string {
+      const entities: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" };
+      return String(value).replace(/[&<>"']/g, (char: string) => entities[char] ?? char);
+    }
+
+    function toneStyle(tone: AchievementTone): string {
+      return `--badge-from:${tone.from};--badge-via:${tone.via};--badge-to:${tone.to};--badge-ink:${tone.ink};--badge-glow:${tone.glow};`;
+    }
+
+    function dotStyle(level: { tone: AchievementTone }): string {
+      return `--dot-from:${level.tone.from};--dot-to:${level.tone.to};--dot-ink:${level.tone.ink};--dot-glow:${level.tone.glow};`;
+    }
+
+    function renderBadge(options: { imageSrc: string; title: string; level: number; tone: AchievementTone; locked?: boolean }): string {
+      const label = options.level > 0 ? `Lv.${options.level}` : "未获";
+      return `<div class="cartoon-badge ${options.locked ? "is-locked" : ""}" style="${toneStyle(options.tone)}">
+        <img class="badge-medal-img" src="${escapeHTML(options.imageSrc)}" alt="${escapeHTML(options.title)}徽章" loading="lazy" decoding="async" />
+        <div class="badge-ribbons"><span></span><span></span></div>
+        <span class="badge-level">${escapeHTML(label)}</span>
+      </div>`;
+    }
+
+    function renderLevelLadder(achievement: AchievementRecord): string {
+      return `<div class="level-ladder">${achievement.levels.map((level) => (
+        `<span class="level-dot ${level.earned ? "is-earned" : ""}" style="${dotStyle(level)}" title="Lv.${level.level} · ${level.threshold}${achievement.unit}">${level.level}</span>`
+      )).join("")}</div>`;
+    }
+
+    function achievementRangeText(achievement: AchievementRecord): string {
+      if (achievement.achievedRange) {
+        const range = achievement.achievedRange;
+        return `达成区间：${range.start} 至 ${range.end}，${range.days}${achievement.unit}`;
+      }
+      if (achievement.nextThreshold) {
+        return `距离 Lv.1 还差 ${Math.max(0, achievement.nextThreshold - achievement.currentValue)}${achievement.unit}`;
+      }
+      return "还没有达成记录";
+    }
+
+    function renderAchievementCard(achievement: AchievementRecord): string {
+      const locked = !achievement.earned;
+      const remainingToNext = achievement.nextThreshold
+        ? Math.max(0, achievement.nextThreshold - achievement.currentValue)
+        : 0;
+      const progressText = achievement.isMaxLevel
+        ? `${achievement.currentValue}${achievement.unit} | 已达最高级别`
+        : achievement.nextThreshold
+          ? `${achievement.currentValue}${achievement.unit} | ${achievement.earned ? "距离下一等级还差" : "距离 Lv.1 还差"}${remainingToNext}${achievement.unit}`
+          : `${achievement.currentValue}${achievement.unit}`;
+      return `<article class="achievement-card ${locked ? "is-locked" : ""}" style="${toneStyle(achievement.tone)}--progress:${achievement.progressPct}%;">
+        ${renderBadge({ imageSrc: achievement.imageSrc, title: achievement.title, level: achievement.level, tone: achievement.tone, locked })}
+        <div class="achievement-body">
+          <div class="achievement-title-row">
+            <span class="achievement-title">${escapeHTML(achievement.title)}</span>
+            <span class="level-label">Lv.${achievement.level}</span>
+            ${achievement.isMaxLevel ? '<span class="max-label">最高级别</span>' : ""}
+          </div>
+          <p class="achievement-desc">${escapeHTML(achievement.description)}</p>
+          <div class="achievement-progress-panel">
+            <p class="achievement-detail-line">${escapeHTML(achievement.metricLabel)}：${escapeHTML(progressText)}</p>
+            <div class="progress-track"><span class="progress-fill"></span></div>
+            <p class="achievement-detail-line">${escapeHTML(achievementRangeText(achievement))}</p>
+            ${renderLevelLadder(achievement)}
+          </div>
+        </div>
+      </article>`;
+    }
+
+    function getRankPageSize(): number {
+      if (window.innerWidth <= 980) return 12;
+
+      const list = document.getElementById("rank-list");
+      if (!list) return rankPageSize || 1;
+      
+      const panel = list.closest<HTMLElement>(".rank-panel");
+      const panelHead = panel?.querySelector<HTMLElement>(".panel-head");
+      
+      let estimatedRowHeight = 66;
+      const firstRow = list.querySelector<HTMLElement>(".rank-row");
+      if (firstRow) {
+        const style = window.getComputedStyle(firstRow);
+        const margin = parseFloat(style.marginBottom) || 0;
+        estimatedRowHeight = firstRow.getBoundingClientRect().height + margin;
+      }
+      
+      const paginationReserve = 44;
+      const listPadding = 22;
+      const panelHeight = panel?.getBoundingClientRect().height ?? 0;
+      const headHeight = panelHead?.getBoundingClientRect().height ?? 0;
+      const measuredListHeight = panelHeight > 0 ? panelHeight - headHeight : list.clientHeight;
+      const availableHeight = Math.max(estimatedRowHeight, measuredListHeight - paginationReserve - listPadding);
+      return Math.max(1, Math.floor(availableHeight / estimatedRowHeight));
+    }
+
+    function renderRankList(data: AchievementPageData): void {
+      const list = document.getElementById("rank-list");
+      const summary = document.getElementById("rank-summary");
+      if (summary) summary.textContent = `${data.summary.totalMembers} 位成员 · 全部成就共计 ${data.summary.maxPossiblePoints} 点`;
+      if (!list) return;
+      if (data.members.length === 0) {
+        list.innerHTML = '<div class="achievement-empty">还没有可展示的成员</div>';
+        return;
+      }
+      rankPageSize = getRankPageSize();
+      const pageCount = Math.max(1, Math.ceil(data.members.length / rankPageSize));
+      rankPage = Math.min(Math.max(1, rankPage), pageCount);
+      const start = (rankPage - 1) * rankPageSize;
+      const currentMembers = data.members.slice(start, start + rankPageSize);
+      const rowsHtml = currentMembers.map((member, pageIndex) => {
+        const index = start + pageIndex;
+        const isSelf = member.userId === data.currentUserId;
+        const topClass = index < 3 ? ` rank-top-${index + 1}` : "";
+        return `<div class="rank-row${topClass} ${isSelf ? "is-active" : ""}">
+          <span class="rank-number">${index + 1}</span>
+          <span class="rank-avatar">${escapeHTML(member.initial)}</span>
+          <span class="rank-main">
+            <span class="rank-name">${escapeHTML(member.username)}</span>
+            ${isSelf ? '<span class="self-badge">你</span>' : ""}
+          </span>
+          <span class="rank-points-bubble">${member.points} <span class="points-label">成就点数</span></span>
+          <button type="button" class="view-achievements-btn" data-member-id="${escapeHTML(member.userId)}" aria-label="查看 ${escapeHTML(member.username)} 的成就">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
+            <span>查看</span>
+          </button>
+        </div>`;
+      }).join("");
+
+      list.innerHTML = `<div class="rank-list-items">${rowsHtml}</div>
+        <div class="rank-pagination">
+          <button type="button" class="rank-page-btn" data-rank-page="prev" ${rankPage <= 1 ? "disabled" : ""}>上一页</button>
+          <span class="rank-page-info">${rankPage} / ${pageCount}</span>
+          <button type="button" class="rank-page-btn" data-rank-page="next" ${rankPage >= pageCount ? "disabled" : ""}>下一页</button>
+        </div>`;
+    }
+
+    function renderMine(data: AchievementPageData): void {
+      const score = document.getElementById("mine-score");
+      const summary = document.getElementById("mine-summary");
+      const earnedCount = document.getElementById("earned-count");
+      const lockedCount = document.getElementById("locked-count");
+      const earnedBox = document.getElementById("earned-achievements");
+      const lockedBox = document.getElementById("locked-achievements");
+      const current = data.currentUser;
+
+      if (!current) {
+        if (score) score.textContent = "-- 点";
+        if (summary) summary.textContent = "当前账号不参与成员排行";
+        if (earnedBox) earnedBox.innerHTML = '<div class="achievement-empty">当前账号暂无成员成就</div>';
+        if (lockedBox) lockedBox.innerHTML = "";
+        return;
+      }
+
+      const earned = current.achievements.filter((achievement) => achievement.earned);
+      const locked = current.achievements.filter((achievement) => !achievement.earned);
+      if (score) score.textContent = `${current.points} 点`;
+      if (summary) summary.textContent = `${current.username} · ${current.earnedCount}/${current.achievements.length} 项`;
+      if (earnedCount) earnedCount.textContent = `${earned.length} 项`;
+      if (lockedCount) lockedCount.textContent = `${locked.length} 项`;
+      if (earnedBox) earnedBox.innerHTML = earned.length > 0
+        ? earned.map(renderAchievementCard).join("")
+        : '<div class="achievement-empty">还没有获得成就</div>';
+      if (lockedBox) lockedBox.innerHTML = locked.length > 0
+        ? locked.map(renderAchievementCard).join("")
+        : '<div class="achievement-empty">所有成就都已获得</div>';
+    }
+
+    function applyAchievementsData(data: AchievementPageData): void {
+      achievementData = data;
+      renderRankList(data);
+      renderMine(data);
+      window.requestAnimationFrame(() => {
+        if (achievementData === data) renderRankList(data);
+      });
+    }
+
+    function setModalOpen(id: string, open: boolean): void {
+      const modal = document.getElementById(id);
+      modal?.classList.toggle("is-open", open);
+      modal?.setAttribute("aria-hidden", String(!open));
+      document.body.classList.toggle("achievement-modal-lock", Boolean(document.querySelector(".achievement-modal.is-open")));
+    }
+
+    function openMemberModal(member: AchievementMember): void {
+      const title = document.getElementById("member-achievement-title");
+      const body = document.getElementById("member-achievement-body");
+      if (title) title.textContent = `${member.username} 的成就`;
+      if (body) {
+        body.innerHTML = `<div class="member-modal-summary">
+          <span class="rank-avatar">${escapeHTML(member.initial)}</span>
+          <span>
+            <span class="member-modal-name">${escapeHTML(member.username)}</span>
+            <span class="member-modal-meta">${member.earnedCount} 项成就 · 最高 Lv.${member.maxSingleLevel}</span>
+          </span>
+          <span class="score-chip">${member.points} 点</span>
+        </div>
+        <div class="modal-achievement-list">${member.achievements.map(renderAchievementCard).join("")}</div>`;
+      }
+      setModalOpen("member-achievement-modal", true);
+    }
+
+    function renderCatalogItem(item: CatalogItem): string {
+      const last = item.levels[item.levels.length - 1];
+      return `<article class="catalog-item" style="${toneStyle(last.tone)}">
+        ${renderBadge({ imageSrc: item.imageSrc, title: item.title, level: item.levels.length, tone: last.tone })}
+        <div class="achievement-body">
+          <div class="achievement-title-row">
+            <span class="achievement-title">${escapeHTML(item.title)}</span>
+            <span class="max-label">共 ${item.levels.length} 级</span>
+          </div>
+          <p class="achievement-desc">${escapeHTML(item.description)}</p>
+          <div class="catalog-levels">${item.levels.map((level) => `
+            <span class="catalog-level-chip" style="${dotStyle(level)}">Lv.${level.level} · ${level.threshold}${escapeHTML(item.unit)}</span>
+          `).join("")}</div>
+        </div>
+      </article>`;
+    }
+
+    function openCatalogModal(): void {
+      const body = document.getElementById("catalog-achievement-body");
+      if (body && achievementData) {
+        body.innerHTML = `<div class="catalog-list">${achievementData.catalog.map(renderCatalogItem).join("")}</div>`;
+      }
+      setModalOpen("catalog-achievement-modal", true);
+    }
+
+    function bindAchievementHandlers(): void {
+      const list = document.getElementById("rank-list");
+      if (list?.dataset.bound !== "1") {
+        list?.addEventListener("click", (event) => {
+          const target = event.target as Element | null;
+          const pageButton = target?.closest<HTMLButtonElement>("[data-rank-page]");
+          if (pageButton) {
+            if (pageButton.disabled || !achievementData) return;
+            const pageCount = Math.max(1, Math.ceil(achievementData.members.length / Math.max(1, rankPageSize)));
+            rankPage = pageButton.dataset.rankPage === "next"
+              ? Math.min(pageCount, rankPage + 1)
+              : Math.max(1, rankPage - 1);
+            renderRankList(achievementData);
+            return;
+          }
+          const row = target?.closest<HTMLElement>("[data-member-id]");
+          const memberId = row?.dataset.memberId;
+          const member = achievementData?.members.find((item) => item.userId === memberId);
+          if (member) openMemberModal(member);
+        });
+        if (list) list.dataset.bound = "1";
+      }
+
+      const catalogBtn = document.getElementById("open-catalog-btn");
+      if (catalogBtn?.dataset.bound !== "1") {
+        catalogBtn?.addEventListener("click", () => openCatalogModal());
+        if (catalogBtn) catalogBtn.dataset.bound = "1";
+      }
+
+      document.querySelectorAll<HTMLElement>(".achievement-modal").forEach((modal) => {
+        if (modal.dataset.bound === "1") return;
+        modal.dataset.bound = "1";
+        modal.addEventListener("click", (event) => {
+          const target = event.target as Element | null;
+          if (target?.closest("[data-close-achievement-modal]") || target === modal) {
+            setModalOpen(modal.id, false);
+          }
+        });
+      });
+    }
+
+    async function refreshAchievementsInBackground(): Promise<void> {
+      try {
+        await refreshLocalData();
+        applyAchievementsData(await getAchievementsPageDataLocal());
+      } catch (error) {
+        if (isLocalPrivacyKeyMissing(error)) {
+          navigate(getLocalPrivacyUnlockUrl());
+          return;
+        }
+        console.error(error);
+      }
+    }
+
+    async function loadAchievements(): Promise<void> {
+      try {
+        applyAchievementsData(await getAchievementsPageDataLocal());
+        void refreshAchievementsInBackground();
+      } catch (error) {
+        if (isLocalPrivacyKeyMissing(error)) {
+          navigate(getLocalPrivacyUnlockUrl());
+          return;
+        }
+        console.error(error);
+        const rankList = document.getElementById("rank-list");
+        const earned = document.getElementById("earned-achievements");
+        if (rankList) rankList.innerHTML = '<div class="achievement-empty">成就加载失败，请稍后再试</div>';
+        if (earned) earned.innerHTML = '<div class="achievement-empty">成就加载失败，请稍后再试</div>';
+      }
+    }
+
+    document.addEventListener("astro:page-load", () => {
+      setAchievementsViewportHeight();
+      bindAchievementHandlers();
+      void loadAchievements();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      document.querySelectorAll<HTMLElement>(".achievement-modal.is-open").forEach((modal) => setModalOpen(modal.id, false));
+    });
+
+    window.addEventListener("resize", () => {
+      setAchievementsViewportHeight();
+      if (achievementData) renderRankList(achievementData);
+    });
+    window.addEventListener("our-diary:local-sync-complete", () => {
+      void loadAchievements();
+    });
+  </script>
+</Layout>

@@ -2,6 +2,7 @@ import { tool } from 'langchain';
 import { z } from 'zod';
 import { prisma } from '../db';
 import { daysBetweenInclusive, getShanghaiDateStr, parseDateStr } from './date';
+import { buildAchievementsPageData } from '../achievements';
 
 const MAX_DIARY_RANGE_DAYS = 90;
 const MAX_CONTENT_CHARS_PER_DIARY = 4000;
@@ -261,5 +262,167 @@ export function createDiaryAgentTools(userId: string) {
     },
   );
 
-  return [queryMyDiaries, upsertMyTodayDiary, queryUserDiaries];
+  const queryAchievements = tool(
+    async ({ scope, username }) => {
+      const todayStr = getShanghaiDateStr();
+      const [users, diaries] = await Promise.all([
+        prisma.user.findMany({
+          select: { id: true, username: true, role: true, createdAt: true },
+        }),
+        prisma.diary.findMany({
+          select: { userId: true, date: true },
+        }),
+      ]);
+
+      const teamDiaryDays = diaries.map((d) => ({
+        userId: d.userId,
+        dateStr: d.date.toISOString().slice(0, 10),
+      }));
+
+      const achievementsData = buildAchievementsPageData({
+        users: users.map((u) => ({
+          id: u.id,
+          username: u.username,
+          role: u.role,
+          createdAt: u.createdAt.toISOString(),
+        })),
+        teamDiaryDays,
+        currentUserId: userId,
+        todayDateStr: todayStr,
+      });
+
+      const currentUserRecord = users.find((u) => u.id === userId);
+      let mappedMembers = achievementsData.members.map((m) => ({
+        username: m.username,
+        points: m.points,
+        earned_count: m.earnedCount,
+        max_single_level: m.maxSingleLevel,
+        achievements: m.achievements.map((a) => ({
+          id: a.id,
+          title: a.title,
+          level: a.level,
+          points: a.points,
+          current_value: a.currentValue,
+          unit: a.unit,
+          earned: a.earned,
+          achieved_range: a.achievedRange,
+        })),
+      }));
+
+      if (scope === 'me' && currentUserRecord) {
+        mappedMembers = mappedMembers.filter((m) => m.username === currentUserRecord.username);
+      } else if (scope === 'specific' && username) {
+        const target = username.trim().toLowerCase();
+        const found = mappedMembers.filter((m) => m.username.toLowerCase() === target);
+        if (found.length === 0) {
+          return JSON.stringify({
+            ok: false,
+            error: `找不到用户名为 ${username} 的成就记录`,
+          });
+        }
+        mappedMembers = found;
+      }
+
+      return JSON.stringify({
+        ok: true,
+        tool: 'query_achievements',
+        scope,
+        summary: achievementsData.summary,
+        members: mappedMembers,
+      });
+    },
+    {
+      name: 'query_achievements',
+      description:
+        '查询系统中的用户成就排名、得分和达成情况。支持按不同范围查询：“me”查询当前用户自己的成就；“all”查询所有人成就进行排行比较；“specific”查询指定其他用户的成就。',
+      schema: z.object({
+        scope: z.enum(['me', 'all', 'specific']).describe('查询范围：me=当前登录用户，all=所有人，specific=指定的其他用户'),
+        username: z.string().optional().describe('当 scope=specific 时，指定要查询的对方用户名'),
+      }),
+    },
+  );
+
+  const queryUserStats = tool(
+    async ({ scope, username }) => {
+      const todayStr = getShanghaiDateStr();
+      const users = await prisma.user.findMany({
+        select: { id: true, username: true, createdAt: true },
+      });
+
+      const currentUserRecord = users.find((u) => u.id === userId);
+      let targetUser = currentUserRecord;
+
+      if (scope === 'specific' && username) {
+        const target = username.trim().toLowerCase();
+        targetUser = users.find((u) => u.username.toLowerCase() === target);
+        if (!targetUser) {
+          return JSON.stringify({
+            ok: false,
+            error: `找不到用户名为 ${username} 的记录`,
+          });
+        }
+      }
+
+      if (!targetUser) {
+        return JSON.stringify({ ok: false, error: '用户不存在' });
+      }
+
+      const diaries = await prisma.diary.findMany({
+        where: { userId: targetUser.id },
+        select: { date: true },
+        orderBy: { date: 'desc' },
+      });
+
+      const dateSet = new Set(diaries.map((d) => d.date.toISOString().slice(0, 10)));
+      
+      let currentStreak = 0;
+      if (dateSet.size > 0) {
+        const cursorDate = parseDateStr(todayStr)!;
+        if (!dateSet.has(todayStr)) {
+          cursorDate.setUTCDate(cursorDate.getUTCDate() - 1);
+          if (dateSet.has(cursorDate.toISOString().slice(0, 10))) {
+            currentStreak = 1;
+            cursorDate.setUTCDate(cursorDate.getUTCDate() - 1);
+          }
+        } else {
+          currentStreak = 1;
+          cursorDate.setUTCDate(cursorDate.getUTCDate() - 1);
+        }
+        
+        if (currentStreak > 0) {
+          while (true) {
+            const ds = cursorDate.toISOString().slice(0, 10);
+            if (!dateSet.has(ds)) break;
+            currentStreak += 1;
+            cursorDate.setUTCDate(cursorDate.getUTCDate() - 1);
+          }
+        }
+      }
+
+      const joinedDate = targetUser.createdAt.toISOString().slice(0, 10);
+      const daysSinceJoined = daysBetweenInclusive(parseDateStr(joinedDate)!, parseDateStr(todayStr)!);
+
+      return JSON.stringify({
+        ok: true,
+        tool: 'query_user_stats',
+        username: targetUser.username,
+        stats: {
+          current_streak_days: currentStreak,
+          days_since_joined: daysSinceJoined,
+          total_diaries_written: dateSet.size,
+          joined_date: joinedDate,
+        },
+      });
+    },
+    {
+      name: 'query_user_stats',
+      description: '查询用户的统计数据，回答例如：“我/某某连续写了多少天日记”、“我/某某来到系统多久了”。',
+      schema: z.object({
+        scope: z.enum(['me', 'specific']).describe('查询范围：me=当前登录用户，specific=指定的其他用户'),
+        username: z.string().optional().describe('当 scope=specific 时，指定要查询的用户名'),
+      }),
+    },
+  );
+
+  return [queryMyDiaries, upsertMyTodayDiary, queryUserDiaries, queryAchievements, queryUserStats];
 }

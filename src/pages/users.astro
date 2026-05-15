@@ -798,6 +798,8 @@ import Layout from "../layouts/Layout.astro";
     rowSelector: string,
     currentPageSize: number,
   ): number {
+    if (window.innerWidth <= 800) return 8;
+
     const list = document.getElementById(listId);
     const firstRow = list?.querySelector<HTMLElement>(rowSelector);
     if (!list || !firstRow) return currentPageSize;

@@ -21,6 +21,11 @@ const navItems: NavItem[] = [
     icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"/><path d="M3 8l1.68-4.23A2 2 0 0 1 6.54 2h10.92a2 2 0 0 1 1.86 1.77L21 8"/><path d="M10 12h4"/></svg>`,
   },
   {
+    href: '/achievements',
+    label: '成就',
+    icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 19.88 7 21"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 19.88 17 21"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>`,
+  },
+  {
     href: '/users',
     label: '成员',
     icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
@@ -1070,10 +1075,53 @@ if (user.role === 'ADMIN') {
 
   .announcement-list {
     min-height: 0;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     padding: 0.75rem;
     border-right: 1px solid rgba(15, 23, 42, 0.08);
     background: #ffffff;
+  }
+
+  .announcement-list-items {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+
+  .announcement-pagination {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding-top: 0.65rem;
+    border-top: 1px solid rgba(15, 23, 42, 0.07);
+  }
+
+  .announcement-page-btn {
+    min-height: 32px;
+    padding: 0.36rem 0.7rem;
+    border-radius: 9px;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    background: #fff;
+    color: #475569;
+    font: inherit;
+    font-size: 0.76rem;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .announcement-page-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+
+  .announcement-page-info {
+    color: #64748b;
+    font-size: 0.76rem;
+    font-weight: 800;
+    white-space: nowrap;
   }
 
   .announcement-list::-webkit-scrollbar,
@@ -1417,6 +1465,8 @@ if (user.role === 'ADMIN') {
     payload: AnnouncementPayload | null;
     currentId: string | null;
     loading: boolean;
+    page: number;
+    pageSize: number;
   };
 
   const headerWindow = window as typeof window & {
@@ -1430,6 +1480,8 @@ if (user.role === 'ADMIN') {
     payload: null,
     currentId: null,
     loading: false,
+    page: 1,
+    pageSize: 1,
   });
 
   function closeUserDropdowns(except?: HTMLElement): void {
@@ -1570,6 +1622,38 @@ if (user.role === 'ADMIN') {
     if (detail) detail.innerHTML = '<div class="announcement-empty">暂时无法读取公告，请稍后再试</div>';
   }
 
+  function getAnnouncementPageSize(): number {
+    if (window.innerWidth <= 760) return 8;
+
+    const list = document.getElementById('announcement-list');
+    if (!list) return announcementState.pageSize || 1;
+    
+    let estimatedItemHeight = 126;
+    const firstItem = list.querySelector<HTMLElement>('.announcement-list-item');
+    if (firstItem) {
+      estimatedItemHeight = firstItem.getBoundingClientRect().height;
+    }
+    
+    const paginationReserve = 48;
+    const listPadding = 24;
+    const availableHeight = Math.max(estimatedItemHeight, list.clientHeight - paginationReserve - listPadding);
+    return Math.max(1, Math.floor(availableHeight / estimatedItemHeight));
+  }
+
+  function syncAnnouncementPageForCurrent(): void {
+    const payload = announcementState.payload;
+    if (!payload || payload.announcements.length === 0) return;
+    announcementState.pageSize = getAnnouncementPageSize();
+    const pageCount = Math.max(1, Math.ceil(payload.announcements.length / announcementState.pageSize));
+    if (announcementState.currentId) {
+      const currentIndex = payload.announcements.findIndex((item) => item.id === announcementState.currentId);
+      if (currentIndex >= 0) {
+        announcementState.page = Math.floor(currentIndex / announcementState.pageSize) + 1;
+      }
+    }
+    announcementState.page = Math.min(Math.max(1, announcementState.page), pageCount);
+  }
+
   function renderAnnouncementList(): void {
     const list = document.getElementById('announcement-list');
     const payload = announcementState.payload;
@@ -1582,9 +1666,18 @@ if (user.role === 'ADMIN') {
 
     if (!announcementState.currentId || !payload.announcements.some((item) => item.id === announcementState.currentId)) {
       announcementState.currentId = payload.announcements[0]?.id ?? null;
+      announcementState.page = 1;
     }
 
-    list.innerHTML = payload.announcements
+    syncAnnouncementPageForCurrent();
+
+    const pageSize = announcementState.pageSize;
+    const pageCount = Math.max(1, Math.ceil(payload.announcements.length / pageSize));
+    const page = Math.min(Math.max(1, announcementState.page), pageCount);
+    const start = (page - 1) * pageSize;
+    const currentPageItems = payload.announcements.slice(start, start + pageSize);
+
+    const itemsHtml = currentPageItems
       .map((item) => {
         const active = item.id === announcementState.currentId ? ' is-active' : '';
         return `
@@ -1605,6 +1698,13 @@ if (user.role === 'ADMIN') {
         `;
       })
       .join('');
+
+    list.innerHTML = `<div class="announcement-list-items">${itemsHtml}</div>
+      <div class="announcement-pagination">
+        <button type="button" class="announcement-page-btn" data-announcement-page="prev" ${page <= 1 ? 'disabled' : ''}>上一页</button>
+        <span class="announcement-page-info">${page} / ${pageCount}</span>
+        <button type="button" class="announcement-page-btn" data-announcement-page="next" ${page >= pageCount ? 'disabled' : ''}>下一页</button>
+      </div>`;
   }
 
   function renderAnnouncementDetail(): void {
@@ -1844,6 +1944,21 @@ if (user.role === 'ADMIN') {
         return;
       }
 
+      const pageButton = target.closest<HTMLButtonElement>('[data-announcement-page]');
+      if (pageButton) {
+        if (pageButton.disabled || !announcementState.payload) return;
+        const direction = pageButton.dataset.announcementPage;
+        const pageSize = announcementState.pageSize || getAnnouncementPageSize();
+        const pageCount = Math.max(1, Math.ceil(announcementState.payload.announcements.length / pageSize));
+        announcementState.page = direction === 'next'
+          ? Math.min(pageCount, announcementState.page + 1)
+          : Math.max(1, announcementState.page - 1);
+        const firstItem = announcementState.payload.announcements[(announcementState.page - 1) * pageSize];
+        announcementState.currentId = firstItem?.id ?? announcementState.currentId;
+        renderAnnouncements();
+        return;
+      }
+
       const listItem = target.closest<HTMLElement>('[data-announcement-id]');
       if (listItem) {
         const id = listItem.dataset.announcementId;
@@ -1891,6 +2006,10 @@ if (user.role === 'ADMIN') {
 
     window.addEventListener('our-diary:announcements-changed', () => {
       void loadAnnouncements(true);
+    });
+    window.addEventListener('resize', () => {
+      if (!getAnnouncementModal()?.classList.contains('is-open') || !announcementState.payload) return;
+      renderAnnouncements();
     });
   }
 
