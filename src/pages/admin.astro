@@ -3,67 +3,144 @@ import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout title="管理面板">
-  <div class="admin-wrap">
-    <div class="admin-grid">
-      <section class="card">
-        <div class="card-header">
-          <div class="card-icon create-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
-          </div>
-          <h2 class="card-title">创建新成员</h2>
-        </div>
+  <div class="admin-page">
+    <header class="admin-toolbar">
+      <div>
+        <p class="admin-kicker">管理面板</p>
+        <h1>系统管理</h1>
+      </div>
+      <div class="admin-tabs" role="tablist" aria-label="管理分类">
+        <button type="button" class="admin-tab is-active" data-admin-tab="members" role="tab" aria-selected="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          成员管理
+        </button>
+        <button type="button" class="admin-tab" data-admin-tab="announcements" role="tab" aria-selected="false">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 0 1-5.8-1.6"/></svg>
+          公告管理
+        </button>
+      </div>
+    </header>
 
-        <div id="admin-msg"></div>
-
-        <form method="POST" class="create-form" id="create-user-form">
-          <div class="field">
-            <label for="username" class="field-label">用户名</label>
-            <input type="text" id="username" name="username" class="field-input" placeholder="输入新成员用户名" required autocomplete="off" />
-          </div>
-          <div class="field">
-            <label for="password" class="field-label">初始密码</label>
-            <input type="password" id="password" name="password" class="field-input" placeholder="设置初始密码" required />
-          </div>
-          <button type="submit" class="create-btn" id="create-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            <span id="create-label">创建账号</span>
-          </button>
-        </form>
-      </section>
-
-      <section class="card">
-        <div class="card-header card-header-split">
-          <div class="header-title">
-            <div class="card-icon list-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    <section class="admin-pane is-active" data-admin-pane="members">
+      <div class="member-dashboard">
+        <section class="admin-card create-card">
+          <div class="panel-head">
+            <span class="panel-icon create-icon">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+            </span>
+            <div>
+              <h2>创建新成员</h2>
+              <p>为新用户生成初始账号</p>
             </div>
-            <h2 class="card-title">成员列表</h2>
           </div>
-          <div class="header-stats">
-            <div class="hstat"><span class="hstat-num" id="total-count"><span class="skel stat-skel"></span></span><span class="hstat-label">总成员</span></div>
-            <div class="hstat-sep"></div>
-            <div class="hstat"><span class="hstat-num admin-num" id="admin-count"><span class="skel stat-skel"></span></span><span class="hstat-label">管理员</span></div>
-            <div class="hstat-sep"></div>
-            <div class="hstat"><span class="hstat-num user-num" id="user-count"><span class="skel stat-skel"></span></span><span class="hstat-label">普通成员</span></div>
-          </div>
-        </div>
+          <div id="admin-msg"></div>
+          <form class="stack-form" id="create-user-form">
+            <label class="field">
+              <span>用户名</span>
+              <input type="text" id="username" name="username" placeholder="输入新成员用户名" autocomplete="off" required />
+            </label>
+            <label class="field">
+              <span>初始密码</span>
+              <input type="password" id="password" name="password" placeholder="设置初始密码" required />
+            </label>
+            <button type="submit" class="primary-btn" id="create-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span id="create-label">创建账号</span>
+            </button>
+          </form>
+        </section>
 
-        <div class="member-list" id="member-list">
-          {Array.from({ length: 5 }).map(() => (
-            <div class="member-row">
-              <div class="member-left">
-                <span class="skel avatar-skel"></span>
-                <div class="member-info">
-                  <span class="skel name-skel"></span>
-                  <span class="skel date-skel"></span>
-                </div>
+        <section class="admin-card list-card">
+          <div class="panel-head split">
+            <div class="head-left">
+              <span class="panel-icon users-icon">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </span>
+              <div>
+                <h2>成员列表</h2>
+                <p id="member-source">本地数据加载中</p>
               </div>
-              <span class="skel role-skel"></span>
             </div>
-          ))}
-        </div>
-      </section>
-    </div>
+            <div class="stat-strip">
+              <div><strong id="total-count">...</strong><span>总成员</span></div>
+              <div><strong id="admin-count">...</strong><span>管理员</span></div>
+              <div><strong id="user-count">...</strong><span>普通成员</span></div>
+            </div>
+          </div>
+          <div class="admin-list" id="member-list">
+            {Array.from({ length: 5 }).map(() => (
+              <div class="skeleton-row"><span class="skel avatar"></span><span class="skel line"></span><span class="skel pill"></span></div>
+            ))}
+          </div>
+          <div class="admin-pagination" id="member-pagination">
+            <button type="button" class="page-btn" id="member-page-prev">上一页</button>
+            <span class="page-info" id="member-page-info">1 / 1</span>
+            <button type="button" class="page-btn" id="member-page-next">下一页</button>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="admin-pane" data-admin-pane="announcements">
+      <div class="announcement-dashboard">
+        <div id="announcement-admin-msg"></div>
+        <form class="announcement-form" id="announcement-form">
+          <input type="hidden" id="announcement-id" />
+          <section class="admin-card announcement-config">
+            <div class="sub-panel-head split">
+              <div>
+                <h3>公告配置</h3>
+                <p id="announcement-source">本地数据加载中</p>
+              </div>
+              <div class="config-head-actions">
+                <div class="mini-tabs" role="tablist" aria-label="公告编辑模式">
+                  <button type="button" class="mini-tab is-active" data-announcement-mode="new">新建</button>
+                  <button type="button" class="mini-tab" data-announcement-mode="edit">编辑</button>
+                </div>
+                <button type="button" class="icon-text-btn" id="announcement-list-btn" title="公告列表">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>
+                  公告列表
+                </button>
+              </div>
+            </div>
+            <div class="config-fields" id="announcement-config-fields">
+              <label class="field"><span>标题</span><input type="text" id="announcement-title" placeholder="公告标题" required /></label>
+              <div class="inline-fields">
+                <label class="field"><span>分类</span><input type="text" id="announcement-tag" value="系统公告" required /></label>
+                <label class="field"><span>发布日期</span><input type="date" id="announcement-date" required /></label>
+              </div>
+              <label class="field"><span>摘要</span><input type="text" id="announcement-summary" placeholder="列表中的简短说明" required /></label>
+              <label class="check-field"><input type="checkbox" id="announcement-pinned" /><span>置顶公告</span></label>
+            </div>
+            <div class="config-list is-hidden" id="announcement-config-list">
+              <div class="announcement-list" id="announcement-admin-list">
+                <div class="empty-hint">公告加载中...</div>
+              </div>
+              <div class="admin-pagination" id="announcement-pagination">
+                <button type="button" class="page-btn" id="announcement-page-prev">上一页</button>
+                <span class="page-info" id="announcement-page-info">1 / 1</span>
+                <button type="button" class="page-btn" id="announcement-page-next">下一页</button>
+              </div>
+            </div>
+          </section>
+          <section class="admin-card announcement-body-panel">
+            <div class="sub-panel-head split">
+              <div>
+                <div class="body-title-line">
+                  <h3>公告正文</h3>
+                  <span class="edit-bubble is-hidden" id="announcement-edit-bubble"></span>
+                </div>
+                <p>支持 Markdown，正文会展示给所有可查看公告的成员。</p>
+              </div>
+              <button type="submit" class="primary-btn compact-save" id="announcement-save-btn"><span id="announcement-save-label">发布公告</span></button>
+            </div>
+            <div class="body-editor-wrap">
+              <label class="field body-field"><textarea id="announcement-body" placeholder="支持 Markdown" required></textarea></label>
+            </div>
+          </section>
+        </form>
+      </div>
+    </section>
   </div>
 
   <div class="modal-overlay" id="delete-modal">
@@ -71,93 +148,192 @@ import Layout from '../layouts/Layout.astro';
       <div class="modal-icon">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       </div>
-      <h3 class="modal-title">确定删除该成员？</h3>
-      <p class="modal-desc">此操作不可恢复，并会删除其所有的日记和申请记录。</p>
+      <h3>确定删除该成员？</h3>
+      <p>此操作不可恢复，并会删除其所有的日记和申请记录。</p>
       <div class="modal-actions">
-        <button class="modal-btn modal-cancel" id="delete-cancel">取消</button>
-        <button class="modal-btn modal-confirm" id="delete-confirm">确认删除</button>
+        <button class="modal-btn cancel" id="delete-cancel">取消</button>
+        <button class="modal-btn danger" id="delete-confirm">确认删除</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="announcement-reset-modal">
+    <div class="modal-box">
+      <div class="modal-icon warning">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 0 1-5.8-1.6"/></svg>
+      </div>
+      <h3>重新提醒所有成员？</h3>
+      <p>这会清空该公告的已读状态，所有成员会再次看到公告提醒。</p>
+      <div class="modal-actions">
+        <button class="modal-btn cancel" id="announcement-reset-cancel">取消</button>
+        <button class="modal-btn warning" id="announcement-reset-confirm">确认重提醒</button>
       </div>
     </div>
   </div>
 
   <style is:global>
-    .skel { display:inline-block; background:linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:6px; }
-    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
-    .stat-skel { width:36px; height:1.4rem; }
-    .avatar-skel { width:36px; height:36px; border-radius:50%; flex-shrink:0; }
-    .name-skel { width:110px; height:0.9rem; }
-    .date-skel { width:92px; height:0.75rem; }
-    .role-skel { width:64px; height:1.4rem; border-radius:999px; }
-    .admin-wrap { max-width:1100px; margin:0 auto; }
-    .admin-grid { display:grid; grid-template-columns:380px 1fr; gap:1.5rem; align-items:start; }
-    .card { background:#ffffff; border:1px solid rgba(0,0,0,0.07); border-radius:20px; padding:1.75rem; box-shadow:0 4px 20px rgba(0,0,0,0.06); }
-    .card-header { display:flex; align-items:center; gap:0.85rem; margin-bottom:1.5rem; padding-bottom:1.25rem; border-bottom:1px solid rgba(0,0,0,0.06); }
-    .card-header-split { justify-content:space-between; }
-    .header-title { display:flex; align-items:center; gap:0.85rem; }
-    .card-icon { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-    .create-icon { background:rgba(99,102,241,0.15); color:#818cf8; border:1px solid rgba(99,102,241,0.25); }
-    .list-icon { background:rgba(16,185,129,0.1); color:#059669; border:1px solid rgba(16,185,129,0.2); }
-    .card-title { font-size:1.15rem; font-weight:700; color:#0f172a; margin:0; }
-    .msg-bar { display:flex; align-items:center; gap:0.5rem; padding:0.75rem 1rem; border-radius:10px; font-size:0.875rem; margin-bottom:1.25rem; }
-    .msg-error { background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.2); color:#dc2626; }
-    .msg-success { background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.2); color:#059669; }
-    .create-form { display:flex; flex-direction:column; gap:1.25rem; }
-    .field { display:flex; flex-direction:column; gap:0.4rem; }
-    .field-label { font-size:0.82rem; font-weight:500; color:#64748b; letter-spacing:0.03em; }
-    .field-input { padding:0.7rem 1rem; border-radius:10px; border:1px solid rgba(0,0,0,0.1); background:#f8fafc; color:#0f172a; font-family:inherit; font-size:0.95rem; transition:border-color 0.2s, box-shadow 0.2s; outline:none; }
-    .field-input::placeholder { color:#94a3b8; }
-    .field-input:focus { border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,0.18); }
-    .create-btn { display:flex; align-items:center; justify-content:center; gap:0.5rem; padding:0.8rem 1.5rem; border-radius:10px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:white; font-weight:600; font-size:0.95rem; font-family:inherit; border:none; cursor:pointer; transition:transform 0.2s, box-shadow 0.2s, opacity 0.2s; box-shadow:0 4px 14px rgba(99,102,241,0.35); margin-top:0.25rem; }
-    .create-btn:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(99,102,241,0.45); }
-    .create-btn:disabled { cursor:wait; opacity:0.72; transform:none; }
-    .header-stats { display:flex; align-items:center; gap:1.25rem; background:#f8fafc; border:1px solid rgba(0,0,0,0.07); border-radius:12px; padding:0.4rem 1.25rem; }
-    .hstat { text-align:center; }
-    .hstat-num { display:block; font-size:1.4rem; font-weight:700; color:#0f172a; line-height:1; min-width:36px; }
-    .admin-num { color:#818cf8; }
-    .user-num { color:#34d399; }
-    .hstat-label { display:block; font-size:0.72rem; color:#94a3b8; margin-top:0.25rem; }
-    .hstat-sep { width:1px; height:32px; background:rgba(0,0,0,0.08); }
-    .member-list { display:flex; flex-direction:column; gap:0.5rem; max-height:480px; overflow-y:auto; padding-right:0.25rem; }
-    .member-list::-webkit-scrollbar { width:4px; }
-    .member-list::-webkit-scrollbar-thumb { background:rgba(0,0,0,0.1); border-radius:2px; }
-    .member-row { display:flex; align-items:center; justify-content:space-between; padding:0.75rem 1rem; border-radius:12px; border:1px solid rgba(0,0,0,0.05); background:#f8fafc; transition:border-color 0.15s; gap:0.75rem; }
-    .member-row:hover { background:#f1f5f9; border-color:rgba(0,0,0,0.1); }
-    .member-left { display:flex; align-items:center; gap:0.75rem; min-width:0; }
-    .member-avatar { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.9rem; flex-shrink:0; }
-    .avatar-admin { background:linear-gradient(135deg,#6366f1,#8b5cf6); color:white; box-shadow:0 2px 8px rgba(99,102,241,0.3); }
-    .avatar-user { background:linear-gradient(135deg,#059669,#047857); color:white; }
-    .member-info { display:flex; flex-direction:column; gap:0.1rem; min-width:0; }
-    .member-name { font-weight:500; font-size:0.9rem; color:#0f172a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .member-date { font-size:0.75rem; color:#94a3b8; }
-    .member-right { display:flex; align-items:center; gap:0.75rem; }
-    .role-badge { display:inline-block; padding:0.2rem 0.65rem; border-radius:999px; font-size:0.75rem; font-weight:600; white-space:nowrap; }
-    .role-admin { background:rgba(99,102,241,0.1); color:#6366f1; border:1px solid rgba(99,102,241,0.2); }
-    .role-user { background:rgba(16,185,129,0.1); color:#059669; border:1px solid rgba(16,185,129,0.2); }
-    .delete-btn { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:6px; background:rgba(239,68,68,0.1); color:#dc2626; border:1px solid rgba(239,68,68,0.2); cursor:pointer; transition:all 0.15s; padding:0; }
-    .delete-btn:hover { background:rgba(239,68,68,0.2); transform:translateY(-1px); }
-    .delete-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-    .empty-hint { text-align:center; color:#94a3b8; padding:2rem; font-size:0.9rem; }
-    .modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.4); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; z-index:100; opacity:0; pointer-events:none; transition:opacity 0.2s; }
-    .modal-overlay.active { opacity:1; pointer-events:auto; }
-    .modal-box { background:#ffffff; width:90%; max-width:380px; border-radius:24px; padding:2rem; box-shadow:0 10px 40px rgba(0,0,0,0.1); transform:scale(0.95) translateY(10px); transition:all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); text-align:center; }
-    .modal-overlay.active .modal-box { transform:scale(1) translateY(0); }
-    .modal-icon { width:48px; height:48px; background:rgba(239,68,68,0.1); color:#dc2626; border-radius:14px; display:flex; align-items:center; justify-content:center; margin:0 auto 1.25rem; }
-    .modal-title { font-size:1.15rem; font-weight:700; color:#0f172a; margin:0 0 0.5rem; }
-    .modal-desc { font-size:0.875rem; color:#64748b; margin:0 0 1.75rem; line-height:1.5; }
-    .modal-actions { display:flex; gap:0.75rem; }
-    .modal-btn { flex:1; padding:0.7rem; border-radius:12px; font-size:0.9rem; font-weight:600; cursor:pointer; transition:all 0.2s; border:none; font-family:inherit; }
-    .modal-cancel { background:#f1f5f9; color:#475569; }
-    .modal-cancel:hover { background:#e2e8f0; color:#0f172a; }
-    .modal-confirm { background:#ef4444; color:white; box-shadow:0 4px 12px rgba(239,68,68,0.25); }
-    .modal-confirm:hover { background:#dc2626; transform:translateY(-1px); box-shadow:0 6px 16px rgba(239,68,68,0.35); }
-    @media (max-width:860px) {
-      .admin-grid { grid-template-columns:1fr; }
-      .card-header-split { align-items:flex-start; flex-direction:column; }
-      .header-stats { width:100%; justify-content:center; }
+    html:has(.admin-page) { height: 100svh; overflow-y: scroll; scrollbar-gutter: stable; }
+    body:has(.admin-page) { height: 100svh; overflow: hidden; }
+    main.container:has(.admin-page) {
+      height: calc(100svh - var(--admin-header-height, 82px));
+      padding: clamp(.5rem, 1svh, .78rem) clamp(1rem, 2vw, 1.65rem) clamp(.48rem, .8svh, .72rem) !important;
+      overflow: hidden;
+    }
+    .admin-page {
+      max-width: 1280px;
+      height: 100%;
+      min-height: 0;
+      margin: 0 auto;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: clamp(.62rem, 1.2vw, .9rem);
+    }
+    .admin-toolbar { min-height: clamp(56px, 8svh, 70px); display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: clamp(.56rem, 1.05svh, .78rem) clamp(.72rem, 1.2vw, 1rem); border: 1px solid rgba(15,23,42,.08); border-radius: 14px; background: rgba(255,255,255,.92); box-shadow: 0 6px 22px rgba(15,23,42,.055); box-sizing: border-box; }
+    .admin-kicker { margin: 0 0 .15rem; color: #64748b; font-size: .76rem; font-weight: 800; }
+    .admin-toolbar h1 { margin: 0; color: #0f172a; font-size: 1.35rem; font-weight: 900; line-height: 1.15; }
+    .admin-tabs { display: inline-flex; gap: .35rem; padding: .28rem; border: 1px solid rgba(15,23,42,.08); border-radius: 13px; background: #f8fafc; flex: 0 0 auto; }
+    .admin-tab { display: inline-flex; align-items: center; gap: .42rem; min-height: 36px; padding: .45rem .72rem; border: 0; border-radius: 10px; background: transparent; color: #64748b; font: inherit; font-size: .84rem; font-weight: 900; cursor: pointer; line-height: 1; }
+    .admin-tab.is-active { color: #0f766e; background: #fff; box-shadow: 0 6px 16px rgba(15,23,42,.08); }
+    .admin-pane { display: none; min-height: 0; overflow: hidden; }
+    .admin-pane.is-active { display: block; height: 100%; min-height: 0; }
+    .member-dashboard { display: grid; grid-template-columns: 360px minmax(0,1fr); gap: clamp(.62rem, 1.2vw, .9rem); align-items: stretch; height: 100%; min-height: 0; }
+    .announcement-dashboard { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: clamp(.62rem, 1.2vw, .9rem); align-items: stretch; height: 100%; min-height: 0; }
+    .admin-card { min-height: 0; background: #fff; border: 1px solid rgba(15,23,42,.08); border-radius: 14px; box-shadow: 0 6px 22px rgba(15,23,42,.055); overflow: hidden; display: flex; flex-direction: column; }
+    .panel-head { min-height: clamp(62px, 9svh, 76px); flex: 0 0 auto; display: flex; align-items: center; gap: .72rem; padding: clamp(.58rem, 1.05svh, .82rem) clamp(.72rem, 1.2vw, 1rem); border-bottom: 1px solid rgba(15,23,42,.07); background: #f8fafc; box-sizing: border-box; }
+    .panel-head.split { justify-content: space-between; }
+    .head-left { display: flex; align-items: center; gap: .72rem; min-width: 0; }
+    .panel-head h2 { margin: 0; color: #0f172a; font-size: 1rem; font-weight: 900; }
+    .panel-head p { margin: .16rem 0 0; color: #64748b; font-size: .76rem; font-weight: 700; }
+    .panel-icon { width: 38px; height: 38px; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+    .create-icon { color: #4f46e5; background: #eef2ff; border: 1px solid rgba(99,102,241,.2); }
+    .users-icon { color: #047857; background: #ecfdf5; border: 1px solid rgba(16,185,129,.22); }
+    .announce-icon { color: #b45309; background: #fffbeb; border: 1px solid rgba(245,158,11,.24); }
+    .stack-form { flex: 1 1 auto; display: flex; flex-direction: column; gap: clamp(.64rem, 1.1svh, .92rem); padding: clamp(.78rem, 1.4svh, 1rem); overflow: auto; min-height: 0; }
+    .announcement-form { min-height: 0; display: grid; grid-template-columns: minmax(360px, 34%) minmax(0, 1fr); gap: clamp(.76rem, 1.3vw, 1rem); overflow: hidden; }
+    .announcement-config, .announcement-body-panel { min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+    .sub-panel-head { min-height: clamp(64px, 9svh, 78px); display: flex; align-items: center; justify-content: space-between; gap: .8rem; padding: clamp(.65rem, 1.1svh, .82rem) clamp(.85rem, 1.3vw, 1rem); border-bottom: 1px solid rgba(15,23,42,.07); background: #fbfdff; box-sizing: border-box; }
+    .sub-panel-head.split { justify-content: space-between; }
+    .sub-panel-head h3 { margin: 0; color: #0f172a; font-size: 1rem; font-weight: 900; }
+    .sub-panel-head p { margin: .16rem 0 0; color: #64748b; font-size: .76rem; font-weight: 700; line-height: 1.35; }
+    .body-title-line { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+    .edit-bubble { max-width: min(360px, 44vw); display: inline-flex; align-items: center; min-height: 24px; padding: .22rem .55rem; border-radius: 999px; color: #0f766e; background: #ecfdf5; border: 1px solid rgba(20,184,166,.22); font-size: .72rem; font-weight: 900; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .edit-bubble.is-hidden { display: none; }
+    .config-fields { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: clamp(.62rem, 1.1svh, .82rem); padding: clamp(.72rem, 1.25svh, .92rem); overflow: auto; }
+    .config-list { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+    .config-list.is-hidden, .config-fields.is-hidden { display: none; }
+    .body-editor-wrap { flex: 1 1 auto; min-height: 0; padding: clamp(.78rem, 1.25svh, .95rem); overflow: hidden; display: flex; flex-direction: column; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .78rem; align-items: end; }
+    .inline-fields { display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); gap: .62rem; align-items: end; }
+    .field { display: flex; flex-direction: column; gap: .35rem; color: #64748b; font-size: .78rem; font-weight: 800; }
+    .body-field { flex: 1 1 auto; min-height: 0; }
+    .field input, .field textarea { width: 100%; border: 1px solid rgba(15,23,42,.1); border-radius: 11px; background: #f8fafc; color: #0f172a; font: inherit; font-size: .92rem; padding: .68rem .82rem; outline: none; }
+    .field textarea { flex: 1 1 auto; min-height: clamp(150px, 30svh, 270px); line-height: 1.65; resize: none; }
+    .body-field textarea { min-height: 0; height: 100%; resize: none; }
+    .field input:focus, .field textarea:focus { border-color: rgba(15,118,110,.36); box-shadow: 0 0 0 3px rgba(20,184,166,.12); background: #fff; }
+    .check-field { min-height: 42px; display: flex; align-items: center; gap: .5rem; padding: .72rem .85rem; border-radius: 11px; border: 1px solid rgba(15,23,42,.1); background: #f8fafc; color: #475569; font-size: .86rem; font-weight: 800; }
+    .check-field input { width: 16px; height: 16px; accent-color: #0f766e; }
+    .config-head-actions { display: flex; align-items: center; gap: .45rem; flex-wrap: wrap; justify-content: flex-end; }
+    .mini-tabs { display: inline-flex; padding: .22rem; gap: .18rem; border: 1px solid rgba(15,23,42,.08); border-radius: 10px; background: #f8fafc; }
+    .mini-tab, .icon-text-btn { min-height: 30px; border: 0; border-radius: 8px; background: transparent; color: #64748b; font: inherit; font-size: .74rem; font-weight: 900; cursor: pointer; }
+    .mini-tab { padding: .3rem .48rem; }
+    .mini-tab.is-active { color: #0f766e; background: #fff; box-shadow: 0 5px 14px rgba(15,23,42,.08); }
+    .icon-text-btn { display: inline-flex; align-items: center; gap: .28rem; padding: .3rem .5rem; border: 1px solid rgba(15,23,42,.09); background: #fff; }
+    .icon-text-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(15,23,42,.07); }
+    .primary-btn, .secondary-btn, .small-btn, .icon-btn { border: 1px solid rgba(15,23,42,.1); border-radius: 10px; font: inherit; font-weight: 900; cursor: pointer; transition: transform .16s ease, box-shadow .16s ease, opacity .16s ease; }
+    .primary-btn { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; min-height: 42px; padding: .65rem 1rem; color: #fff; background: linear-gradient(135deg,#0f766e,#14b8a6); border-color: rgba(15,118,110,.22); box-shadow: 0 10px 22px rgba(20,184,166,.18); }
+    .secondary-btn, .small-btn { background: #fff; color: #475569; }
+    .secondary-btn { min-height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: .38rem; padding: .45rem .7rem; }
+    .compact-save { min-height: 34px; padding: .46rem .8rem; box-shadow: 0 8px 18px rgba(20,184,166,.14); }
+    .small-btn { padding: .36rem .54rem; font-size: .74rem; }
+    .small-btn.warn { color: #b45309; background: #fffbeb; border-color: rgba(245,158,11,.24); }
+    .primary-btn:hover:not(:disabled), .secondary-btn:hover:not(:disabled), .small-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(15,23,42,.08); }
+    button:disabled { opacity: .58; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+    .msg-bar { margin: clamp(.64rem, 1svh, .8rem) clamp(.78rem, 1.4svh, 1rem) 0; padding: .62rem .78rem; border-radius: 11px; font-size: .8rem; font-weight: 800; }
+    .msg-error { color: #b91c1c; background: #fef2f2; border: 1px solid rgba(248,113,113,.22); }
+    .msg-success { color: #047857; background: #ecfdf5; border: 1px solid rgba(16,185,129,.22); }
+    .toast-bar { position: fixed; left: 50%; top: calc(var(--admin-header-height, 82px) + 1rem); z-index: 1300; min-width: min(360px, calc(100vw - 2rem)); max-width: min(560px, calc(100vw - 2rem)); transform: translate(-50%, -8px); padding: .78rem 1rem; border-radius: 13px; font-size: .86rem; font-weight: 900; box-shadow: 0 18px 50px rgba(15,23,42,.16); opacity: 0; animation: toast-in .18s ease forwards; }
+    .toast-bar.msg-success { color: #047857; background: #ecfdf5; border: 1px solid rgba(16,185,129,.26); }
+    .toast-bar.msg-error { color: #b91c1c; background: #fef2f2; border: 1px solid rgba(248,113,113,.26); }
+    @keyframes toast-in { to { opacity: 1; transform: translate(-50%, 0); } }
+    .stat-strip { display: flex; gap: .75rem; padding: .38rem .7rem; border: 1px solid rgba(15,23,42,.08); border-radius: 12px; background: #fff; }
+    .stat-strip div { min-width: 54px; text-align: center; }
+    .stat-strip strong { display: block; color: #0f172a; font-size: 1.28rem; line-height: 1; }
+    .stat-strip span { color: #94a3b8; font-size: .68rem; font-weight: 800; white-space: nowrap; }
+    .stat-strip.compact div { min-width: 46px; }
+    .admin-list, .announcement-list { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: clamp(.45rem, .9svh, .6rem); overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: clamp(.58rem, 1.1svh, .78rem) clamp(.7rem, 1.2vw, .9rem); }
+    .admin-list::-webkit-scrollbar, .announcement-list::-webkit-scrollbar, .stack-form::-webkit-scrollbar, .config-fields::-webkit-scrollbar { width: 8px; }
+    .admin-list::-webkit-scrollbar-thumb, .announcement-list::-webkit-scrollbar-thumb, .stack-form::-webkit-scrollbar-thumb, .config-fields::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 999px; background: rgba(148,163,184,.42); background-clip: padding-box; }
+    .member-row, .announcement-item { display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: .75rem; padding: clamp(.62rem, 1.1svh, .76rem); border: 1px solid rgba(15,23,42,.08); border-radius: 10px; background: #f8fafc; }
+    .member-avatar { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 900; background: linear-gradient(135deg,#0f766e,#14b8a6); }
+    .member-avatar.admin { background: linear-gradient(135deg,#6366f1,#8b5cf6); }
+    .member-name, .announcement-title { color: #0f172a; font-size: .94rem; font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .member-meta, .announcement-meta, .announcement-summary { color: #64748b; font-size: .76rem; font-weight: 700; }
+    .role-badge { display: inline-flex; align-items: center; border-radius: 999px; padding: .2rem .56rem; font-size: .74rem; font-weight: 900; }
+    .role-badge.admin { color: #4f46e5; background: #eef2ff; border: 1px solid rgba(99,102,241,.2); }
+    .role-badge.user { color: #047857; background: #ecfdf5; border: 1px solid rgba(16,185,129,.22); }
+    .delete-btn { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; color: #dc2626; background: #fff1f2; border: 1px solid rgba(248,113,113,.24); cursor: pointer; }
+    .announcement-item { grid-template-columns: minmax(0,1fr) auto; align-items: start; }
+    .announcement-item.is-selected { border-color: rgba(20,184,166,.34); background: #f0fdfa; box-shadow: inset 3px 0 0 #14b8a6; }
+    .announcement-summary { margin-top: .35rem; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .announcement-actions { display: flex; gap: .45rem; }
+    .admin-pagination { display: flex; align-items: center; justify-content: flex-end; gap: .45rem; min-height: clamp(48px, 7svh, 58px); padding: clamp(.45rem, .9svh, .58rem) clamp(.65rem, 1.1vw, .78rem); border-top: 1px solid rgba(15,23,42,.07); background: #fbfdff; flex: 0 0 auto; box-sizing: border-box; }
+    .page-btn { min-height: 32px; border: 1px solid rgba(15,23,42,.1); background: #fff; color: #475569; border-radius: 9px; padding: .34rem .65rem; font: inherit; font-size: .76rem; font-weight: 800; line-height: 1; cursor: pointer; white-space: nowrap; }
+    .page-btn:hover:not(:disabled) { transform: translateY(-1px); border-color: rgba(14,165,233,.24); box-shadow: 0 8px 18px rgba(15,23,42,.07); }
+    .page-btn:disabled { opacity: .45; cursor: not-allowed; }
+    .page-info { min-width: 88px; color: #64748b; font-size: .76rem; font-weight: 800; text-align: center; white-space: nowrap; }
+    .empty-hint { color: #94a3b8; text-align: center; padding: 2rem 1rem; font-weight: 800; }
+    .skeleton-row { display: grid; grid-template-columns: auto 1fr auto; gap: .75rem; align-items: center; padding: .8rem; }
+    .skel { display: inline-block; background: linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%); background-size: 200% 100%; animation: shimmer 1.3s infinite; border-radius: 8px; }
+    .skel.avatar { width: 40px; height: 40px; border-radius: 12px; }
+    .skel.line { width: 170px; height: 1rem; }
+    .skel.pill { width: 64px; height: 1.4rem; border-radius: 999px; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    .modal-overlay { position: fixed; inset: 0; z-index: 1200; display: flex; align-items: center; justify-content: center; padding: 1rem; background: rgba(15,23,42,.36); opacity: 0; pointer-events: none; transition: opacity .18s ease; }
+    .modal-overlay.active { opacity: 1; pointer-events: auto; }
+    .modal-box { width: min(380px, 100%); border-radius: 18px; padding: 1.5rem; background: #fff; box-shadow: 0 24px 80px rgba(15,23,42,.22); text-align: center; }
+    .modal-icon { width: 46px; height: 46px; display: flex; align-items: center; justify-content: center; margin: 0 auto .9rem; border-radius: 13px; color: #dc2626; background: #fef2f2; }
+    .modal-icon.warning { color: #b45309; background: #fffbeb; }
+    .modal-box h3 { margin: 0 0 .35rem; color: #0f172a; font-size: 1.05rem; font-weight: 900; }
+    .modal-box p { margin: 0 0 1.2rem; color: #64748b; font-size: .86rem; }
+    .modal-actions { display: flex; gap: .7rem; }
+    .modal-btn { flex: 1; min-height: 38px; border: 0; border-radius: 11px; font: inherit; font-weight: 900; cursor: pointer; }
+    .modal-btn.cancel { background: #f1f5f9; color: #475569; }
+    .modal-btn.danger { background: #ef4444; color: #fff; }
+    .modal-btn.warning { background: #f59e0b; color: #fff; }
+    .modal-head { min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .95rem 1.05rem; border-bottom: 1px solid rgba(15,23,42,.08); background: #f8fafc; box-sizing: border-box; }
+    .modal-head h3 { margin: 0; color: #0f172a; font-size: 1.06rem; font-weight: 900; }
+    .modal-head p { margin: .18rem 0 0; color: #64748b; font-size: .78rem; font-weight: 700; line-height: 1.35; }
+    .icon-btn { width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; background: #fff; color: #475569; flex: 0 0 auto; }
+    .icon-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(15,23,42,.08); }
+    @media (max-width: 920px) {
+      html:has(.admin-page), body:has(.admin-page) { height: auto; overflow-y: auto; }
+      main.container:has(.admin-page) { height: auto; overflow: visible; padding: clamp(.62rem, 1.4svh, .9rem) !important; }
+      .admin-page { height: auto; display: flex; }
+      .admin-toolbar, .panel-head.split, .sub-panel-head.split { align-items: flex-start; flex-direction: column; }
+      .member-dashboard, .announcement-dashboard, .form-grid, .announcement-form { grid-template-columns: 1fr; height: auto; overflow: visible; }
+      .inline-fields { grid-template-columns: 1fr; }
+      .admin-card { min-height: clamp(420px, 68svh, 560px); }
+      .create-card { min-height: auto; }
+      .admin-tabs { width: 100%; }
+      .admin-tab { flex: 1; justify-content: center; }
+      .stat-strip { width: 100%; justify-content: space-around; }
+      .config-head-actions { width: 100%; justify-content: stretch; }
+      .config-head-actions .mini-tabs { flex: 1; }
+      .config-head-actions .mini-tab { flex: 1; }
+      .announcement-config, .announcement-body-panel, .config-fields, .body-editor-wrap { overflow: visible; }
+      .field textarea { min-height: 240px; }
     }
   </style>
 
   <script>
+    import {
+      getAdminAnnouncementsLocal,
+      getAdminPageDataLocal,
+      getLocalPrivacyUnlockUrl,
+      isLocalPrivacyKeyMissing,
+      refreshLocalData,
+    } from '../lib/localFirst';
+
     type AdminUser = {
       id: string;
       username: string;
@@ -174,36 +350,327 @@ import Layout from '../layouts/Layout.astro';
       userCount: number;
     };
 
-    type CreateUserResponse = {
-      ok: boolean;
-      message?: string;
-      error?: string;
+    type AdminAnnouncement = {
+      id: string;
+      title: string;
+      tag: string;
+      summary: string;
+      body: string;
+      pinned?: boolean;
+      publishedAt: string;
+      readCount?: number;
+      updatedAt?: string;
     };
 
-    function getEl<T extends HTMLElement>(id: string): T | null {
-      return document.getElementById(id) as T | null;
-    }
+    type AnnouncementPayload = {
+      ok?: boolean;
+      error?: string;
+      announcements: AdminAnnouncement[];
+      unreadCount: number;
+      canManage?: boolean;
+    };
 
-    function setText(id: string, value: string | number): void {
+    type ApiResponse = { ok: boolean; message?: string; error?: string };
+
+    let adminUsers: AdminUser[] = [];
+    let adminAnnouncements: AdminAnnouncement[] = [];
+    let adminRefreshPromise: Promise<void> | null = null;
+    let currentAdminId = '';
+    let memberPage = 1;
+    let memberPageSize = 6;
+    let announcementPage = 1;
+    let announcementPageSize = 6;
+    let announcementToastTimer: number | undefined;
+
+    const getEl = <T extends HTMLElement>(id: string) => document.getElementById(id) as T | null;
+    const setText = (id: string, value: string | number) => {
       const el = getEl(id);
       if (el) el.textContent = String(value);
-    }
+    };
+    const escapeHTML = (value: unknown): string => {
+      const entities: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+      return String(value).replace(/[&<>"']/g, (char) => entities[char] ?? char);
+    };
+    const todayDate = () => new Date().toISOString().split('T')[0];
 
-    function escapeHTML(value: unknown): string {
-      const entities: Record<string, string> = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;',
-      };
-      return String(value).replace(/[&<>"']/g, (char: string) => entities[char] ?? char);
-    }
-
-    function showAdminMsg(text: string, isError: boolean): void {
-      const area = getEl('admin-msg');
+    function showMsg(id: string, text: string, isError: boolean): void {
+      const area = getEl(id);
       if (!area) return;
-      area.innerHTML = `<div class="msg-bar ${isError ? 'msg-error' : 'msg-success'}">${escapeHTML(text)}</div>`;
+      area.innerHTML = text ? `<div class="msg-bar ${isError ? 'msg-error' : 'msg-success'}">${escapeHTML(text)}</div>` : '';
+    }
+
+    function showAnnouncementToast(text: string, isError = false): void {
+      const area = getEl('announcement-admin-msg');
+      if (!area) return;
+      if (announcementToastTimer) window.clearTimeout(announcementToastTimer);
+      area.innerHTML = text ? `<div class="toast-bar ${isError ? 'msg-error' : 'msg-success'}">${escapeHTML(text)}</div>` : '';
+      if (!text) return;
+      announcementToastTimer = window.setTimeout(() => {
+        area.innerHTML = '';
+        announcementToastTimer = undefined;
+      }, 3000);
+    }
+
+    function switchTab(tab: string): void {
+      document.querySelectorAll<HTMLElement>('[data-admin-tab]').forEach((btn) => {
+        const active = btn.dataset.adminTab === tab;
+        btn.classList.toggle('is-active', active);
+        btn.setAttribute('aria-selected', String(active));
+      });
+      document.querySelectorAll<HTMLElement>('[data-admin-pane]').forEach((pane) => {
+        pane.classList.toggle('is-active', pane.dataset.adminPane === tab);
+      });
+      requestAnimationFrame(() => {
+        if (tab === 'members') renderMemberList();
+        else renderAnnouncementList();
+      });
+    }
+
+    function syncAdminViewport(): void {
+      const header = document.querySelector('.navbar');
+      const headerHeight = header ? Math.ceil(header.getBoundingClientRect().height) : 82;
+      document.documentElement.style.setProperty('--admin-header-height', `${headerHeight}px`);
+    }
+
+    function getTotalPages(total: number, pageSize: number): number {
+      return Math.max(1, Math.ceil(total / Math.max(1, pageSize)));
+    }
+
+    function renderPagination(kind: 'member' | 'announcement', total: number, page: number, pageSize: number): void {
+      const totalPages = getTotalPages(total, pageSize);
+      const pagination = getEl(`${kind}-pagination`);
+      const info = getEl(`${kind}-page-info`);
+      const prev = getEl<HTMLButtonElement>(`${kind}-page-prev`);
+      const next = getEl<HTMLButtonElement>(`${kind}-page-next`);
+      if (!pagination || !info || !prev || !next) return;
+      pagination.hidden = total === 0;
+      info.textContent = `${page} / ${totalPages} · 每页 ${pageSize} 条`;
+      prev.disabled = page <= 1;
+      next.disabled = page >= totalPages;
+    }
+
+    function syncPageSizeFromLayout(kind: 'member' | 'announcement'): boolean {
+      const list = getEl(kind === 'member' ? 'member-list' : 'announcement-admin-list');
+      const firstItem = list?.querySelector<HTMLElement>(kind === 'member' ? '.member-row' : '.announcement-item');
+      if (!list || !firstItem) return false;
+      const listHeight = list.clientHeight;
+      const itemHeight = firstItem.getBoundingClientRect().height;
+      const style = window.getComputedStyle(list);
+      const gap = Number.parseFloat(style.rowGap || style.gap || '0') || 0;
+      if (listHeight <= 0 || itemHeight <= 0) return false;
+      const nextSize = Math.max(1, Math.floor((listHeight + gap) / (itemHeight + gap)));
+      if (kind === 'member') {
+        if (nextSize === memberPageSize) return false;
+        memberPageSize = nextSize;
+        memberPage = Math.min(memberPage, getTotalPages(adminUsers.length, memberPageSize));
+        return true;
+      }
+      if (nextSize === announcementPageSize) return false;
+      announcementPageSize = nextSize;
+      announcementPage = Math.min(announcementPage, getTotalPages(adminAnnouncements.length, announcementPageSize));
+      return true;
+    }
+
+    function renderMemberList(allowRemeasure = true): void {
+      const list = getEl('member-list');
+      if (!list) return;
+      if (adminUsers.length === 0) {
+        list.innerHTML = '<div class="empty-hint">暂无成员</div>';
+        renderPagination('member', 0, 1, memberPageSize);
+        return;
+      }
+      const totalPages = getTotalPages(adminUsers.length, memberPageSize);
+      memberPage = Math.min(Math.max(1, memberPage), totalPages);
+      const start = (memberPage - 1) * memberPageSize;
+      const pageItems = adminUsers.slice(start, start + memberPageSize);
+      list.innerHTML = pageItems.map((user) => `
+        <div class="member-row">
+          <div class="member-avatar ${user.role === 'ADMIN' ? 'admin' : ''}">${escapeHTML(user.initial)}</div>
+          <div>
+            <div class="member-name">${escapeHTML(user.username)}</div>
+            <div class="member-meta">加入于 ${escapeHTML(user.createdDate)}</div>
+          </div>
+          <div class="announcement-actions">
+            <span class="role-badge ${user.role === 'ADMIN' ? 'admin' : 'user'}">${user.role === 'ADMIN' ? '管理员' : '成员'}</span>
+            ${user.id !== currentAdminId ? `<button class="delete-btn" data-id="${escapeHTML(user.id)}" title="删除成员" aria-label="删除成员"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>` : ''}
+          </div>
+        </div>
+      `).join('');
+      list.scrollTop = 0;
+      renderPagination('member', adminUsers.length, memberPage, memberPageSize);
+      if (allowRemeasure && syncPageSizeFromLayout('member')) renderMemberList(false);
+    }
+
+    function renderAnnouncementList(allowRemeasure = true): void {
+      const list = getEl('announcement-admin-list');
+      if (!list) return;
+      if (!adminAnnouncements.length) {
+        list.innerHTML = '<div class="empty-hint">暂无公告</div>';
+        renderPagination('announcement', 0, 1, announcementPageSize);
+        return;
+      }
+      const totalPages = getTotalPages(adminAnnouncements.length, announcementPageSize);
+      announcementPage = Math.min(Math.max(1, announcementPage), totalPages);
+      const start = (announcementPage - 1) * announcementPageSize;
+      const pageItems = adminAnnouncements.slice(start, start + announcementPageSize);
+      const activeId = getEl<HTMLInputElement>('announcement-id')?.value ?? '';
+      list.innerHTML = pageItems.map((item) => `
+        <div class="announcement-item ${item.id === activeId ? 'is-selected' : ''}">
+          <div>
+            <div class="announcement-title">${escapeHTML(item.title)}</div>
+            <div class="announcement-meta">${item.pinned ? '置顶 · ' : ''}${escapeHTML(item.publishedAt)} · ${escapeHTML(item.tag)} · ${item.readCount ?? 0} 人已读</div>
+            <div class="announcement-summary">${escapeHTML(item.summary)}</div>
+          </div>
+          <div class="announcement-actions">
+            <button type="button" class="small-btn" data-announcement-edit="${escapeHTML(item.id)}">编辑</button>
+            <button type="button" class="small-btn warn" data-announcement-reset="${escapeHTML(item.id)}">重提醒</button>
+          </div>
+        </div>
+      `).join('');
+      list.scrollTop = 0;
+      renderPagination('announcement', adminAnnouncements.length, announcementPage, announcementPageSize);
+      if (allowRemeasure && syncPageSizeFromLayout('announcement')) renderAnnouncementList(false);
+    }
+
+    function setAnnouncementMode(mode: 'new' | 'edit', view: 'fields' | 'list' = mode === 'edit' ? 'list' : 'fields'): void {
+      document.querySelectorAll<HTMLElement>('[data-announcement-mode]').forEach((btn) => {
+        const active = btn.dataset.announcementMode === mode;
+        btn.classList.toggle('is-active', active);
+        btn.setAttribute('aria-selected', String(active));
+      });
+      getEl('announcement-config-fields')?.classList.toggle('is-hidden', view !== 'fields');
+      getEl('announcement-config-list')?.classList.toggle('is-hidden', view !== 'list');
+      if (view === 'list') requestAnimationFrame(() => renderAnnouncementList());
+    }
+
+    function renderMembers(data: AdminData, source: string): void {
+      currentAdminId = data.currentUserId;
+      adminUsers = data.users;
+      setText('total-count', data.totalCount);
+      setText('admin-count', data.adminCount);
+      setText('user-count', data.userCount);
+      setText('member-source', source);
+      memberPage = Math.min(memberPage, getTotalPages(adminUsers.length, memberPageSize));
+      renderMemberList();
+    }
+
+    async function refreshAdminLocalData(): Promise<void> {
+      adminRefreshPromise ??= refreshLocalData()
+        .then(() => undefined)
+        .finally(() => {
+          adminRefreshPromise = null;
+        });
+      return adminRefreshPromise;
+    }
+
+    async function loadMembers(): Promise<void> {
+      try {
+        renderMembers(await getAdminPageDataLocal(), '本地数据');
+        refreshAdminLocalData()
+          .then(() => getAdminPageDataLocal())
+          .then((data) => {
+            renderMembers(data, '已同步');
+          })
+          .catch((error) => console.error(error));
+      } catch (error) {
+        if (isLocalPrivacyKeyMissing(error)) {
+          window.location.assign(getLocalPrivacyUnlockUrl());
+          return;
+        }
+        try {
+          const res = await fetch('/api/admin-data');
+          if (res.ok) renderMembers((await res.json()) as AdminData, '服务端数据');
+        } catch (serverError) {
+          console.error(serverError);
+        }
+      }
+    }
+
+    function renderAnnouncements(data: AnnouncementPayload, source: string): void {
+      adminAnnouncements = data.announcements ?? [];
+      setText('announcement-source', source);
+      announcementPage = Math.min(announcementPage, getTotalPages(adminAnnouncements.length, announcementPageSize));
+      renderAnnouncementList();
+    }
+
+    async function loadAnnouncementsAdmin(): Promise<void> {
+      try {
+        renderAnnouncements(await getAdminAnnouncementsLocal(), '本地数据');
+        refreshAdminLocalData()
+          .then(() => getAdminAnnouncementsLocal())
+          .then((data) => {
+            renderAnnouncements(data, '已同步');
+          })
+          .catch((error) => console.error(error));
+      } catch (error) {
+        if (isLocalPrivacyKeyMissing(error)) {
+          window.location.assign(getLocalPrivacyUnlockUrl());
+          return;
+        }
+        try {
+          const res = await fetch('/api/announcements');
+          if (res.ok) {
+            const data = (await res.json()) as AnnouncementPayload;
+            if (data.canManage) renderAnnouncements(data, '服务端数据');
+          }
+        } catch (serverError) {
+          console.error(serverError);
+          showAnnouncementToast('公告加载失败', true);
+        }
+      }
+    }
+
+    function resetAnnouncementForm(): void {
+      getEl<HTMLInputElement>('announcement-id')!.value = '';
+      getEl<HTMLInputElement>('announcement-title')!.value = '';
+      getEl<HTMLInputElement>('announcement-tag')!.value = '系统公告';
+      getEl<HTMLInputElement>('announcement-date')!.value = todayDate();
+      getEl<HTMLInputElement>('announcement-summary')!.value = '';
+      getEl<HTMLTextAreaElement>('announcement-body')!.value = '';
+      getEl<HTMLInputElement>('announcement-pinned')!.checked = false;
+      setText('announcement-save-label', '发布公告');
+      const bubble = getEl('announcement-edit-bubble');
+      if (bubble) {
+        bubble.textContent = '';
+        bubble.classList.add('is-hidden');
+      }
+      setAnnouncementMode('new');
+      renderAnnouncementList(false);
+    }
+
+    function editAnnouncement(id: string): void {
+      const item = adminAnnouncements.find((announcement) => announcement.id === id);
+      if (!item) return;
+      getEl<HTMLInputElement>('announcement-id')!.value = item.id;
+      getEl<HTMLInputElement>('announcement-title')!.value = item.title;
+      getEl<HTMLInputElement>('announcement-tag')!.value = item.tag;
+      getEl<HTMLInputElement>('announcement-date')!.value = item.publishedAt;
+      getEl<HTMLInputElement>('announcement-summary')!.value = item.summary;
+      getEl<HTMLTextAreaElement>('announcement-body')!.value = item.body;
+      getEl<HTMLInputElement>('announcement-pinned')!.checked = Boolean(item.pinned);
+      setText('announcement-save-label', '保存公告');
+      const bubble = getEl('announcement-edit-bubble');
+      if (bubble) {
+        bubble.textContent = `正在编辑 ${item.title} 公告`;
+        bubble.classList.remove('is-hidden');
+      }
+      setAnnouncementMode('edit', 'fields');
+      renderAnnouncementList(false);
+      getEl<HTMLInputElement>('announcement-title')?.focus();
+    }
+
+    async function postAnnouncementAdmin(payload: Record<string, unknown>): Promise<void> {
+      const res = await fetch('/api/announcements', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = (await res.json()) as AnnouncementPayload;
+      if (!res.ok || data.ok === false) throw new Error(data.error ?? '公告操作失败');
+      renderAnnouncements(data, '已保存');
+      refreshLocalData().catch((error) => console.error(error));
+      window.dispatchEvent(new CustomEvent('our-diary:announcements-changed'));
     }
 
     function confirmDelete(): Promise<boolean> {
@@ -212,132 +679,226 @@ import Layout from '../layouts/Layout.astro';
         const cancelBtn = getEl('delete-cancel');
         const confirmBtn = getEl('delete-confirm');
         if (!modal || !cancelBtn || !confirmBtn) {
-          resolve(confirm('确定要删除该成员吗？此操作不可恢复，并会删除其所有的日记和申请记录。'));
+          resolve(confirm('确定要删除该成员吗？'));
           return;
         }
-
         modal.classList.add('active');
-
         const cleanup = () => {
           cancelBtn.removeEventListener('click', onCancel);
           confirmBtn.removeEventListener('click', onConfirm);
           modal.classList.remove('active');
         };
-
-        const onCancel = () => {
-          cleanup();
-          resolve(false);
-        };
-
-        const onConfirm = () => {
-          cleanup();
-          resolve(true);
-        };
-
+        const onCancel = () => { cleanup(); resolve(false); };
+        const onConfirm = () => { cleanup(); resolve(true); };
         cancelBtn.addEventListener('click', onCancel);
         confirmBtn.addEventListener('click', onConfirm);
       });
     }
 
-    async function loadAdminData(): Promise<void> {
-      const list = getEl('member-list');
-      try {
-        const res = await fetch('/api/admin-data');
-        if (!res.ok) return;
-        const data = (await res.json()) as AdminData;
-        setText('total-count', data.totalCount);
-        setText('admin-count', data.adminCount);
-        setText('user-count', data.userCount);
-        if (!list) return;
-        if (data.users.length === 0) {
-          list.innerHTML = '<div class="empty-hint">暂无成员</div>';
+    function confirmAnnouncementReset(): Promise<boolean> {
+      return new Promise((resolve) => {
+        const modal = getEl('announcement-reset-modal');
+        const cancelBtn = getEl('announcement-reset-cancel');
+        const confirmBtn = getEl('announcement-reset-confirm');
+        if (!modal || !cancelBtn || !confirmBtn) {
+          resolve(false);
           return;
         }
-        list.innerHTML = data.users.map((user: AdminUser) => `
-          <div class="member-row">
-            <div class="member-left">
-              <div class="member-avatar ${user.role === 'ADMIN' ? 'avatar-admin' : 'avatar-user'}">${escapeHTML(user.initial)}</div>
-              <div class="member-info">
-                <span class="member-name">${escapeHTML(user.username)}</span>
-                <span class="member-date">加入于 ${escapeHTML(user.createdDate)}</span>
-              </div>
-            </div>
-            <div class="member-right">
-              <span class="role-badge ${user.role === 'ADMIN' ? 'role-admin' : 'role-user'}">${user.role === 'ADMIN' ? '管理员' : '成员'}</span>
-              ${user.id !== data.currentUserId ? `<button class="delete-btn" data-id="${user.id}" title="删除成员"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>` : ''}
-            </div>
-          </div>`).join('');
-      } catch (error) {
-        console.error(error);
+        modal.classList.add('active');
+        const cleanup = () => {
+          cancelBtn.removeEventListener('click', onCancel);
+          confirmBtn.removeEventListener('click', onConfirm);
+          modal.removeEventListener('click', onBackdrop);
+          modal.classList.remove('active');
+        };
+        const onCancel = () => { cleanup(); resolve(false); };
+        const onConfirm = () => { cleanup(); resolve(true); };
+        const onBackdrop = (event: MouseEvent) => {
+          if (event.target === modal) onCancel();
+        };
+        cancelBtn.addEventListener('click', onCancel);
+        confirmBtn.addEventListener('click', onConfirm);
+        modal.addEventListener('click', onBackdrop);
+      });
+    }
+
+    function attachHandlers(): void {
+      document.querySelectorAll<HTMLElement>('[data-admin-tab]').forEach((btn) => {
+        btn.onclick = () => switchTab(btn.dataset.adminTab ?? 'members');
+      });
+
+      const memberPrev = getEl<HTMLButtonElement>('member-page-prev');
+      const memberNext = getEl<HTMLButtonElement>('member-page-next');
+      if (memberPrev) {
+        memberPrev.onclick = () => {
+          memberPage = Math.max(1, memberPage - 1);
+          renderMemberList();
+        };
+      }
+      if (memberNext) {
+        memberNext.onclick = () => {
+          memberPage = Math.min(getTotalPages(adminUsers.length, memberPageSize), memberPage + 1);
+          renderMemberList();
+        };
+      }
+
+      const announcementPrev = getEl<HTMLButtonElement>('announcement-page-prev');
+      const announcementNext = getEl<HTMLButtonElement>('announcement-page-next');
+      if (announcementPrev) {
+        announcementPrev.onclick = () => {
+          announcementPage = Math.max(1, announcementPage - 1);
+          renderAnnouncementList();
+        };
+      }
+      if (announcementNext) {
+        announcementNext.onclick = () => {
+          announcementPage = Math.min(getTotalPages(adminAnnouncements.length, announcementPageSize), announcementPage + 1);
+          renderAnnouncementList();
+        };
+      }
+
+      const createForm = getEl<HTMLFormElement>('create-user-form');
+      const createBtn = getEl<HTMLButtonElement>('create-btn');
+      const createLabel = getEl('create-label');
+      if (createForm && createBtn && createLabel && createForm.dataset.bound !== '1') {
+        createForm.dataset.bound = '1';
+        createForm.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          createBtn.disabled = true;
+          createLabel.textContent = '创建中...';
+          try {
+            const res = await fetch('/api/create-user', { method: 'POST', body: new FormData(createForm) });
+            const data = (await res.json()) as ApiResponse;
+            showMsg('admin-msg', data.message || data.error || '操作失败', !data.ok);
+            if (data.ok) {
+              createForm.reset();
+              await refreshLocalData().catch(() => {});
+              await loadMembers();
+            }
+          } catch (error) {
+            console.error(error);
+            showMsg('admin-msg', '创建用户失败，请稍后再试', true);
+          } finally {
+            createBtn.disabled = false;
+            createLabel.textContent = '创建账号';
+          }
+        });
+      }
+
+      const memberList = getEl('member-list');
+      if (memberList && memberList.dataset.bound !== '1') {
+        memberList.dataset.bound = '1';
+        memberList.addEventListener('click', async (event) => {
+          const btn = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>('.delete-btn');
+          const userId = btn?.dataset.id;
+          if (!btn || !userId || !(await confirmDelete())) return;
+          btn.disabled = true;
+          try {
+            const formData = new FormData();
+            formData.set('userId', userId);
+            const res = await fetch('/api/delete-user', { method: 'POST', body: formData });
+            const data = (await res.json()) as ApiResponse;
+            showMsg('admin-msg', data.message || data.error || '删除失败', !data.ok);
+            if (data.ok) {
+              await refreshLocalData().catch(() => {});
+              await loadMembers();
+            }
+          } catch (error) {
+            console.error(error);
+            showMsg('admin-msg', '删除用户时发生错误', true);
+          } finally {
+            btn.disabled = false;
+          }
+        });
+      }
+
+      const announcementForm = getEl<HTMLFormElement>('announcement-form');
+      const saveBtn = getEl<HTMLButtonElement>('announcement-save-btn');
+      if (announcementForm && saveBtn && announcementForm.dataset.bound !== '1') {
+        announcementForm.dataset.bound = '1';
+        resetAnnouncementForm();
+        getEl<HTMLButtonElement>('announcement-list-btn')?.addEventListener('click', () => {
+          setAnnouncementMode('edit');
+        });
+        document.querySelectorAll<HTMLButtonElement>('[data-announcement-mode]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const mode = btn.dataset.announcementMode === 'edit' ? 'edit' : 'new';
+            if (mode === 'new') {
+              resetAnnouncementForm();
+              showAnnouncementToast('');
+              return;
+            }
+            setAnnouncementMode('edit');
+          });
+        });
+        announcementForm.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const id = getEl<HTMLInputElement>('announcement-id')?.value ?? '';
+          saveBtn.disabled = true;
+          try {
+            await postAnnouncementAdmin({
+              action: id ? 'update' : 'create',
+              announcementId: id || undefined,
+              title: getEl<HTMLInputElement>('announcement-title')?.value ?? '',
+              tag: getEl<HTMLInputElement>('announcement-tag')?.value ?? '',
+              publishedAt: getEl<HTMLInputElement>('announcement-date')?.value ?? '',
+              summary: getEl<HTMLInputElement>('announcement-summary')?.value ?? '',
+              body: getEl<HTMLTextAreaElement>('announcement-body')?.value ?? '',
+              pinned: Boolean(getEl<HTMLInputElement>('announcement-pinned')?.checked),
+            });
+            showAnnouncementToast(id ? '公告已更新' : '公告已发布');
+            if (!id) resetAnnouncementForm();
+          } catch (error) {
+            console.error(error);
+            showAnnouncementToast(error instanceof Error ? error.message : '公告保存失败', true);
+          } finally {
+            saveBtn.disabled = false;
+          }
+        });
+      }
+
+      const announcementList = getEl('announcement-admin-list');
+      if (announcementList && announcementList.dataset.bound !== '1') {
+        announcementList.dataset.bound = '1';
+        announcementList.addEventListener('click', async (event) => {
+          const target = event.target as HTMLElement | null;
+          const edit = target?.closest<HTMLElement>('[data-announcement-edit]');
+          const reset = target?.closest<HTMLButtonElement>('[data-announcement-reset]');
+          if (edit?.dataset.announcementEdit) {
+            editAnnouncement(edit.dataset.announcementEdit);
+            showAnnouncementToast('');
+            return;
+          }
+          if (reset?.dataset.announcementReset) {
+            if (!(await confirmAnnouncementReset())) return;
+            reset.disabled = true;
+            try {
+              await postAnnouncementAdmin({ action: 'reset-read', announcementId: reset.dataset.announcementReset });
+              showAnnouncementToast('已清空已读状态，所有用户会重新收到提醒');
+            } catch (error) {
+              console.error(error);
+              showAnnouncementToast(error instanceof Error ? error.message : '重提醒失败', true);
+            } finally {
+              reset.disabled = false;
+            }
+          }
+        });
       }
     }
 
-    function attachCreateForm(): void {
-      const form = getEl<HTMLFormElement>('create-user-form');
-      const button = getEl<HTMLButtonElement>('create-btn');
-      const label = getEl<HTMLSpanElement>('create-label');
-      if (!form || !button || !label) return;
-      form.addEventListener('submit', async (event: SubmitEvent) => {
-        event.preventDefault();
-        const body = new FormData(form);
-        button.disabled = true;
-        label.textContent = '创建中...';
-        try {
-          const res = await fetch('/api/create-user', { method: 'POST', body });
-          const json = (await res.json()) as CreateUserResponse;
-          showAdminMsg(json.message || json.error || '操作失败', !json.ok);
-          if (json.ok) {
-            form.reset();
-            await loadAdminData();
-          }
-        } catch (error) {
-          console.error(error);
-          showAdminMsg('创建用户失败，请稍后再试', true);
-        } finally {
-          button.disabled = false;
-          label.textContent = '创建账号';
-        }
-      });
-    }
-
-    function attachDeleteEvents(): void {
-      const list = getEl('member-list');
-      if (!list) return;
-      list.addEventListener('click', async (e: Event) => {
-        const target = e.target as HTMLElement;
-        const btn = target.closest('.delete-btn') as HTMLButtonElement | null;
-        if (!btn) return;
-        
-        const userId = btn.getAttribute('data-id');
-        if (!userId) return;
-        
-        const confirmed = await confirmDelete();
-        if (!confirmed) return;
-
-        btn.disabled = true;
-
-        try {
-          const formData = new FormData();
-          formData.set('userId', userId);
-          const res = await fetch('/api/delete-user', { method: 'POST', body: formData });
-          const json = await res.json() as CreateUserResponse;
-          showAdminMsg(json.message || json.error || '删除失败', !json.ok);
-          if (json.ok) {
-            await loadAdminData();
-          }
-        } catch (error) {
-          console.error(error);
-          showAdminMsg('删除用户时发生错误', true);
-        } finally {
-          btn.disabled = false;
-        }
-      });
-    }
-
     document.addEventListener('astro:page-load', () => {
-      void loadAdminData();
-      attachCreateForm();
-      attachDeleteEvents();
+      syncAdminViewport();
+      attachHandlers();
+      void loadMembers();
+      void loadAnnouncementsAdmin();
+    });
+
+    window.addEventListener('resize', () => {
+      if (!document.querySelector('.admin-page')) return;
+      syncAdminViewport();
+      const activePane = document.querySelector<HTMLElement>('.admin-pane.is-active');
+      if (activePane?.dataset.adminPane === 'announcements') renderAnnouncementList();
+      else renderMemberList();
     });
   </script>
 </Layout>

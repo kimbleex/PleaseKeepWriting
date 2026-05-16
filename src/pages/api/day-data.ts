@@ -48,8 +48,48 @@ export const GET: APIRoute = async ({ cookies, url }) => {
 
   const canViewDiary = (userId: string) =>
     currentUser.role === 'ADMIN' || userId === currentUser.id || approvedTargetIds.has(userId);
+  const currentUserFirst = <T extends { userId?: string; id?: string; authorName: string }>(a: T, b: T) => {
+    const aUserId = a.userId ?? a.id;
+    const bUserId = b.userId ?? b.id;
+    if (aUserId === currentUser.id) return -1;
+    if (bUserId === currentUser.id) return 1;
+    if (a.authorName !== b.authorName) return a.authorName < b.authorName ? -1 : 1;
+    return (aUserId ?? '') < (bUserId ?? '') ? -1 : 1;
+  };
 
-  const visibleDiaries = diaries.map((diary) => {
+  const diaryByUserId = new Map(diaries.map((diary) => [diary.userId, diary]));
+  const visibleDiaries = allUsers
+    .map((user) => {
+      const diary = diaryByUserId.get(user.id);
+      if (!diary) return null;
+      const visible = canViewDiary(user.id);
+      return {
+        id: diary.id,
+        userId: user.id,
+        authorName: user.username,
+        authorInitial: user.username.charAt(0).toUpperCase(),
+        updatedDate: diary.updatedAt.toISOString().split('T')[0],
+        visible,
+        isCurrentUser: user.id === currentUser.id,
+        contentAvailable: visible,
+        content: visible ? diary.content : '',
+      };
+    })
+    .filter((diary): diary is NonNullable<typeof diary> => Boolean(diary))
+    .sort(currentUserFirst);
+
+  const notWroteUsers = allUsers
+    .filter((u) => !diaryUserIds.has(u.id))
+    .map((u) => ({
+      id: u.id,
+      userId: u.id,
+      authorName: u.username,
+      authorInitial: u.username.charAt(0).toUpperCase(),
+      isCurrentUser: u.id === currentUser.id,
+    }))
+    .sort(currentUserFirst);
+
+  const legacyDiaries = diaries.map((diary) => {
     const visible = canViewDiary(diary.userId);
     return {
       id: diary.id,
@@ -58,9 +98,11 @@ export const GET: APIRoute = async ({ cookies, url }) => {
       authorInitial: diary.user.username.charAt(0).toUpperCase(),
       updatedDate: diary.updatedAt.toISOString().split('T')[0],
       visible,
+      isCurrentUser: diary.userId === currentUser.id,
+      contentAvailable: visible,
       content: visible ? diary.content : '',
     };
-  });
+  }).sort(currentUserFirst);
 
   return new Response(
     JSON.stringify({
@@ -74,8 +116,9 @@ export const GET: APIRoute = async ({ cookies, url }) => {
       wroteCount: diaries.filter((d) => allUserIds.has(d.userId)).length,
       notWroteCount: allUsers.length - diaries.filter((d) => allUserIds.has(d.userId)).length,
       totalUsers: allUsers.length,
-      notWroteUsers: allUsers.filter((u) => !diaryUserIds.has(u.id)).map((u) => u.username),
-      diaries: visibleDiaries,
+      wroteUsers: visibleDiaries,
+      notWroteUsers,
+      diaries: legacyDiaries,
     }),
     { headers: { 'Content-Type': 'application/json' } },
   );

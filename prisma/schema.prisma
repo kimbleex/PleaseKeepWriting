@@ -18,7 +18,6 @@ model User {
   reports           DiaryReport[]
   sentRequests      PermissionRequest[] @relation("Requester")
   receivedRequests  PermissionRequest[] @relation("Target")
-  announcementReads AnnouncementRead[]
 }
 
 enum Role {
@@ -89,14 +88,18 @@ enum RequestStatus {
   REJECTED
 }
 
-model AnnouncementRead {
-  id             String   @id @default(uuid())
-  userId         String
-  announcementId String
-  readAt         DateTime @default(now())
+model Announcement {
+  id          String   @id @default(uuid())
+  title       String
+  tag         String   @default("系统公告")
+  summary     String
+  body        String
+  pinned      Boolean  @default(false)
+  publishedAt DateTime @db.Date
+  readUserIds Json     @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, announcementId])
-  @@index([userId, readAt])
+  @@index([publishedAt])
+  @@index([pinned])
 }

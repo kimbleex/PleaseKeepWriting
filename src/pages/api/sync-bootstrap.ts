@@ -8,7 +8,7 @@ export const GET: APIRoute = async ({ cookies }) => {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
 
-  const [me, myDiaries, allUserList, teamDiaryRows, permissions] = await Promise.all([
+  const [me, myDiaries, allUserList, adminUserList, teamDiaryRows, permissions, announcements] = await Promise.all([
     prisma.user.findUnique({
       where: { id: user.id },
       select: { id: true, username: true, role: true, createdAt: true },
@@ -23,6 +23,12 @@ export const GET: APIRoute = async ({ cookies }) => {
       orderBy: [{ createdAt: 'asc' }, { username: 'asc' }],
       select: { id: true, username: true, role: true, createdAt: true }
     }),
+    user.role === 'ADMIN'
+      ? prisma.user.findMany({
+          orderBy: [{ createdAt: 'desc' }, { username: 'asc' }],
+          select: { id: true, username: true, role: true, createdAt: true },
+        })
+      : Promise.resolve([]),
     prisma.diary.findMany({
       select: { date: true, userId: true },
     }),
@@ -31,6 +37,21 @@ export const GET: APIRoute = async ({ cookies }) => {
         OR: [{ requesterId: user.id }, { targetId: user.id }],
       },
       select: { id: true, requesterId: true, targetId: true, status: true, updatedAt: true },
+    }),
+    prisma.announcement.findMany({
+      orderBy: [{ pinned: 'desc' }, { publishedAt: 'desc' }, { updatedAt: 'desc' }],
+      select: {
+        id: true,
+        title: true,
+        tag: true,
+        summary: true,
+        body: true,
+        pinned: true,
+        publishedAt: true,
+        readUserIds: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     }),
   ]);
 
@@ -61,6 +82,12 @@ export const GET: APIRoute = async ({ cookies }) => {
         role: u.role,
         createdAt: u.createdAt.toISOString()
       })),
+      adminUsers: adminUserList.map((u) => ({
+        id: u.id,
+        username: u.username,
+        role: u.role,
+        createdAt: u.createdAt.toISOString(),
+      })),
       myDiaries: myDiaries.map((d) => ({
         id: d.id,
         dateStr: d.date.toISOString().split('T')[0],
@@ -75,6 +102,18 @@ export const GET: APIRoute = async ({ cookies }) => {
         targetId: permission.targetId,
         status: permission.status,
         updatedAt: permission.updatedAt.toISOString(),
+      })),
+      announcements: announcements.map((announcement) => ({
+        id: announcement.id,
+        title: announcement.title,
+        tag: announcement.tag,
+        summary: announcement.summary,
+        body: announcement.body,
+        pinned: announcement.pinned,
+        publishedAt: announcement.publishedAt.toISOString().split('T')[0],
+        readUserIds: Array.isArray(announcement.readUserIds) ? announcement.readUserIds : [],
+        createdAt: announcement.createdAt.toISOString(),
+        updatedAt: announcement.updatedAt.toISOString(),
       })),
     }),
     { headers: { 'Content-Type': 'application/json' } },

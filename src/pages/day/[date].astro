@@ -10,165 +10,1126 @@ if (!validDate) {
 
 <Layout title={`${dateStr} 的日记`}>
   <div class="day-page" data-date={dateStr}>
-    <div class="day-topbar">
-      <a href="/" class="back-link" data-astro-prefetch>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        返回日历
+    <header class="day-topbar">
+      <a href="/" class="back-link" data-astro-prefetch aria-label="返回日历">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>
+        <span>返回日历</span>
       </a>
-      <div class="day-nav">
-        <a href="#" class="nav-arrow is-disabled" id="prev-day" aria-label="前一天">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        </a>
-        <span class="day-nav-label" id="day-title"><span class="skel skel-title"></span></span>
-        <a href="#" class="nav-arrow is-disabled" id="next-day" aria-label="后一天">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </a>
+
+      <div class="day-title-block">
+        <p>日历记录</p>
+        <h1 id="day-title"><span class="skel skel-title"></span></h1>
       </div>
-    </div>
 
-    <div class="stats-bar" id="stats-bar">
-      <div class="stat-item"><div class="stat-num wrote"><span class="skel skel-num"></span></div><div class="stat-label">已写</div></div>
-      <div class="stat-divider"></div>
-      <div class="stat-item"><div class="stat-num not-wrote"><span class="skel skel-num"></span></div><div class="stat-label">未写</div></div>
-      <div class="stat-divider"></div>
-      <div class="stat-item"><div class="stat-num total"><span class="skel skel-num"></span></div><div class="stat-label">成员总数</div></div>
-    </div>
+      <div class="day-stats" id="day-stats" aria-label="当天统计">
+        <span class="stat-chip wrote"><span class="skel skel-chip"></span></span>
+        <span class="stat-chip missing"><span class="skel skel-chip"></span></span>
+      </div>
+    </header>
 
-    <div class="not-wrote-section" id="not-wrote-section" style="display:none"></div>
-
-    <div class="diary-list" id="diary-list">
-      {Array.from({ length: 3 }).map(() => (
-        <div class="diary-card">
-          <div class="diary-card-header">
-            <span class="skel avatar-skel"></span>
-            <div class="author-info">
-              <span class="skel line-md"></span>
-              <span class="skel line-sm"></span>
+    <div class="day-columns">
+      <section class="member-panel wrote-panel" aria-labelledby="wrote-title">
+        <div class="panel-head">
+          <div class="panel-title-row">
+            <span class="panel-icon wrote" aria-hidden="true">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
+            </span>
+            <div>
+              <h2 id="wrote-title">今日已写</h2>
+              <p id="wrote-summary">加载中...</p>
             </div>
           </div>
-          <div class="diary-content">
-            <span class="skel line-full"></span>
-            <span class="skel line-full"></span>
-            <span class="skel line-half"></span>
+        </div>
+
+        <div class="member-list" id="wrote-list">
+          {Array.from({ length: 6 }).map(() => (
+            <div class="member-row member-skel">
+              <span class="skel avatar-skel"></span>
+              <span class="skel line-md"></span>
+              <span class="skel action-skel"></span>
+            </div>
+          ))}
+        </div>
+
+        <div class="member-pagination" id="wrote-pagination">
+          <button type="button" class="page-btn" id="wrote-page-prev">上一页</button>
+          <span class="page-info" id="wrote-page-info">1 / 1</span>
+          <button type="button" class="page-btn" id="wrote-page-next">下一页</button>
+        </div>
+      </section>
+
+      <section class="member-panel missing-panel" aria-labelledby="missing-title">
+        <div class="panel-head">
+          <div class="panel-title-row">
+            <span class="panel-icon missing" aria-hidden="true">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v6l4 2"></path><circle cx="12" cy="12" r="9"></circle></svg>
+            </span>
+            <div>
+              <h2 id="missing-title">今日未写</h2>
+              <p id="missing-summary">加载中...</p>
+            </div>
           </div>
         </div>
-      ))}
+
+        <div class="member-list" id="missing-list">
+          {Array.from({ length: 6 }).map(() => (
+            <div class="member-row member-skel">
+              <span class="skel avatar-skel"></span>
+              <span class="skel line-md"></span>
+              <span class="skel action-skel"></span>
+            </div>
+          ))}
+        </div>
+
+        <div class="member-pagination" id="missing-pagination">
+          <button type="button" class="page-btn" id="missing-page-prev">上一页</button>
+          <span class="page-info" id="missing-page-info">1 / 1</span>
+          <button type="button" class="page-btn" id="missing-page-next">下一页</button>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="day-modal" id="day-modal" aria-hidden="true">
+    <div class="day-modal-backdrop" data-day-modal-close></div>
+    <div class="day-modal-panel" role="dialog" aria-modal="true" aria-labelledby="day-modal-title">
+      <div class="day-modal-head">
+        <div class="modal-title-wrap">
+          <div class="modal-avatar" id="day-modal-avatar"></div>
+          <div>
+            <h3 id="day-modal-title">日记详情</h3>
+            <p id="day-modal-meta"></p>
+          </div>
+        </div>
+        <button type="button" class="day-modal-close" data-day-modal-close aria-label="关闭">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+        </button>
+      </div>
+      <div class="day-modal-body" id="day-modal-body"></div>
     </div>
   </div>
 
   <style is:global>
-    .skel { display:inline-block; background:linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:6px; }
-    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
-    .skel-title { width:170px; height:1.2rem; }
-    .skel-num { width:46px; height:2.2rem; }
-    .avatar-skel { width:44px; height:44px; border-radius:50%; flex-shrink:0; }
-    .line-sm { width:86px; height:0.8rem; }
-    .line-md { width:130px; height:1rem; }
-    .line-full { display:block; width:100%; height:1rem; margin-bottom:0.75rem; }
-    .line-half { display:block; width:58%; height:1rem; }
-    .day-page { max-width:760px; margin:0 auto; padding-bottom:4rem; }
-    .day-topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:2rem; flex-wrap:wrap; gap:1rem; }
-    .back-link { display:inline-flex; align-items:center; gap:0.4rem; color:#64748b; font-size:0.9rem; font-weight:500; text-decoration:none; transition:color 0.2s; }
-    .back-link:hover { color:#0f172a; }
-    .day-nav { display:flex; align-items:center; gap:1rem; background:#ffffff; padding:0.4rem 0.5rem; border-radius:999px; border:1px solid rgba(0,0,0,0.06); box-shadow:0 2px 10px rgba(0,0,0,0.02); }
-    .day-nav-label { font-size:1.05rem; font-weight:600; color:#0f172a; white-space:nowrap; padding:0 0.5rem; min-width:180px; text-align:center; }
-    .nav-arrow { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:50%; background:#f8fafc; color:#64748b; transition:all 0.2s; }
-    .nav-arrow:hover { background:rgba(99,102,241,0.1); color:#6366f1; }
-    .nav-arrow.is-disabled { pointer-events:none; opacity:0.45; }
-    .stats-bar { display:flex; align-items:center; justify-content:center; gap:3.5rem; background:#ffffff; border:1px solid rgba(0,0,0,0.06); border-radius:20px; padding:1.5rem 2rem; margin-bottom:2rem; box-shadow:0 4px 20px rgba(0,0,0,0.04); }
-    .stat-item { text-align:center; display:flex; flex-direction:column; gap:0.3rem; }
-    .stat-num { font-size:2.2rem; font-weight:800; line-height:1; }
-    .stat-num.wrote { color:#10b981; }
-    .stat-num.not-wrote { color:#ef4444; }
-    .stat-num.total { color:#6366f1; }
-    .stat-label { font-size:0.8rem; font-weight:500; color:#64748b; letter-spacing:0.05em; }
-    .stat-divider { width:1px; height:48px; background:rgba(0,0,0,0.06); }
-    .not-wrote-section { display:flex; align-items:center; flex-wrap:wrap; gap:0.75rem; margin-bottom:2rem; padding:0 0.5rem; }
-    .not-wrote-label { font-size:0.9rem; font-weight:600; color:#475569; white-space:nowrap; }
-    .not-wrote-badges { display:flex; flex-wrap:wrap; gap:0.5rem; }
-    .user-badge { display:inline-flex; align-items:center; justify-content:center; padding:0.3rem 0.8rem; border-radius:999px; font-size:0.82rem; font-weight:600; }
-    .not-wrote-badge { background:rgba(239,68,68,0.08); color:#dc2626; border:1px solid rgba(239,68,68,0.2); }
-    .empty-state { display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:5rem 2rem; background:#ffffff; border:1px dashed rgba(0,0,0,0.12); border-radius:20px; color:#64748b; }
-    .empty-icon { font-size:3.5rem; margin-bottom:1rem; opacity:0.8; }
-    .diary-list { display:flex; flex-direction:column; gap:1.5rem; }
-    .diary-card { background:#ffffff; border:1px solid rgba(0,0,0,0.07); border-radius:20px; padding:2rem; box-shadow:0 4px 20px rgba(0,0,0,0.04); transition:border-color 0.2s, transform 0.2s, box-shadow 0.2s; }
-    .diary-card:hover { border-color:rgba(99,102,241,0.2); transform:translateY(-2px); box-shadow:0 8px 30px rgba(0,0,0,0.06); }
-    .diary-card-header { display:flex; align-items:center; gap:1rem; margin-bottom:1.5rem; padding-bottom:1.25rem; border-bottom:1px solid rgba(0,0,0,0.06); }
-    .author-avatar { width:44px; height:44px; border-radius:50%; background:linear-gradient(135deg,#6366f1,#a855f7); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1.1rem; color:white; flex-shrink:0; box-shadow:0 2px 10px rgba(99,102,241,0.3); }
-    .author-info { display:flex; flex-direction:column; gap:0.15rem; min-width:0; }
-    .author-name { font-weight:700; font-size:1.05rem; color:#0f172a; }
-    .diary-time { font-size:0.8rem; font-weight:500; color:#94a3b8; }
-    .diary-content { white-space:pre-wrap; font-size:1.05rem; line-height:1.85; color:#1e293b; font-family:'Inter','Noto Serif SC',Georgia,serif; }
-    .diary-content.is-locked { color:#94a3b8; font-style:italic; font-size:0.95rem; background:#f8fafc; padding:1rem; border-radius:12px; text-align:center; }
-    .lock-badge { margin-left:auto; font-size:0.75rem; font-weight:600; color:#64748b; background:#f1f5f9; padding:0.2rem 0.6rem; border-radius:6px; display:flex; align-items:center; gap:0.3rem; }
-    .lock-badge::before { content:"锁"; font-size:0.8rem; }
-    @media (max-width:640px) {
-      .stats-bar { gap:1.25rem; padding:1.25rem 1rem; }
-      .day-nav-label { min-width:130px; font-size:0.9rem; }
+    html:has(.day-page) {
+      height: 100svh;
+      overflow-y: scroll;
+      scrollbar-gutter: stable;
+    }
+
+    body:has(.day-page) {
+      height: 100svh;
+      overflow: hidden;
+    }
+
+    main.container:has(.day-page) {
+      height: calc(100svh - var(--day-header-height, 82px));
+      padding: clamp(0.5rem, 1svh, 0.78rem) clamp(1rem, 2vw, 1.65rem)
+        clamp(0.48rem, 0.8svh, 0.72rem) !important;
+      overflow: hidden;
+    }
+
+    .day-page {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: clamp(0.62rem, 1.2vw, 0.9rem);
+      height: 100%;
+      min-height: 0;
+      --panel-pad-y: clamp(0.58rem, 1.05svh, 0.82rem);
+      --panel-pad-x: clamp(0.72rem, 1.2vw, 1rem);
+      --panel-gap: clamp(0.48rem, 0.9svh, 0.72rem);
+    }
+
+    .day-topbar {
+      display: grid;
+      grid-template-columns: minmax(130px, 1fr) auto minmax(130px, 1fr);
+      align-items: center;
+      gap: clamp(0.7rem, 1.3vw, 1rem);
+      min-height: clamp(56px, 8svh, 70px);
+      padding: clamp(0.56rem, 1.05svh, 0.78rem) clamp(0.72rem, 1.2vw, 1rem);
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: 0 6px 22px rgba(15, 23, 42, 0.055);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-sizing: border-box;
+    }
+
+    .back-link {
+      width: fit-content;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.38rem;
+      color: #64748b;
+      font-size: 0.86rem;
+      font-weight: 800;
+      line-height: 1;
+      text-decoration: none;
+      transition:
+        color 0.16s ease,
+        transform 0.16s ease;
+    }
+
+    .back-link:hover {
+      color: #0f766e;
+      transform: translateX(-1px);
+    }
+
+    .day-title-block {
+      min-width: 0;
+      text-align: center;
+    }
+
+    .day-title-block p {
+      margin: 0 0 0.18rem;
+      color: #64748b;
+      font-size: 0.74rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .day-title-block h1 {
+      margin: 0;
+      color: #0f172a;
+      font-size: clamp(1.02rem, 1.8vw, 1.32rem);
+      font-weight: 900;
+      line-height: 1.15;
+      white-space: nowrap;
+      letter-spacing: 0;
+    }
+
+    .day-stats {
+      justify-self: end;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.4rem;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .stat-chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 30px;
+      padding: 0.34rem 0.58rem;
+      border-radius: 999px;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      background: #fff;
+      font-size: 0.76rem;
+      font-weight: 900;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .stat-chip.wrote {
+      color: #047857;
+      border-color: rgba(16, 185, 129, 0.2);
+      background: rgba(236, 253, 245, 0.9);
+    }
+
+    .stat-chip.missing {
+      color: #b91c1c;
+      border-color: rgba(248, 113, 113, 0.23);
+      background: rgba(254, 242, 242, 0.9);
+    }
+
+    .stat-chip.total {
+      color: #0369a1;
+      border-color: rgba(14, 165, 233, 0.22);
+      background: rgba(240, 249, 255, 0.92);
+    }
+
+    .day-columns {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: clamp(0.62rem, 1.2vw, 0.9rem);
+      min-height: 0;
+    }
+
+    .member-panel {
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      border-radius: 14px;
+      background: #fff;
+      box-shadow: 0 6px 22px rgba(15, 23, 42, 0.055);
+    }
+
+    .panel-head {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--panel-gap);
+      padding: var(--panel-pad-y) var(--panel-pad-x);
+      border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+      background: #f8fafc;
+      box-sizing: border-box;
+    }
+
+    .wrote-panel .panel-head {
+      background:
+        linear-gradient(135deg, rgba(248, 250, 252, 0.98), rgba(236, 253, 245, 0.9)),
+        #f8fafc;
+    }
+
+    .missing-panel .panel-head {
+      background:
+        linear-gradient(135deg, rgba(248, 250, 252, 0.98), rgba(254, 242, 242, 0.86)),
+        #f8fafc;
+    }
+
+    .panel-title-row {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.62rem;
+    }
+
+    .panel-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+    }
+
+    .panel-icon.wrote {
+      color: #047857;
+      border: 1px solid rgba(16, 185, 129, 0.22);
+      background: #ecfdf5;
+    }
+
+    .panel-icon.missing {
+      color: #b91c1c;
+      border: 1px solid rgba(248, 113, 113, 0.25);
+      background: #fef2f2;
+    }
+
+    .panel-head h2 {
+      margin: 0;
+      color: #0f172a;
+      font-size: 0.98rem;
+      font-weight: 900;
+      line-height: 1.18;
+    }
+
+    .panel-head p {
+      margin: 0.18rem 0 0;
+      color: #64748b;
+      font-size: 0.76rem;
+      font-weight: 700;
+      line-height: 1.32;
+    }
+
+    .member-list {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
+      display: flex;
+      flex-direction: column;
+      gap: clamp(0.45rem, 0.9svh, 0.6rem);
+      padding: clamp(0.58rem, 1.1svh, 0.78rem) clamp(0.7rem, 1.2vw, 0.9rem);
+    }
+
+    .member-list::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .member-list::-webkit-scrollbar-thumb {
+      border: 2px solid transparent;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.42);
+      background-clip: padding-box;
+    }
+
+    .member-list::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .member-row {
+      position: relative;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 0.72rem;
+      padding: clamp(0.62rem, 1.1svh, 0.76rem);
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      border-radius: 10px;
+      background: #fff;
+      transition:
+        transform 0.16s ease,
+        box-shadow 0.16s ease,
+        border-color 0.16s ease,
+        background 0.16s ease;
+    }
+
+    .member-row:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14, 165, 233, 0.26);
+      box-shadow: 0 10px 22px rgba(14, 165, 233, 0.08);
+    }
+
+    .member-row.is-current-user {
+      border-color: rgba(15, 118, 110, 0.24);
+      background: linear-gradient(135deg, rgba(240, 253, 250, 0.9), #fff);
+    }
+
+    .missing-panel .member-row {
+      background: #fffafa;
+    }
+
+    .missing-panel .member-row.is-current-user {
+      border-color: rgba(185, 28, 28, 0.2);
+      background: linear-gradient(135deg, rgba(254, 242, 242, 0.92), #fff);
+    }
+
+    .member-avatar,
+    .modal-avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 11px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      color: #fff;
+      font-size: 0.98rem;
+      font-weight: 900;
+      line-height: 1;
+      background: linear-gradient(135deg, #0f766e, #14b8a6);
+      box-shadow: 0 8px 18px rgba(15, 118, 110, 0.18);
+    }
+
+    .missing-panel .member-avatar {
+      color: #991b1b;
+      background: linear-gradient(135deg, #fee2e2, #fecaca);
+      box-shadow: none;
+    }
+
+    .member-main {
+      min-width: 0;
+    }
+
+    .member-title-row {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      min-width: 0;
+    }
+
+    .member-name {
+      min-width: 0;
+      overflow: hidden;
+      color: #0f172a;
+      font-size: 0.94rem;
+      font-weight: 900;
+      line-height: 1.25;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .member-badge {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 19px;
+      border-radius: 999px;
+      padding: 0.18rem 0.48rem;
+      font-size: 0.68rem;
+      font-weight: 900;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .member-badge.visible {
+      color: #047857;
+      background: rgba(16, 185, 129, 0.12);
+    }
+
+    .member-badge.you {
+      color: #0f766e;
+      background: rgba(20, 184, 166, 0.14);
+    }
+
+    .member-badge.locked {
+      color: #64748b;
+      background: #f1f5f9;
+    }
+
+    .member-badge.missing {
+      color: #b91c1c;
+      background: rgba(248, 113, 113, 0.13);
+    }
+
+    .member-meta {
+      margin-top: 0.28rem;
+      color: #94a3b8;
+      font-size: 0.73rem;
+      font-weight: 800;
+      line-height: 1.32;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .member-action {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      border: 1px solid rgba(14, 165, 233, 0.18);
+      background: #f8fafc;
+      color: #0369a1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition:
+        transform 0.16s ease,
+        box-shadow 0.16s ease,
+        background 0.16s ease,
+        border-color 0.16s ease;
+    }
+
+    .member-action:hover:not(:disabled) {
+      transform: translateY(-1px);
+      border-color: rgba(14, 165, 233, 0.34);
+      background: #f0f9ff;
+      box-shadow: 0 8px 18px rgba(14, 165, 233, 0.1);
+    }
+
+    .member-action:disabled {
+      cursor: default;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .member-action.is-locked {
+      color: #64748b;
+      border-color: rgba(100, 116, 139, 0.18);
+      background: #f1f5f9;
+    }
+
+    .member-action.is-empty {
+      color: #b91c1c;
+      border-color: rgba(248, 113, 113, 0.18);
+      background: #fef2f2;
+      opacity: 0.72;
+    }
+
+    .member-pagination {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.45rem;
+      min-height: clamp(48px, 7svh, 58px);
+      padding: clamp(0.45rem, 0.9svh, 0.58rem) clamp(0.65rem, 1.1vw, 0.78rem);
+      border-top: 1px solid rgba(15, 23, 42, 0.07);
+      background: #fbfdff;
+      flex: 0 0 auto;
+      box-sizing: border-box;
+    }
+
+    .page-btn {
+      min-height: 32px;
+      border: 1px solid rgba(15, 23, 42, 0.1);
+      background: #fff;
+      color: #475569;
+      border-radius: 9px;
+      padding: 0.34rem 0.65rem;
+      font: inherit;
+      font-size: 0.76rem;
+      font-weight: 800;
+      line-height: 1;
+      cursor: pointer;
+      transition:
+        transform 0.16s ease,
+        box-shadow 0.16s ease,
+        border-color 0.16s ease;
+      white-space: nowrap;
+    }
+
+    .page-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      border-color: rgba(14, 165, 233, 0.24);
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.07);
+    }
+
+    .page-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .page-info {
+      min-width: 88px;
+      color: #64748b;
+      font-size: 0.76rem;
+      font-weight: 800;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .empty-list {
+      color: #94a3b8;
+      font-size: 0.88rem;
+      font-weight: 800;
+      text-align: center;
+      padding: 2rem 1rem;
+      border: 1px dashed rgba(148, 163, 184, 0.28);
+      border-radius: 12px;
+      background: #fbfdff;
+    }
+
+    .day-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 1200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .day-modal.is-open {
+      display: flex;
+    }
+
+    .day-modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.34);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .day-modal-panel {
+      position: relative;
+      width: min(760px, calc(100vw - 3rem));
+      max-height: min(760px, calc(100svh - 4rem));
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border-radius: 16px;
+      border: 1px solid rgba(15, 23, 42, 0.1);
+      background: #fff;
+      box-shadow: 0 28px 90px rgba(15, 23, 42, 0.26);
+    }
+
+    .day-modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1rem 1.1rem;
+      border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+      background: #f8fafc;
+    }
+
+    .modal-title-wrap {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.72rem;
+    }
+
+    .modal-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+    }
+
+    .day-modal-head h3 {
+      margin: 0;
+      color: #0f172a;
+      font-size: 1rem;
+      font-weight: 900;
+      line-height: 1.25;
+    }
+
+    .day-modal-head p {
+      margin: 0.18rem 0 0;
+      color: #64748b;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .day-modal-close {
+      width: 38px;
+      height: 38px;
+      border-radius: 11px;
+      border: 1px solid rgba(15, 23, 42, 0.1);
+      background: #fff;
+      color: #64748b;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex: 0 0 auto;
+      transition:
+        color 0.16s ease,
+        border-color 0.16s ease,
+        background 0.16s ease;
+    }
+
+    .day-modal-close:hover {
+      color: #0369a1;
+      border-color: rgba(14, 165, 233, 0.24);
+      background: #f0f9ff;
+    }
+
+    .day-modal-body {
+      padding: 1.35rem 1.5rem;
+      overflow: auto;
+      color: #1e293b;
+      font-size: 1rem;
+      line-height: 1.85;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: "Inter", "Noto Serif SC", Georgia, serif;
+    }
+
+    body.day-modal-open {
+      overflow: hidden;
+    }
+
+    .skel {
+      display: inline-block;
+      border-radius: 7px;
+      background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.35s infinite;
+    }
+
+    .skel-title {
+      width: 178px;
+      height: 1.2rem;
+    }
+
+    .skel-chip {
+      width: 58px;
+      height: 0.8rem;
+    }
+
+    .avatar-skel {
+      width: 38px;
+      height: 38px;
+      border-radius: 11px;
+    }
+
+    .line-md {
+      width: min(170px, 48vw);
+      height: 0.92rem;
+    }
+
+    .action-skel {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+    }
+
+    .member-skel {
+      pointer-events: none;
+    }
+
+    @keyframes shimmer {
+      0% {
+        background-position: 200% 0;
+      }
+      100% {
+        background-position: -200% 0;
+      }
+    }
+
+    @media (max-width: 920px) {
+      html:has(.day-page),
+      body:has(.day-page) {
+        height: auto;
+        overflow-y: auto;
+      }
+
+      main.container:has(.day-page) {
+        height: auto;
+        overflow: visible;
+        padding: clamp(0.62rem, 1.4svh, 0.9rem) !important;
+      }
+
+      .day-page {
+        height: auto;
+      }
+
+      .day-topbar {
+        grid-template-columns: 1fr;
+        justify-items: start;
+      }
+
+      .day-title-block {
+        text-align: left;
+      }
+
+      .day-stats {
+        justify-self: stretch;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+      }
+
+      .day-columns {
+        grid-template-columns: 1fr;
+      }
+
+      .member-panel {
+        min-height: clamp(420px, 68svh, 560px);
+      }
+    }
+
+    @media (max-width: 560px) {
+      .day-topbar {
+        border-radius: 12px;
+      }
+
+      .member-row {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+      }
+
+      .member-title-row {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.28rem;
+      }
+
+      .member-pagination {
+        justify-content: space-between;
+      }
+
+      .page-info {
+        min-width: 70px;
+      }
+
+      .day-modal {
+        padding: 1rem;
+      }
+
+      .day-modal-panel {
+        width: 100%;
+        max-height: calc(100svh - 2rem);
+      }
     }
   </style>
 
   <script>
     import { navigate } from 'astro:transitions/client';
+    import {
+      getDayPageDataLocal,
+      getLocalPrivacyUnlockUrl,
+      isLocalPrivacyKeyMissing,
+    } from '../../lib/localFirst';
 
-    function escapeHTML(value) {
-      return String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+    type WroteUser = {
+      id: string;
+      userId?: string;
+      authorName: string;
+      authorInitial: string;
+      updatedDate: string;
+      visible: boolean;
+      isCurrentUser?: boolean;
+      contentAvailable?: boolean;
+      content: string;
+    };
+
+    type MissingUser = {
+      id: string;
+      userId?: string;
+      authorName: string;
+      authorInitial: string;
+      isCurrentUser?: boolean;
+    };
+
+    type SectionKey = 'wrote' | 'missing';
+
+    const state = {
+      dateStr: '',
+      title: '',
+      totalUsers: 0,
+      wroteUsers: [] as WroteUser[],
+      missingUsers: [] as MissingUser[],
+      wrotePage: 1,
+      missingPage: 1,
+      wrotePageSize: 6,
+      missingPageSize: 6,
+      hasLocalData: false,
+    };
+
+    function escapeHTML(value: unknown): string {
+      const entities: Record<string, string> = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      };
+      return String(value).replace(/[&<>"']/g, (char) => entities[char] ?? char);
     }
 
-    function setLink(id, dateStr) {
-      const link = document.getElementById(id);
-      if (!link) return;
-      link.setAttribute('href', `/day/${dateStr}`);
-      link.setAttribute('data-astro-prefetch', '');
-      link.classList.remove('is-disabled');
-      link.addEventListener('click', (event) => {
-        event.preventDefault();
-        navigate(`/day/${dateStr}`);
-      }, { once: true });
+    function syncDayViewport() {
+      const header = document.querySelector('.navbar');
+      const headerHeight = header ? Math.ceil(header.getBoundingClientRect().height) : 82;
+      document.documentElement.style.setProperty('--day-header-height', `${headerHeight}px`);
     }
 
-    function renderDay(data) {
-      document.title = `${data.dateStr} 的日记 - 我们的日记`;
-      document.getElementById('day-title').textContent = `${data.year}年${data.month}月${data.day}日 · 周${data.weekday}`;
-      setLink('prev-day', data.prevStr);
-      setLink('next-day', data.nextStr);
+    function getUsers(section: SectionKey) {
+      return section === 'wrote' ? state.wroteUsers : state.missingUsers;
+    }
 
-      document.getElementById('stats-bar').innerHTML = `
-        <div class="stat-item"><div class="stat-num wrote">${data.wroteCount}</div><div class="stat-label">已写</div></div>
-        <div class="stat-divider"></div>
-        <div class="stat-item"><div class="stat-num not-wrote">${data.notWroteCount}</div><div class="stat-label">未写</div></div>
-        <div class="stat-divider"></div>
-        <div class="stat-item"><div class="stat-num total">${data.totalUsers}</div><div class="stat-label">成员总数</div></div>`;
+    function getPage(section: SectionKey): number {
+      return section === 'wrote' ? state.wrotePage : state.missingPage;
+    }
 
-      const notWrote = document.getElementById('not-wrote-section');
-      if (notWrote) {
-        if (data.notWroteUsers.length > 0) {
-          notWrote.style.display = 'flex';
-          notWrote.innerHTML = `<p class="not-wrote-label">今日未写：</p><div class="not-wrote-badges">${data.notWroteUsers.map((name) => `<span class="user-badge not-wrote-badge">${escapeHTML(name)}</span>`).join('')}</div>`;
-        } else {
-          notWrote.style.display = 'none';
-        }
-      }
+    function setPage(section: SectionKey, page: number) {
+      if (section === 'wrote') state.wrotePage = page;
+      else state.missingPage = page;
+    }
 
-      const list = document.getElementById('diary-list');
+    function getPageSize(section: SectionKey): number {
+      return section === 'wrote' ? state.wrotePageSize : state.missingPageSize;
+    }
+
+    function setPageSize(section: SectionKey, pageSize: number) {
+      if (section === 'wrote') state.wrotePageSize = pageSize;
+      else state.missingPageSize = pageSize;
+    }
+
+    function getTotalPages(total: number, pageSize: number): number {
+      return Math.max(1, Math.ceil(total / Math.max(1, pageSize)));
+    }
+
+    function renderPagination(section: SectionKey, total: number, totalPages: number) {
+      const pagination = document.getElementById(`${section}-pagination`);
+      const info = document.getElementById(`${section}-page-info`);
+      const prev = document.getElementById(`${section}-page-prev`) as HTMLButtonElement | null;
+      const next = document.getElementById(`${section}-page-next`) as HTMLButtonElement | null;
+      if (!pagination || !info || !prev || !next) return;
+
+      pagination.hidden = total === 0;
+      info.textContent = `${getPage(section)} / ${totalPages} · 每页 ${getPageSize(section)} 人`;
+      prev.disabled = getPage(section) <= 1;
+      next.disabled = getPage(section) >= totalPages;
+    }
+
+    function syncPageSizeFromLayout(section: SectionKey): boolean {
+      const list = document.getElementById(`${section}-list`);
+      const firstItem = list?.querySelector<HTMLElement>('.member-row:not(.member-skel)');
+      if (!list || !firstItem) return false;
+
+      const listHeight = list.clientHeight;
+      const itemHeight = firstItem.getBoundingClientRect().height;
+      const style = window.getComputedStyle(list);
+      const gap = Number.parseFloat(style.rowGap || style.gap || '0') || 0;
+      if (listHeight <= 0 || itemHeight <= 0) return false;
+
+      const nextSize = Math.max(1, Math.floor((listHeight + gap) / (itemHeight + gap)));
+      if (nextSize === getPageSize(section)) return false;
+
+      setPageSize(section, nextSize);
+      setPage(section, Math.min(getPage(section), getTotalPages(getUsers(section).length, nextSize)));
+      return true;
+    }
+
+    function viewIcon() {
+      return '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+    }
+
+    function lockIcon() {
+      return '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
+    }
+
+    function emptyIcon() {
+      return '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6v6l4 2"></path><circle cx="12" cy="12" r="9"></circle></svg>';
+    }
+
+    function userKey(user: { id: string; userId?: string }) {
+      return user.userId ?? user.id;
+    }
+
+    function currentUserFirst<T extends { id: string; userId?: string; authorName: string; isCurrentUser?: boolean }>(items: T[]): T[] {
+      return [...items].sort((a, b) => {
+        if (a.isCurrentUser) return -1;
+        if (b.isCurrentUser) return 1;
+        if (a.authorName !== b.authorName) return a.authorName < b.authorName ? -1 : 1;
+        return userKey(a) < userKey(b) ? -1 : 1;
+      });
+    }
+
+    function renderWroteRow(user: WroteUser) {
+      const id = userKey(user);
+      const button = user.visible
+        ? `<button type="button" class="member-action" data-view-user="${escapeHTML(id)}" aria-label="查看 ${escapeHTML(user.authorName)} 今天的日记" title="查看日记">${viewIcon()}</button>`
+        : `<button type="button" class="member-action is-locked" disabled aria-label="无权限查看 ${escapeHTML(user.authorName)} 的日记" title="无权限查看">${lockIcon()}</button>`;
+      return `
+        <div class="member-row ${user.isCurrentUser ? 'is-current-user' : ''}" data-user-id="${escapeHTML(id)}">
+          <div class="member-avatar">${escapeHTML(user.authorInitial)}</div>
+          <div class="member-main">
+            <div class="member-title-row">
+              <span class="member-name">${escapeHTML(user.authorName)}</span>
+              ${user.isCurrentUser ? '<span class="member-badge you">你</span>' : ''}
+              <span class="member-badge ${user.visible ? 'visible' : 'locked'}">${user.visible ? '可查看' : '无权限'}</span>
+            </div>
+            <div class="member-meta">已写 · ${escapeHTML(user.updatedDate)}${user.visible && !user.contentAvailable ? ' · 正文后台加载中' : ''}</div>
+          </div>
+          ${button}
+        </div>
+      `;
+    }
+
+    function renderMissingRow(user: MissingUser) {
+      const id = userKey(user);
+      return `
+        <div class="member-row ${user.isCurrentUser ? 'is-current-user' : ''}" data-user-id="${escapeHTML(id)}">
+          <div class="member-avatar">${escapeHTML(user.authorInitial)}</div>
+          <div class="member-main">
+            <div class="member-title-row">
+              <span class="member-name">${escapeHTML(user.authorName)}</span>
+              ${user.isCurrentUser ? '<span class="member-badge you">你</span>' : ''}
+              <span class="member-badge missing">未写</span>
+            </div>
+            <div class="member-meta">今天还没有日记</div>
+          </div>
+          <button type="button" class="member-action is-empty" disabled aria-label="${escapeHTML(user.authorName)} 今天未写日记" title="暂无日记">${emptyIcon()}</button>
+        </div>
+      `;
+    }
+
+    function renderSection(section: SectionKey, allowRemeasure = true) {
+      const list = document.getElementById(`${section}-list`);
       if (!list) return;
-      if (data.diaries.length === 0) {
-        list.innerHTML = '<div class="empty-state"><div class="empty-icon">📖</div><p>这一天还没有人写日记</p></div>';
+
+      const users = getUsers(section);
+      if (!users.length) {
+        list.innerHTML = `<div class="empty-list">${section === 'wrote' ? '今天还没有人写日记' : '所有成员今天都写完了'}</div>`;
+        renderPagination(section, 0, 1);
         return;
       }
 
-      list.innerHTML = data.diaries.map((diary) => `
-        <div class="diary-card">
-          <div class="diary-card-header">
-            <div class="author-avatar">${escapeHTML(diary.authorInitial)}</div>
-            <div class="author-info">
-              <span class="author-name">${escapeHTML(diary.authorName)}</span>
-              <span class="diary-time">${escapeHTML(diary.updatedDate)}</span>
-            </div>
-            ${diary.visible ? '' : '<span class="lock-badge">私密日记</span>'}
-          </div>
-          <div class="diary-content ${diary.visible ? '' : 'is-locked'}">${diary.visible ? escapeHTML(diary.content) : '内容已锁定，申请并获得对方同意后可查看。'}</div>
-        </div>`).join('');
+      const pageSize = getPageSize(section);
+      const totalPages = getTotalPages(users.length, pageSize);
+      if (getPage(section) > totalPages) setPage(section, totalPages);
+      if (getPage(section) < 1) setPage(section, 1);
+
+      const start = (getPage(section) - 1) * pageSize;
+      const pageItems = users.slice(start, start + pageSize);
+      list.innerHTML = pageItems
+        .map((user) => (section === 'wrote' ? renderWroteRow(user as WroteUser) : renderMissingRow(user as MissingUser)))
+        .join('');
+      list.scrollTop = 0;
+
+      list.querySelectorAll<HTMLButtonElement>('[data-view-user]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          void openDiaryModal(btn.dataset.viewUser ?? '');
+        });
+      });
+
+      renderPagination(section, users.length, totalPages);
+
+      if (allowRemeasure && syncPageSizeFromLayout(section)) {
+        renderSection(section, false);
+      }
+    }
+
+    function renderLists(allowRemeasure = true) {
+      renderSection('wrote', allowRemeasure);
+      renderSection('missing', allowRemeasure);
+    }
+
+    async function openDiaryModal(userId: string) {
+      let diary = state.wroteUsers.find((item) => userKey(item) === userId && item.visible);
+      if (!diary) return;
+      if (!diary.contentAvailable) {
+        await hydrateDayFromServer(false).catch((error) => console.error(error));
+        diary = state.wroteUsers.find((item) => userKey(item) === userId && item.visible);
+        if (!diary) return;
+      }
+
+      const modal = document.getElementById('day-modal');
+      const title = document.getElementById('day-modal-title');
+      const meta = document.getElementById('day-modal-meta');
+      const body = document.getElementById('day-modal-body');
+      const avatar = document.getElementById('day-modal-avatar');
+      if (!modal || !title || !meta || !body || !avatar) return;
+
+      avatar.textContent = diary.authorInitial;
+      title.textContent = `${diary.authorName} 的日记`;
+      meta.textContent = `${state.title} · ${diary.updatedDate}`;
+      body.textContent = diary.contentAvailable ? diary.content : '日记正文还在加载中，请稍后再试。';
+      modal.classList.add('is-open');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('day-modal-open');
+    }
+
+    function closeDiaryModal() {
+      const modal = document.getElementById('day-modal');
+      if (!modal) return;
+      modal.classList.remove('is-open');
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('day-modal-open');
+    }
+
+    function renderDay(data: any, resetPages = true) {
+      state.dateStr = data.dateStr;
+      state.title = `${data.year}年${data.month}月${data.day}日 · 周${data.weekday}`;
+      state.totalUsers = Number(data.totalUsers) || 0;
+      state.wroteUsers = currentUserFirst(Array.isArray(data.wroteUsers) ? data.wroteUsers : []);
+      state.missingUsers = currentUserFirst(Array.isArray(data.notWroteUsers) ? data.notWroteUsers : []);
+      state.hasLocalData = Boolean(data.localOnly);
+      if (resetPages) {
+        state.wrotePage = 1;
+        state.missingPage = 1;
+      }
+
+      document.title = `${data.dateStr} 的日记 - 我们的日记`;
+      const title = document.getElementById('day-title');
+      if (title) title.textContent = state.title;
+
+      const stats = document.getElementById('day-stats');
+      if (stats) {
+        stats.innerHTML = `
+          <span class="stat-chip wrote">已写 ${data.wroteCount}</span>
+          <span class="stat-chip missing">未写 ${data.notWroteCount}</span>
+          <span class="stat-chip total">共 ${data.totalUsers}</span>
+        `;
+      }
+
+      const wroteSummary = document.getElementById('wrote-summary');
+      if (wroteSummary) wroteSummary.textContent = `${data.wroteCount} 位成员已完成`;
+      const missingSummary = document.getElementById('missing-summary');
+      if (missingSummary) missingSummary.textContent = `${data.notWroteCount} 位成员待记录`;
+
+      renderLists();
+    }
+
+    async function fetchServerDay(date: string) {
+      const res = await fetch(`/api/day-data?date=${encodeURIComponent(date)}`);
+      if (!res.ok) {
+        if (res.status === 401) navigate('/login');
+        throw new Error(`day data failed: ${res.status}`);
+      }
+      return res.json();
+    }
+
+    async function hydrateDayFromServer(resetPages = false) {
+      const page = document.querySelector('.day-page');
+      const date = page?.getAttribute('data-date');
+      if (!date) return;
+      renderDay(await fetchServerDay(date), resetPages);
     }
 
     async function loadDay() {
@@ -176,17 +1137,65 @@ if (!validDate) {
       const date = page?.getAttribute('data-date');
       if (!date) return;
       try {
-        const res = await fetch(`/api/day-data?date=${encodeURIComponent(date)}`);
-        if (!res.ok) {
-          if (res.status === 401) navigate('/login');
+        renderDay(await getDayPageDataLocal(date));
+        hydrateDayFromServer(false).catch((error) => console.error('server day data hydrate failed', error));
+      } catch (error) {
+        if (isLocalPrivacyKeyMissing(error)) {
+          navigate(getLocalPrivacyUnlockUrl());
           return;
         }
-        renderDay(await res.json());
-      } catch (error) {
+        try {
+          renderDay(await fetchServerDay(date));
+          return;
+        } catch (serverError) {
+          console.error(serverError);
+        }
         console.error(error);
+        const wroteList = document.getElementById('wrote-list');
+        const missingList = document.getElementById('missing-list');
+        if (wroteList) wroteList.innerHTML = '<div class="empty-list">数据加载失败，请刷新重试</div>';
+        if (missingList) missingList.innerHTML = '<div class="empty-list">数据加载失败，请刷新重试</div>';
       }
     }
 
-    document.addEventListener('astro:page-load', loadDay);
+    function attachHandlers() {
+      (['wrote', 'missing'] as SectionKey[]).forEach((section) => {
+        const prev = document.getElementById(`${section}-page-prev`) as HTMLButtonElement | null;
+        const next = document.getElementById(`${section}-page-next`) as HTMLButtonElement | null;
+        if (prev) {
+          prev.onclick = () => {
+            setPage(section, Math.max(1, getPage(section) - 1));
+            renderSection(section);
+          };
+        }
+        if (next) {
+          next.onclick = () => {
+            const totalPages = getTotalPages(getUsers(section).length, getPageSize(section));
+            setPage(section, Math.min(totalPages, getPage(section) + 1));
+            renderSection(section);
+          };
+        }
+      });
+
+      document.querySelectorAll<HTMLElement>('[data-day-modal-close]').forEach((node) => {
+        node.onclick = closeDiaryModal;
+      });
+    }
+
+    document.addEventListener('astro:page-load', () => {
+      syncDayViewport();
+      attachHandlers();
+      loadDay();
+    });
+
+    window.addEventListener('resize', () => {
+      if (!document.querySelector('.day-page')) return;
+      syncDayViewport();
+      renderLists();
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeDiaryModal();
+    });
   </script>
 </Layout>

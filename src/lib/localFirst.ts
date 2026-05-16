@@ -67,10 +67,31 @@ type StoredPermission = {
   updatedAt?: string;
 };
 
+export type LocalAnnouncement = {
+  id: string;
+  title: string;
+  tag: string;
+  summary: string;
+  body: string;
+  pinned: boolean;
+  publishedAt: string;
+  readUserIds: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type LocalAdminUser = {
+  id: string;
+  username: string;
+  role: string;
+  createdAt: string;
+};
+
 type SyncBootstrapPayload = {
   user: { id: string; username: string; role: string; createdAt: string };
   totalUsers: number;
   users: Array<{ id: string; username: string; role: string; createdAt: string }>;
+  adminUsers?: LocalAdminUser[];
   myDiaries: Array<{
     id: string;
     dateStr: string;
@@ -80,15 +101,18 @@ type SyncBootstrapPayload = {
   }>;
   teamDiaryDays: Array<{ dateStr: string; userId: string }>;
   permissions: Array<Required<StoredPermission>>;
+  announcements?: LocalAnnouncement[];
 };
 
 const DB_NAME = 'our-diary-local';
-const DB_VERSION = 3;
+const DB_VERSION = 5;
 const STORE_DIARIES = 'diaries';
 const STORE_META = 'meta';
 const STORE_TEAM_DAYS = 'teamDays';
 const STORE_USERS = 'users';
 const STORE_PERMISSIONS = 'permissions';
+const STORE_ANNOUNCEMENTS = 'announcements';
+const STORE_ADMIN_USERS = 'adminUsers';
 const META_PRIVACY_VERIFIER = 'privacyKeyVerifier';
 const PRIVACY_VERIFIER_TEXT = 'local-first-v1';
 
@@ -119,6 +143,12 @@ function openDb(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(STORE_PERMISSIONS)) {
         db.createObjectStore(STORE_PERMISSIONS, { keyPath: ['requesterId', 'targetId'] });
+      }
+      if (!db.objectStoreNames.contains(STORE_ANNOUNCEMENTS)) {
+        db.createObjectStore(STORE_ANNOUNCEMENTS, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(STORE_ADMIN_USERS)) {
+        db.createObjectStore(STORE_ADMIN_USERS, { keyPath: 'id' });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -303,7 +333,7 @@ async function getDiaryByDate(userId: string, dateStr: string): Promise<LocalDia
 
 export async function clearLocalForUser(userId: string): Promise<void> {
   const db = await openDb();
-  const tx = db.transaction([STORE_DIARIES, STORE_META, STORE_TEAM_DAYS, STORE_USERS, STORE_PERMISSIONS], 'readwrite');
+  const tx = db.transaction([STORE_DIARIES, STORE_META, STORE_TEAM_DAYS, STORE_USERS, STORE_PERMISSIONS, STORE_ANNOUNCEMENTS, STORE_ADMIN_USERS], 'readwrite');
   const diaryStore = tx.objectStore(STORE_DIARIES);
   const diaryIdx = diaryStore.index('by_user_date');
   const range = IDBKeyRange.bound([userId, '0000-01-01'], [userId, '9999-12-31']);
@@ -317,6 +347,8 @@ export async function clearLocalForUser(userId: string): Promise<void> {
   tx.objectStore(STORE_TEAM_DAYS).clear();
   tx.objectStore(STORE_USERS).clear();
   tx.objectStore(STORE_PERMISSIONS).clear();
+  tx.objectStore(STORE_ANNOUNCEMENTS).clear();
+  tx.objectStore(STORE_ADMIN_USERS).clear();
   await txDone(tx);
 }
 
@@ -388,18 +420,22 @@ export async function ensureBootstrap(force = false): Promise<void> {
   const privacyVerifier = await encryptTextForUser(payload.user.id, PRIVACY_VERIFIER_TEXT);
 
   const db = await openDb();
-  const tx = db.transaction([STORE_DIARIES, STORE_META, STORE_TEAM_DAYS, STORE_USERS, STORE_PERMISSIONS], 'readwrite');
+  const tx = db.transaction([STORE_DIARIES, STORE_META, STORE_TEAM_DAYS, STORE_USERS, STORE_PERMISSIONS, STORE_ANNOUNCEMENTS, STORE_ADMIN_USERS], 'readwrite');
   const diaryStore = tx.objectStore(STORE_DIARIES);
   const teamStore = tx.objectStore(STORE_TEAM_DAYS);
   const metaStore = tx.objectStore(STORE_META);
   const userStore = tx.objectStore(STORE_USERS);
   const permStore = tx.objectStore(STORE_PERMISSIONS);
+  const announcementStore = tx.objectStore(STORE_ANNOUNCEMENTS);
+  const adminUserStore = tx.objectStore(STORE_ADMIN_USERS);
 
   if (currentSession && currentSession.id !== payload.user.id) {
     diaryStore.clear();
     teamStore.clear();
     userStore.clear();
     permStore.clear();
+    announcementStore.clear();
+    adminUserStore.clear();
   }
 
   for (const row of existingRows) {
@@ -422,9 +458,22 @@ export async function ensureBootstrap(force = false): Promise<void> {
     userStore.put(u);
   }
 
+  adminUserStore.clear();
+  for (const u of payload.adminUsers ?? payload.users) {
+    adminUserStore.put(u);
+  }
+
   permStore.clear();
   for (const p of payload.permissions) {
     permStore.put(p);
+  }
+
+  announcementStore.clear();
+  for (const announcement of payload.announcements ?? []) {
+    announcementStore.put({
+      ...announcement,
+      readUserIds: Array.isArray(announcement.readUserIds) ? announcement.readUserIds : [],
+    } satisfies LocalAnnouncement);
   }
 
   metaStore.put({ key: 'sessionUser', value: payload.user } satisfies MetaRecord);
@@ -448,6 +497,110 @@ export async function refreshLocalData(): Promise<LocalRefreshResult> {
   } finally {
     refreshPromise = null;
   }
+}
+
+function sortAnnouncements(rows: LocalAnnouncement[]): LocalAnnouncement[] {
+  return [...rows].sort((a, b) => {
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    if (a.publishedAt !== b.publishedAt) return a.publishedAt < b.publishedAt ? 1 : -1;
+    if (a.updatedAt !== b.updatedAt) return a.updatedAt < b.updatedAt ? 1 : -1;
+    return b.id.localeCompare(a.id);
+  });
+}
+
+export async function getAnnouncementsLocal(summaryOnly = false) {
+  const sessionUser = await requireLocalSessionUser<{ id: string }>();
+  const db = await openDb();
+  const tx = db.transaction(STORE_ANNOUNCEMENTS, 'readonly');
+  const rows = (await requestResult(tx.objectStore(STORE_ANNOUNCEMENTS).getAll())) as LocalAnnouncement[];
+  await txDone(tx);
+  const announcements = sortAnnouncements(rows).map((announcement) => {
+    const readAt = announcement.readUserIds.includes(sessionUser.id) ? announcement.updatedAt : null;
+    return {
+      ...announcement,
+      readAt,
+      unread: !announcement.readUserIds.includes(sessionUser.id),
+    };
+  });
+  const unreadCount = announcements.filter((announcement) => announcement.unread).length;
+  return summaryOnly ? { unreadCount, announcements: [] } : { unreadCount, announcements };
+}
+
+export async function markAnnouncementReadLocal(announcementId: string): Promise<void> {
+  const sessionUser = await requireLocalSessionUser<{ id: string }>();
+  const db = await openDb();
+  const tx = db.transaction(STORE_ANNOUNCEMENTS, 'readwrite');
+  const store = tx.objectStore(STORE_ANNOUNCEMENTS);
+  const row = (await requestResult(store.get(announcementId))) as LocalAnnouncement | undefined;
+  if (row && !row.readUserIds.includes(sessionUser.id)) {
+    store.put({ ...row, readUserIds: [...row.readUserIds, sessionUser.id] } satisfies LocalAnnouncement);
+  }
+  await txDone(tx);
+}
+
+export async function markAllAnnouncementsReadLocal(): Promise<void> {
+  const sessionUser = await requireLocalSessionUser<{ id: string }>();
+  const db = await openDb();
+  const tx = db.transaction(STORE_ANNOUNCEMENTS, 'readwrite');
+  const store = tx.objectStore(STORE_ANNOUNCEMENTS);
+  const rows = (await requestResult(store.getAll())) as LocalAnnouncement[];
+  for (const row of rows) {
+    if (row.readUserIds.includes(sessionUser.id)) continue;
+    store.put({ ...row, readUserIds: [...row.readUserIds, sessionUser.id] } satisfies LocalAnnouncement);
+  }
+  await txDone(tx);
+}
+
+function toAdminUser(row: LocalAdminUser) {
+  return {
+    id: row.id,
+    username: row.username,
+    role: row.role as 'ADMIN' | 'USER',
+    initial: row.username.charAt(0).toUpperCase(),
+    createdDate: row.createdAt.split('T')[0],
+  };
+}
+
+export async function getAdminPageDataLocal() {
+  const sessionUser = await requireLocalSessionUser<{ id: string; role: string }>();
+  if (sessionUser.role !== 'ADMIN') throw new Error('Forbidden');
+  const db = await openDb();
+  const tx = db.transaction(STORE_ADMIN_USERS, 'readonly');
+  const rows = (await requestResult(tx.objectStore(STORE_ADMIN_USERS).getAll())) as LocalAdminUser[];
+  await txDone(tx);
+  const users = rows
+    .map(toAdminUser)
+    .sort((a, b) => {
+      if (a.createdDate !== b.createdDate) return a.createdDate < b.createdDate ? 1 : -1;
+      return a.username.localeCompare(b.username);
+    });
+  return {
+    currentUserId: sessionUser.id,
+    users,
+    totalCount: users.length,
+    adminCount: users.filter((user) => user.role === 'ADMIN').length,
+    userCount: users.filter((user) => user.role === 'USER').length,
+  };
+}
+
+export async function getAdminAnnouncementsLocal() {
+  const sessionUser = await requireLocalSessionUser<{ id: string; role: string }>();
+  if (sessionUser.role !== 'ADMIN') throw new Error('Forbidden');
+  const db = await openDb();
+  const tx = db.transaction(STORE_ANNOUNCEMENTS, 'readonly');
+  const rows = (await requestResult(tx.objectStore(STORE_ANNOUNCEMENTS).getAll())) as LocalAnnouncement[];
+  await txDone(tx);
+  const announcements = sortAnnouncements(rows).map((announcement) => ({
+    ...announcement,
+    unread: !announcement.readUserIds.includes(sessionUser.id),
+    readAt: announcement.readUserIds.includes(sessionUser.id) ? announcement.updatedAt : null,
+    readCount: announcement.readUserIds.length,
+  }));
+  return {
+    unreadCount: announcements.filter((announcement) => announcement.unread).length,
+    announcements,
+    canManage: true,
+  };
 }
 
 export async function getDiaryPageData(): Promise<{
@@ -483,6 +636,92 @@ export async function getDiaryPageData(): Promise<{
     todayWeekday: weekday,
     existingDiary: today ? { id: today.localId, content: today.content } : null,
     previousDiaries,
+  };
+}
+
+export async function getDayPageDataLocal(dateStr: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) throw new Error('Invalid date');
+  const sessionUser = await requireLocalSessionUser<{ id: string; username: string; role: string }>();
+  const db = await openDb();
+  const tx = db.transaction([STORE_USERS, STORE_TEAM_DAYS, STORE_PERMISSIONS], 'readonly');
+  const allUsers = (await requestResult(tx.objectStore(STORE_USERS).getAll())) as Array<{
+    id: string;
+    username: string;
+    role: string;
+    createdAt: string;
+  }>;
+  const teamRows = (await requestResult(tx.objectStore(STORE_TEAM_DAYS).getAll())) as TeamDiaryDay[];
+  const allPerms = (await requestResult(tx.objectStore(STORE_PERMISSIONS).getAll())) as StoredPermission[];
+  await txDone(tx);
+
+  const users = sessionUser.role === 'USER' && !allUsers.some((user) => user.id === sessionUser.id)
+    ? [...allUsers, { id: sessionUser.id, username: sessionUser.username, role: sessionUser.role, createdAt: '' }]
+    : allUsers;
+  const userRows = users
+    .filter((user) => user.role === 'USER')
+    .sort((a, b) => {
+      if (a.id === sessionUser.id) return -1;
+      if (b.id === sessionUser.id) return 1;
+      if (a.username !== b.username) return a.username < b.username ? -1 : 1;
+      return a.id < b.id ? -1 : 1;
+    });
+
+  const wroteUserIds = new Set(teamRows.filter((row) => row.dateStr === dateStr).map((row) => row.userId));
+  const myDiary = await getDiaryByDate(sessionUser.id, dateStr);
+  if (myDiary) wroteUserIds.add(sessionUser.id);
+  const approvedTargetIds = new Set(
+    allPerms
+      .filter((permission) => permission.requesterId === sessionUser.id && permission.status === 'APPROVED')
+      .map((permission) => permission.targetId),
+  );
+  const canViewDiary = (userId: string) =>
+    sessionUser.role === 'ADMIN' || userId === sessionUser.id || approvedTargetIds.has(userId);
+  const toInitial = (username: string) => username.charAt(0).toUpperCase();
+
+  const wroteUsers = userRows
+    .filter((user) => wroteUserIds.has(user.id))
+    .map((user) => {
+      const isCurrentUser = user.id === sessionUser.id;
+      const visible = canViewDiary(user.id);
+      const contentAvailable = Boolean(isCurrentUser && myDiary);
+      return {
+        id: isCurrentUser && myDiary ? myDiary.localId : `${user.id}:${dateStr}`,
+        userId: user.id,
+        authorName: user.username,
+        authorInitial: toInitial(user.username),
+        updatedDate: isCurrentUser && myDiary ? myDiary.updatedAt.split('T')[0] : dateStr,
+        visible,
+        isCurrentUser,
+        contentAvailable,
+        content: contentAvailable ? myDiary?.content ?? '' : '',
+      };
+    });
+
+  const notWroteUsers = userRows
+    .filter((user) => !wroteUserIds.has(user.id))
+    .map((user) => ({
+      id: user.id,
+      userId: user.id,
+      authorName: user.username,
+      authorInitial: toInitial(user.username),
+      isCurrentUser: user.id === sessionUser.id,
+    }));
+
+  const dateObj = new Date(`${dateStr}T00:00:00Z`);
+  const [year, month, day] = dateStr.split('-').map((v) => parseInt(v, 10));
+  const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+  return {
+    dateStr,
+    year,
+    month,
+    day,
+    weekday: weekdays[dateObj.getUTCDay()],
+    wroteCount: wroteUsers.length,
+    notWroteCount: notWroteUsers.length,
+    totalUsers: userRows.length,
+    wroteUsers,
+    notWroteUsers,
+    localOnly: true,
   };
 }
 

@@ -1440,7 +1440,14 @@ if (user.role === 'ADMIN') {
 </style>
 
 <script>
-  import { getLocalPrivacyUnlockUrl, isLocalPrivacyKeyMissing, refreshLocalData } from '../lib/localFirst';
+  import {
+    getAnnouncementsLocal,
+    getLocalPrivacyUnlockUrl,
+    isLocalPrivacyKeyMissing,
+    markAllAnnouncementsReadLocal,
+    markAnnouncementReadLocal,
+    refreshLocalData,
+  } from '../lib/localFirst';
   import { clearLocalPrivacyKey } from '../lib/localCrypto';
   import { marked } from 'marked';
 
@@ -1459,6 +1466,7 @@ if (user.role === 'ADMIN') {
   type AnnouncementPayload = {
     unreadCount: number;
     announcements: AnnouncementItem[];
+    canManage?: boolean;
   };
 
   type AnnouncementState = {
@@ -1750,20 +1758,48 @@ if (user.role === 'ADMIN') {
     if (!summaryOnly) announcementState.loading = true;
 
     try {
-      const res = await fetch(`/api/announcements${summaryOnly ? '?summary=1' : ''}`, { credentials: 'same-origin' });
-      if (!res.ok) throw new Error('announcements failed');
-      const data = (await res.json()) as AnnouncementPayload;
-      setAnnouncementDot(data.unreadCount);
+      const localData = (await getAnnouncementsLocal(summaryOnly)) as AnnouncementPayload;
+      setAnnouncementDot(localData.unreadCount);
       if (!summaryOnly) {
-        announcementState.payload = data;
+        announcementState.payload = localData;
         renderAnnouncements();
       }
-      return data;
+      fetch(`/api/announcements${summaryOnly ? '?summary=1' : ''}`, { credentials: 'same-origin' })
+        .then((res) => {
+          if (!res.ok) throw new Error('announcements failed');
+          return res.json() as Promise<AnnouncementPayload>;
+        })
+        .then((serverData) => {
+          setAnnouncementDot(serverData.unreadCount);
+          if (!summaryOnly) {
+            announcementState.payload = serverData;
+            renderAnnouncements();
+          }
+        })
+        .catch((error) => console.error(error));
+      return localData;
     } catch (error) {
+      if (isLocalPrivacyKeyMissing(error)) {
+        window.location.assign(getLocalPrivacyUnlockUrl());
+        return null;
+      }
       console.error(error);
-      if (!summaryOnly) renderAnnouncementError();
-      if (summaryOnly) setAnnouncementDot(0);
-      return null;
+      try {
+        const res = await fetch(`/api/announcements${summaryOnly ? '?summary=1' : ''}`, { credentials: 'same-origin' });
+        if (!res.ok) throw new Error('announcements failed');
+        const data = (await res.json()) as AnnouncementPayload;
+        setAnnouncementDot(data.unreadCount);
+        if (!summaryOnly) {
+          announcementState.payload = data;
+          renderAnnouncements();
+        }
+        return data;
+      } catch (serverError) {
+        console.error(serverError);
+        if (!summaryOnly) renderAnnouncementError();
+        if (summaryOnly) setAnnouncementDot(0);
+        return null;
+      }
     } finally {
       if (!summaryOnly) announcementState.loading = false;
     }
@@ -1782,6 +1818,8 @@ if (user.role === 'ADMIN') {
   }
 
   async function postAnnouncementAction(action: 'mark-read' | 'mark-all-read', announcementId?: string): Promise<void> {
+    if (action === 'mark-read' && announcementId) await markAnnouncementReadLocal(announcementId).catch(() => {});
+    if (action === 'mark-all-read') await markAllAnnouncementsReadLocal().catch(() => {});
     const res = await fetch('/api/announcements', {
       method: 'POST',
       credentials: 'same-origin',
@@ -1794,8 +1832,10 @@ if (user.role === 'ADMIN') {
     announcementState.payload = {
       unreadCount: data.unreadCount,
       announcements: data.announcements,
+      canManage: data.canManage,
     };
     renderAnnouncements();
+    refreshLocalData().catch((error) => console.error(error));
     window.dispatchEvent(new CustomEvent('our-diary:announcements-changed'));
   }
 
