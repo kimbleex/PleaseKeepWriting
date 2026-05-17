@@ -308,7 +308,7 @@ import Layout from '../layouts/Layout.astro';
     @media (max-width: 920px) {
       html:has(.admin-page), body:has(.admin-page) { height: auto; overflow-y: auto; }
       main.container:has(.admin-page) { height: auto; overflow: visible; padding: clamp(.62rem, 1.4svh, .9rem) !important; }
-      .admin-page { height: auto; display: flex; }
+      .admin-page { height: auto; display: flex; flex-direction: column; }
       .admin-toolbar, .panel-head.split, .sub-panel-head.split { align-items: flex-start; flex-direction: column; }
       .member-dashboard, .announcement-dashboard, .form-grid, .announcement-form { grid-template-columns: 1fr; height: auto; overflow: visible; }
       .inline-fields { grid-template-columns: 1fr; }
@@ -322,6 +322,44 @@ import Layout from '../layouts/Layout.astro';
       .config-head-actions .mini-tab { flex: 1; }
       .announcement-config, .announcement-body-panel, .config-fields, .body-editor-wrap { overflow: visible; }
       .field textarea { min-height: 240px; }
+    }
+    @media (max-width: 560px) {
+      main.container:has(.admin-page) { padding: .78rem !important; }
+      .admin-toolbar { border-radius: 12px; }
+      .admin-toolbar h1 { font-size: 1.15rem; }
+      .admin-kicker { font-size: .68rem; }
+      .admin-tabs { display: grid; grid-template-columns: 1fr 1fr; }
+      .admin-tab { min-width: 0; min-height: 34px; padding: .48rem .38rem; font-size: .76rem; }
+      .panel-head, .sub-panel-head { padding: .78rem; }
+      .panel-icon { width: 34px; height: 34px; border-radius: 10px; }
+      .stack-form, .config-fields, .body-editor-wrap { padding: .78rem; }
+      .admin-card { min-height: auto; border-radius: 12px; }
+      .list-card, .announcement-config, .announcement-body-panel { min-height: 360px; }
+      .panel-head h2, .sub-panel-head h3 { font-size: .92rem; }
+      .panel-head p, .sub-panel-head p { font-size: .7rem; }
+      .field { font-size: .72rem; }
+      .field input, .field textarea { border-radius: 10px; padding: .6rem .7rem; font-size: .86rem; }
+      .field textarea { min-height: 210px; }
+      .check-field { min-height: 38px; padding: .58rem .68rem; font-size: .78rem; }
+      .primary-btn { min-height: 38px; padding: .58rem .82rem; font-size: .84rem; }
+      .stat-strip { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: .38rem; }
+      .stat-strip div { min-width: 0; }
+      .stat-strip strong { font-size: 1.05rem; }
+      .stat-strip span { font-size: .62rem; }
+      .admin-list, .announcement-list { padding: .68rem; }
+      .member-row, .announcement-item { grid-template-columns: auto minmax(0,1fr); align-items: start; gap: .58rem; }
+      .member-avatar { width: 34px; height: 34px; border-radius: 10px; }
+      .member-name, .announcement-title { font-size: .86rem; }
+      .member-meta, .announcement-meta, .announcement-summary { font-size: .7rem; }
+      .member-row .announcement-actions,
+      .announcement-item .announcement-actions { grid-column: 1 / -1; width: 100%; justify-content: flex-end; }
+      .announcement-actions { flex-wrap: wrap; }
+      .admin-pagination { justify-content: space-between; }
+      .page-info { min-width: 68px; }
+      .page-btn { min-height: 30px; padding: .3rem .52rem; font-size: .7rem; }
+      .modal-overlay { padding: 1rem; }
+      .modal-box { width: 100%; }
+      .modal-actions { grid-template-columns: 1fr; }
     }
   </style>
 

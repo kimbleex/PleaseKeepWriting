@@ -456,19 +456,92 @@ import Layout from "../layouts/Layout.astro";
       }
     }
     @media (max-width: 860px) {
+      body:has(.permissions-wrap) {
+        height: auto;
+        overflow-y: auto;
+      }
+      .main-content:has(.permissions-wrap) {
+        height: auto;
+        min-height: 0;
+        overflow: visible;
+        display: block;
+        padding: 0.78rem !important;
+      }
+      .permissions-wrap {
+        height: auto;
+      }
       .permissions-grid {
         grid-template-columns: 1fr;
-        grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+        grid-template-rows: none;
+        height: auto;
+      }
+      .permissions-card {
+        min-height: auto;
+        padding: 1rem;
+        border-radius: 16px;
+      }
+      .permissions-list {
+        overflow: visible;
+      }
+      .list-pagination {
+        margin-right: -1rem;
+        margin-bottom: -1rem;
+        margin-left: -1rem;
+        padding-right: 1rem;
+        padding-left: 1rem;
       }
     }
     @media (max-width: 520px) {
+      .permissions-card-header {
+        align-items: flex-start;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.75rem;
+      }
+      .permissions-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+      }
+      .permissions-title {
+        font-size: 0.92rem;
+      }
+      .permissions-sub {
+        font-size: 0.7rem;
+      }
       .permission-row {
         align-items: flex-start;
         flex-direction: column;
+        padding: 0.58rem 0.7rem;
       }
       .permission-actions {
         width: 100%;
         justify-content: flex-end;
+      }
+      .permission-link,
+      .revoke-btn,
+      .permission-badge {
+        min-height: 34px;
+        padding: 0.3rem 0.58rem;
+        font-size: 0.74rem;
+      }
+      .permission-avatar {
+        width: 34px;
+        height: 34px;
+        font-size: 0.82rem;
+      }
+      .permission-name {
+        font-size: 0.86rem;
+      }
+      .permission-meta {
+        font-size: 0.68rem;
+      }
+      .list-pagination {
+        justify-content: space-between;
+        gap: 0.32rem;
+      }
+      .page-info {
+        min-width: 76px;
+        font-size: 0.7rem;
       }
     }
     @media (max-height: 760px) {
@@ -597,6 +670,8 @@ import Layout from "../layouts/Layout.astro";
     rowSelector: string,
     currentPageSize: number,
   ): number {
+    if (window.innerWidth <= 860) return 8;
+
     const list = document.getElementById(listId);
     const firstRow = list?.querySelector<HTMLElement>(rowSelector);
     if (!list || !firstRow) return currentPageSize;

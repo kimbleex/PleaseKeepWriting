@@ -45,6 +45,37 @@ const passwordChanged = Astro.url.searchParams.get('passwordChanged') === '1';
         border-color: rgba(16, 185, 129, 0.2);
         color: #047857;
       }
+      @media (max-width: 520px) {
+        .login-container {
+          min-height: 100dvh;
+          align-items: flex-start;
+          padding: calc(env(safe-area-inset-top) + 1.25rem) 0.85rem calc(env(safe-area-inset-bottom) + 1rem);
+        }
+        .login-box {
+          max-width: 360px;
+        }
+        .login-box h1 {
+          margin-bottom: 1.25rem;
+          font-size: 1.55rem;
+        }
+        .login-note {
+          padding: 0.68rem 0.78rem;
+          margin-bottom: 1rem;
+          font-size: 0.82rem;
+        }
+        .login-box .input-group {
+          margin-bottom: 1rem;
+        }
+        .login-box .input-control {
+          min-height: 42px;
+          padding: 0.62rem 0.78rem;
+        }
+        .login-box .btn {
+          min-height: 42px;
+          padding: 0.62rem 1rem;
+          font-size: 0.95rem;
+        }
+      }
     </style>
   </head>
   <body>

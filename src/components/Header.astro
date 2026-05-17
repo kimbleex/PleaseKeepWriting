@@ -1392,7 +1392,33 @@ if (user.role === 'ADMIN') {
   @media (max-width: 760px) {
     .logo-text { display: none; }
     .nav-label { display: none; }
-    .nav-pill { padding: 0.45rem; }
+    .container.header-inner {
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .logo { order: 1; }
+    .user-area { order: 2; margin-left: auto; }
+    .nav-pills {
+      order: 3;
+      flex: 0 0 100%;
+      width: 100%;
+      overflow-x: auto;
+      padding: 0.12rem 0 0.04rem;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .nav-pills::-webkit-scrollbar { display: none; }
+    .nav-pill {
+      min-width: 38px;
+      min-height: 36px;
+      flex: 0 0 auto;
+      justify-content: center;
+      padding: 0.45rem;
+    }
+    .nav-alert-dot {
+      top: 0.28rem;
+      right: 0.34rem;
+    }
     .announcement-btn { width: 34px; padding: 0; justify-content: center; }
     .announcement-label { display: none; }
     .home-sync-btn { width: 34px; padding: 0; justify-content: center; }
@@ -1404,6 +1430,10 @@ if (user.role === 'ADMIN') {
     .password-dialog { border-radius: 15px; }
     .password-dialog-hero,
     .password-form { padding: 1rem; }
+    .password-hero-icon { width: 38px; height: 38px; border-radius: 11px; }
+    .password-dialog-hero { grid-template-columns: 38px minmax(0, 1fr) 34px; gap: 0.65rem; }
+    .password-dialog h2 { font-size: 1.05rem; }
+    .password-field input { min-height: 40px; font-size: 16px; }
     .password-actions { flex-direction: column-reverse; }
     .password-secondary,
     .password-primary { width: 100%; }
@@ -1411,11 +1441,14 @@ if (user.role === 'ADMIN') {
     .announcement-overlay { padding: 0.75rem; align-items: stretch; }
     .announcement-dialog { height: calc(100dvh - 1.5rem); border-radius: 14px; }
     .announcement-head { padding: 0.9rem; }
+    .announcement-head h2 { font-size: 1.05rem; }
     .announcement-shell { grid-template-columns: 1fr; grid-template-rows: 190px minmax(0, 1fr); }
     .announcement-list { border-right: 0; border-bottom: 1px solid rgba(15, 23, 42, 0.08); }
     .announcement-detail { padding: 0.8rem; }
     .announcement-detail-card { padding: 1rem; border-radius: 10px; }
     .announcement-detail-top { flex-direction: column; }
+    .announcement-detail-title { font-size: 1.08rem; }
+    .announcement-markdown { font-size: 0.88rem; line-height: 1.65; }
   }
 
   @media (max-width: 430px) {
@@ -1426,7 +1459,7 @@ if (user.role === 'ADMIN') {
 
     .header-inner { gap: 0.35rem; }
     .nav-pills { gap: 0.08rem; }
-    .nav-pill { padding: 0.34rem; }
+    .nav-pill { min-width: 34px; min-height: 34px; padding: 0.34rem; }
     .user-area { gap: 0.28rem; }
     .announcement-btn,
     .home-sync-btn,
@@ -1436,6 +1469,14 @@ if (user.role === 'ADMIN') {
     .user-chip { padding: 0.22rem 0.26rem; }
     .user-avatar-sm { width: 24px; height: 24px; }
     .user-chevron { display: none; }
+    .announcement-dialog { height: calc(100dvh - 1rem); }
+    .announcement-shell { grid-template-rows: 168px minmax(0, 1fr); }
+    .announcement-head { gap: 0.6rem; }
+    .announcement-mark-all { padding: 0 0.58rem; }
+    .announcement-list { padding: 0.58rem; }
+    .announcement-list-item { padding: 0.62rem; margin-bottom: 0.38rem; }
+    .announcement-page-btn { min-height: 30px; padding: 0.3rem 0.5rem; font-size: 0.7rem; }
+    .announcement-page-info { font-size: 0.7rem; }
   }
 </style>
 

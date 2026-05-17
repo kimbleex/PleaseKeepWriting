@@ -538,6 +538,101 @@ if (!targetUserId) {
         grid-template-columns: 1fr auto;
       }
     }
+    @media (max-width: 520px) {
+      main.container:has(.user-diary-page) {
+        padding: 0.78rem !important;
+      }
+
+      .member-diary-head {
+        padding: 0.78rem;
+      }
+
+      .member-title-block h1 {
+        font-size: 0.92rem;
+      }
+
+      .member-title-block p,
+      .date-message {
+        font-size: 0.7rem;
+      }
+
+      .member-diary-tools,
+      .date-picker {
+        width: 100%;
+      }
+
+      .date-picker {
+        justify-content: space-between;
+      }
+
+      .date-picker input {
+        width: min(148px, 52vw);
+      }
+
+      .tool-btn {
+        flex: 1;
+        min-height: 30px;
+        padding: 0.3rem 0.52rem;
+        font-size: 0.7rem;
+      }
+
+      .member-diary-list {
+        padding: 0.72rem;
+      }
+
+      .member-diary-card {
+        grid-template-columns: 1fr;
+        gap: 0.58rem;
+      }
+
+      .diary-title-line {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.28rem;
+      }
+
+      .diary-title {
+        font-size: 0.82rem;
+      }
+
+      .diary-count {
+        font-size: 0.62rem;
+      }
+
+      .diary-excerpt {
+        font-size: 0.76rem;
+      }
+
+      .diary-view-btn {
+        width: 100%;
+        min-height: 36px;
+        font-size: 0.72rem;
+      }
+
+      .member-diary-pagination {
+        justify-content: space-between;
+      }
+
+      .page-info {
+        min-width: 76px;
+        font-size: 0.7rem;
+      }
+
+      .diary-modal {
+        padding: 0.75rem;
+      }
+
+      .diary-modal-panel {
+        width: 100%;
+        max-height: calc(100svh - 1.5rem);
+      }
+
+      .diary-modal-body {
+        padding: 1rem;
+        font-size: 0.98rem;
+        line-height: 1.8;
+      }
+    }
   </style>
 
   <script>

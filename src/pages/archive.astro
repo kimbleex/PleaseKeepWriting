@@ -1250,26 +1250,97 @@ import { DIARY_AGENT_NAME } from "../lib/agent/skills/diaryAssistantSkill";
     }
 
     @media (max-width: 560px) {
+      main.container:has(.archive-agent-page) {
+        padding: 0.78rem !important;
+      }
+
       .panel-head,
       .agent-head {
         align-items: flex-start;
         flex-direction: column;
+        gap: 0.48rem;
+        padding: 0.68rem;
       }
 
       .daily-head-main {
         width: 100%;
         align-items: flex-start;
         flex-direction: column;
+        gap: 0.48rem;
       }
 
       .daily-tools {
         width: 100%;
         margin-left: 0;
+        gap: 0.28rem;
       }
 
       .sync-action,
       .clear-chat-btn {
         width: 100%;
+      }
+
+      .daily-panel,
+      .agent-panel {
+        min-height: 360px;
+      }
+
+      .panel-head h1,
+      .agent-head h2,
+      .agent-name {
+        font-size: 0.88rem;
+      }
+
+      .panel-head p,
+      .agent-head p,
+      .agent-status {
+        font-size: 0.66rem;
+      }
+
+      .filter-btn,
+      .sync-action,
+      .clear-chat-btn,
+      .composer-send-btn {
+        min-height: 28px;
+        padding: 0.28rem 0.48rem;
+        font-size: 0.7rem;
+      }
+
+      .daily-list,
+      .chat-stream {
+        padding: 0.72rem;
+      }
+
+      .daily-item {
+        grid-template-columns: auto minmax(0, 1fr) 34px;
+        gap: 0.58rem;
+        padding: 0.72rem;
+      }
+
+      .daily-title-row {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.3rem;
+      }
+
+      .daily-badge {
+        width: fit-content;
+      }
+
+      .daily-pagination {
+        justify-content: space-between;
+      }
+
+      .page-info {
+        min-width: 64px;
+        font-size: 0.7rem;
+      }
+
+      .page-btn,
+      .daily-view-btn {
+        min-height: 30px;
+        padding: 0.3rem 0.52rem;
+        font-size: 0.7rem;
       }
 
       .agent-composer {
@@ -1283,6 +1354,16 @@ import { DIARY_AGENT_NAME } from "../lib/agent/skills/diaryAssistantSkill";
 
       .chat-row {
         max-width: 100%;
+      }
+
+      .agent-empty {
+        align-items: stretch;
+        flex-direction: column;
+        width: 100%;
+      }
+
+      .agent-empty span {
+        text-align: center;
       }
 
       .daily-modal {

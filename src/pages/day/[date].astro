@@ -794,12 +794,72 @@ if (!validDate) {
     }
 
     @media (max-width: 560px) {
+      main.container:has(.day-page) {
+        padding: 0.78rem !important;
+      }
+
       .day-topbar {
         border-radius: 12px;
+        padding: 0.78rem;
+        gap: 0.62rem;
+      }
+
+      .back-link {
+        font-size: 0.78rem;
+      }
+
+      .day-title-block h1 {
+        font-size: 0.98rem;
+        white-space: normal;
+      }
+
+      .day-title-block p {
+        font-size: 0.68rem;
+      }
+
+      .stat-chip {
+        min-height: 28px;
+        padding: 0.28rem 0.46rem;
+        font-size: 0.7rem;
+      }
+
+      .member-panel {
+        min-height: auto;
+      }
+
+      .panel-head {
+        padding: 0.72rem;
+      }
+
+      .panel-icon {
+        width: 31px;
+        height: 31px;
+      }
+
+      .panel-head h2 {
+        font-size: 0.9rem;
+      }
+
+      .panel-head p {
+        font-size: 0.7rem;
+      }
+
+      .member-list {
+        padding: 0.68rem;
       }
 
       .member-row {
         grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 0.54rem;
+        padding: 0.65rem;
+      }
+
+      .member-avatar,
+      .modal-avatar {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        font-size: 0.86rem;
       }
 
       .member-title-row {
@@ -808,21 +868,59 @@ if (!validDate) {
         gap: 0.28rem;
       }
 
+      .member-name {
+        font-size: 0.86rem;
+      }
+
+      .member-badge {
+        min-height: 18px;
+        padding: 0.16rem 0.42rem;
+        font-size: 0.62rem;
+      }
+
+      .member-meta {
+        font-size: 0.68rem;
+      }
+
+      .member-action {
+        width: 34px;
+        height: 34px;
+      }
+
       .member-pagination {
         justify-content: space-between;
+        min-height: 46px;
+        padding: 0.42rem 0.6rem;
       }
 
       .page-info {
         min-width: 70px;
+        font-size: 0.7rem;
+      }
+
+      .page-btn {
+        min-height: 30px;
+        padding: 0.3rem 0.52rem;
+        font-size: 0.7rem;
       }
 
       .day-modal {
-        padding: 1rem;
+        padding: 0.75rem;
       }
 
       .day-modal-panel {
         width: 100%;
-        max-height: calc(100svh - 2rem);
+        max-height: calc(100svh - 1.5rem);
+      }
+
+      .day-modal-head {
+        padding: 0.78rem;
+      }
+
+      .day-modal-body {
+        padding: 1rem;
+        font-size: 0.96rem;
+        line-height: 1.78;
       }
     }
   </style>

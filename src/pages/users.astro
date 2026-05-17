@@ -211,9 +211,40 @@ import Layout from "../layouts/Layout.astro";
       min-height: 0;
     }
     @media (max-width: 800px) {
+      body:has(.users-wrap) {
+        height: auto;
+        overflow-y: auto;
+      }
+      .main-content:has(.users-wrap) {
+        height: auto;
+        min-height: 0;
+        overflow: visible;
+        display: block;
+        padding: 0.78rem !important;
+      }
+      .users-wrap {
+        height: auto;
+      }
       .users-grid {
         grid-template-columns: 1fr;
-        grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+        grid-template-rows: none;
+        height: auto;
+      }
+      .users-wrap .card {
+        min-height: auto;
+        padding: 1rem;
+        border-radius: 16px;
+      }
+      .user-list,
+      .request-list {
+        overflow: visible;
+      }
+      .list-pagination {
+        margin-right: -1rem;
+        margin-bottom: -1rem;
+        margin-left: -1rem;
+        padding-right: 1rem;
+        padding-left: 1rem;
       }
     }
     .users-wrap .card {
@@ -671,6 +702,118 @@ import Layout from "../layouts/Layout.astro";
       to {
         opacity: 1;
         transform: translateY(0);
+      }
+    }
+    @media (max-width: 800px) {
+      .users-wrap .card {
+        min-height: auto;
+        padding: 1rem;
+        border-radius: 16px;
+      }
+      .user-list,
+      .request-list {
+        overflow: visible;
+      }
+      .list-pagination {
+        margin-right: -1rem;
+        margin-bottom: -1rem;
+        margin-left: -1rem;
+        padding-right: 1rem;
+        padding-left: 1rem;
+      }
+    }
+    @media (max-width: 520px) {
+      .card-header {
+        align-items: flex-start;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.75rem;
+      }
+      .card-header[style] {
+        gap: 0.75rem !important;
+      }
+      .card-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+      }
+      .card-title {
+        font-size: 0.92rem;
+      }
+      .card-sub {
+        font-size: 0.7rem;
+      }
+      .notif-badge {
+        max-width: 100%;
+        padding: 0.4rem 0.65rem;
+        font-size: 0.76rem;
+      }
+      .user-row,
+      .request-row {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      .user-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 0.52rem;
+      }
+      .user-row .user-left {
+        display: contents;
+      }
+      .user-row .user-info-box {
+        min-width: 0;
+      }
+      .user-action,
+      .request-actions {
+        width: 100%;
+        justify-content: flex-end;
+      }
+      .user-action {
+        width: auto;
+      }
+      .action-btn,
+      .action-badge {
+        min-height: 34px;
+        padding: 0.28rem 0.62rem;
+        font-size: 0.74rem;
+      }
+      .user-avatar,
+      .request-avatar {
+        width: 32px;
+        height: 32px;
+        font-size: 0.8rem;
+      }
+      .user-name,
+      .request-name {
+        font-size: 0.84rem;
+      }
+      .request-desc {
+        font-size: 0.7rem;
+      }
+      .member-number-tag,
+      .self-tag,
+      .admin-tag {
+        font-size: 0.58rem;
+        padding: 0.08rem 0.32rem;
+      }
+      .request-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+      .act-btn {
+        justify-content: center;
+        min-height: 34px;
+        padding: 0.32rem 0.55rem;
+        font-size: 0.74rem;
+      }
+      .list-pagination {
+        justify-content: space-between;
+        gap: 0.32rem;
+      }
+      .page-info {
+        min-width: 76px;
+        font-size: 0.7rem;
       }
     }
     @media (max-height: 760px) {

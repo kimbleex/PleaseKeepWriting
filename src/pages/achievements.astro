@@ -889,6 +889,114 @@ import Layout from "../layouts/Layout.astro";
         width: 100%;
       }
     }
+
+    @media (max-width: 560px) {
+      main.container:has(.achievements-page) {
+        padding: 0.78rem !important;
+      }
+
+      .panel-head {
+        align-items: flex-start;
+        padding: 0.78rem;
+      }
+
+      .panel-head h2 {
+        font-size: 0.92rem;
+      }
+
+      .panel-head p {
+        font-size: 0.7rem;
+      }
+
+      .catalog-btn {
+        height: 34px;
+        width: auto;
+        min-width: 40px;
+        padding: 0 0.65rem;
+        font-size: 0.76rem;
+      }
+
+      .score-chip {
+        min-width: 58px;
+        height: 32px;
+        padding: 0 0.62rem;
+        font-size: 0.74rem;
+      }
+
+      .achievement-section,
+      .achievement-dialog-body {
+        padding: 0.78rem;
+      }
+
+      .achievement-card,
+      .catalog-item {
+        grid-template-columns: 1fr;
+        gap: 0.58rem;
+      }
+
+      .cartoon-badge {
+        width: 100%;
+        min-height: 88px;
+        justify-items: start;
+      }
+
+      .badge-level {
+        left: 43px;
+        transform: translateX(-50%);
+      }
+
+      .rank-row {
+        grid-template-columns: 30px 34px minmax(0, 1fr) 44px 34px;
+        gap: 0.45rem;
+        padding: 0.55rem;
+      }
+
+      .view-achievements-btn {
+        grid-column: auto;
+        width: 34px;
+        height: 32px;
+        padding: 0;
+      }
+
+      .view-achievements-btn span {
+        display: none;
+      }
+
+      .rank-number,
+      .rank-avatar {
+        width: 32px;
+        height: 32px;
+      }
+
+      .rank-name,
+      .achievement-title,
+      .member-modal-name {
+        font-size: 0.86rem;
+      }
+
+      .rank-points-bubble {
+        min-width: 44px;
+        height: 30px;
+        padding: 0 0.42rem;
+        font-size: 0.7rem;
+      }
+
+      .achievement-desc,
+      .achievement-detail-line,
+      .member-modal-meta {
+        font-size: 0.72rem;
+      }
+
+      .level-label,
+      .max-label,
+      .catalog-level-chip {
+        font-size: 0.62rem;
+      }
+
+      .rank-pagination {
+        gap: 0.35rem;
+      }
+    }
   </style>
 
   <script>
