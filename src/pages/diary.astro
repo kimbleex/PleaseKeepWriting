@@ -3,7 +3,13 @@ import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout title="写日记">
-  <div class="diary-layout">
+  <div class="diary-layout" data-active-tab="editor">
+    <div class="mobile-tabs-wrap">
+      <div class="mobile-tabs" aria-label="视图切换" id="diary-mobile-tabs">
+        <button type="button" class="m-tab is-active" data-mtab="editor">写日记</button>
+        <button type="button" class="m-tab" data-mtab="history">过往记录</button>
+      </div>
+    </div>
     <div class="editor-col">
       <div class="date-banner">
         <div class="date-main">
@@ -91,6 +97,10 @@ import Layout from '../layouts/Layout.astro';
     body:has(.diary-layout) { height:100svh; overflow:hidden; }
     main.container:has(.diary-layout) { height:calc(100svh - var(--diary-header-height, 82px)); padding:clamp(0.6rem,1.3vh,1rem) 2rem clamp(0.5rem,1vh,0.75rem) !important; overflow:hidden; }
     .diary-layout { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:clamp(0.8rem,1.8vh,1.5rem); height:100%; min-height:0; overflow:hidden; }
+    .mobile-tabs-wrap { display: none; grid-column: 1 / -1; margin-bottom: 0.1rem; }
+    .mobile-tabs { display: flex; background: #f1f5f9; padding: 0.25rem; border-radius: 12px; gap: 0.25rem; }
+    .m-tab { flex: 1; min-height: 36px; border: none; background: transparent; border-radius: 9px; font-size: 0.82rem; font-weight: 800; color: #64748b; cursor: pointer; transition: all 0.2s; }
+    .m-tab.is-active { background: #fff; color: #4f46e5; box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
     .editor-col { display:flex; flex-direction:column; gap:clamp(0.55rem,1.4vh,0.9rem); min-width:0; min-height:0; overflow:hidden; }
     .date-banner { display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
     .date-main { display:flex; align-items:center; gap:0.75rem; }
@@ -162,9 +172,11 @@ import Layout from '../layouts/Layout.astro';
       html:has(.diary-layout),body:has(.diary-layout){height:auto;overflow-y:auto;}
       main.container:has(.diary-layout){height:auto;overflow:visible;}
       .diary-layout{grid-template-columns:1fr;height:auto;overflow:visible;}
-      .editor-col{overflow:visible;}
+      .mobile-tabs-wrap { display: block; }
+      .editor-col, .history-col { display: none; overflow:visible; }
+      .diary-layout[data-active-tab="editor"] .editor-col { display: flex; }
+      .diary-layout[data-active-tab="history"] .history-col { display: flex; }
       .diary-textarea{min-height:300px;}
-      .history-col{overflow:visible;}
       .history-list{overflow-y:visible;}
       .diary-modal{padding:1rem;}
       .diary-modal-panel{width:100%;max-height:calc(100svh - 2rem);}
@@ -446,6 +458,19 @@ import Layout from '../layouts/Layout.astro';
       attachModalHandlers();
       loadDiaryData();
       attachFormHandler();
+      
+      const diaryTabs = document.getElementById('diary-mobile-tabs');
+      if (diaryTabs) {
+        diaryTabs.addEventListener('click', (e) => {
+          const btn = (e.target as HTMLElement).closest('.m-tab');
+          if (!btn) return;
+          const tab = btn.getAttribute('data-mtab');
+          document.querySelectorAll('#diary-mobile-tabs .m-tab').forEach(b => b.classList.remove('is-active'));
+          btn.classList.add('is-active');
+          document.querySelector('.diary-layout')?.setAttribute('data-active-tab', tab || 'editor');
+        });
+      }
+
       if (!diaryWindow.__diarySyncListenerAttached) {
         diaryWindow.__diarySyncListenerAttached = true;
         window.addEventListener('our-diary:local-sync-complete', () => {

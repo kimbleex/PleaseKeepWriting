@@ -3,10 +3,16 @@ import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout title="系统成员">
-  <div class="users-wrap">
+  <div class="users-wrap" data-active-tab="members">
+    <div class="mobile-tabs-wrap">
+      <div class="mobile-tabs" aria-label="视图切换" id="users-mobile-tabs">
+        <button type="button" class="m-tab is-active" data-mtab="members">发现成员</button>
+        <button type="button" class="m-tab" data-mtab="requests">收到的申请</button>
+      </div>
+    </div>
     <div class="users-grid">
       <!-- Members column -->
-      <div class="card">
+      <div class="card members-col">
         <div class="card-header">
           <div class="card-icon discover-icon">
             <svg
@@ -59,8 +65,10 @@ import Layout from "../layouts/Layout.astro";
         <div class="list-pagination" id="user-pagination"></div>
       </div>
 
+      </div>
+
       <!-- Incoming requests column -->
-      <div class="card">
+      <div class="card requests-col">
         <div class="card-header" style="justify-content:space-between;">
           <div style="display:flex;align-items:center;gap:0.85rem;">
             <div class="card-icon inbox-icon">
@@ -177,6 +185,10 @@ import Layout from "../layouts/Layout.astro";
       align-items: stretch;
       padding: 1rem clamp(1rem, 2vw, 1.65rem) !important;
     }
+    .mobile-tabs-wrap { display: none; grid-column: 1 / -1; margin-bottom: 0.1rem; }
+    .mobile-tabs { display: flex; background: #f1f5f9; padding: 0.25rem; border-radius: 12px; gap: 0.25rem; }
+    .m-tab { flex: 1; min-height: 36px; border: none; background: transparent; border-radius: 9px; font-size: 0.82rem; font-weight: 800; color: #64748b; cursor: pointer; transition: all 0.2s; }
+    .m-tab.is-active { background: #fff; color: #4f46e5; box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
     .notif-badge {
       display: flex;
       align-items: center;
@@ -230,8 +242,13 @@ import Layout from "../layouts/Layout.astro";
         grid-template-rows: none;
         height: auto;
       }
+      .mobile-tabs-wrap { display: block; }
+      .users-wrap .card.members-col, .users-wrap .card.requests-col { display: none; }
+      .users-wrap[data-active-tab="members"] .card.members-col { display: flex; }
+      .users-wrap[data-active-tab="requests"] .card.requests-col { display: flex; }
+      
       .users-wrap .card {
-        min-height: auto;
+        min-height: clamp(420px, 72svh, 520px);
         padding: 1rem;
         border-radius: 16px;
       }
@@ -1273,10 +1290,23 @@ import Layout from "../layouts/Layout.astro";
     }
   }
 
-  document.addEventListener("astro:page-load", () => {
-    setUsersViewportHeight();
-    void loadUsers();
-  });
+    document.addEventListener("astro:page-load", () => {
+      setUsersViewportHeight();
+      
+      const usersTabs = document.getElementById('users-mobile-tabs');
+      if (usersTabs) {
+        usersTabs.addEventListener('click', (e) => {
+          const btn = (e.target as HTMLElement).closest('.m-tab');
+          if (!btn) return;
+          const tab = btn.getAttribute('data-mtab');
+          document.querySelectorAll('#users-mobile-tabs .m-tab').forEach(b => b.classList.remove('is-active'));
+          btn.classList.add('is-active');
+          document.querySelector('.users-wrap')?.setAttribute('data-active-tab', tab || 'members');
+        });
+      }
+
+      void loadUsers();
+    });
   window.addEventListener("resize", () => {
     setUsersViewportHeight();
     renderAll();

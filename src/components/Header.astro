@@ -1393,19 +1393,21 @@ if (user.role === 'ADMIN') {
     .logo-text { display: none; }
     .nav-label { display: none; }
     .container.header-inner {
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       align-items: center;
+      gap: 0.4rem;
     }
-    .logo { order: 1; }
-    .user-area { order: 2; margin-left: auto; }
+    .logo { order: 1; flex: 0 0 auto; }
+    .user-area { order: 3; margin-left: 0; flex: 0 0 auto; }
     .nav-pills {
-      order: 3;
-      flex: 0 0 100%;
-      width: 100%;
+      order: 2;
+      flex: 1 1 auto;
+      width: auto;
       overflow-x: auto;
-      padding: 0.12rem 0 0.04rem;
+      padding: 0;
       scrollbar-width: none;
       -webkit-overflow-scrolling: touch;
+      justify-content: flex-start;
     }
     .nav-pills::-webkit-scrollbar { display: none; }
     .nav-pill {

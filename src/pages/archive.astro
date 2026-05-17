@@ -4,7 +4,15 @@ import { DIARY_AGENT_NAME } from "../lib/agent/skills/diaryAssistantSkill";
 ---
 
 <Layout title="日记归档">
-  <div class="archive-agent-page">
+  <div class="archive-agent-page" data-active-tab="daily">
+    <div class="mobile-tabs-wrap">
+      <div class="mobile-tabs" aria-label="视图切换" id="archive-mobile-tabs">
+        <button type="button" class="m-tab is-active" data-mtab="daily"
+          >日报归档</button
+        >
+        <button type="button" class="m-tab" data-mtab="agent">AI 助手</button>
+      </div>
+    </div>
     <section class="daily-panel">
       <div class="panel-head">
         <div class="daily-head-main">
@@ -211,6 +219,36 @@ import { DIARY_AGENT_NAME } from "../lib/agent/skills/diaryAssistantSkill";
       --panel-pad-y: clamp(0.58rem, 1.05svh, 0.82rem);
       --panel-pad-x: clamp(0.72rem, 1.2vw, 1rem);
       --panel-gap: clamp(0.48rem, 0.9svh, 0.72rem);
+    }
+
+    .mobile-tabs-wrap {
+      display: none;
+      grid-column: 1 / -1;
+      margin-bottom: 0.1rem;
+    }
+    .mobile-tabs {
+      display: flex;
+      background: #f1f5f9;
+      padding: 0.25rem;
+      border-radius: 12px;
+      gap: 0.25rem;
+    }
+    .m-tab {
+      flex: 1;
+      min-height: 36px;
+      border: none;
+      background: transparent;
+      border-radius: 9px;
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: #64748b;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .m-tab.is-active {
+      background: #fff;
+      color: #4f46e5;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
     }
 
     .daily-panel,
@@ -1243,9 +1281,19 @@ import { DIARY_AGENT_NAME } from "../lib/agent/skills/diaryAssistantSkill";
         height: auto;
       }
 
+      .mobile-tabs-wrap {
+        display: block;
+      }
       .daily-panel,
       .agent-panel {
+        display: none;
         min-height: clamp(420px, 72svh, 520px);
+      }
+      .archive-agent-page[data-active-tab="daily"] .daily-panel {
+        display: flex;
+      }
+      .archive-agent-page[data-active-tab="agent"] .agent-panel {
+        display: flex;
       }
     }
 
@@ -1256,28 +1304,32 @@ import { DIARY_AGENT_NAME } from "../lib/agent/skills/diaryAssistantSkill";
 
       .panel-head,
       .agent-head {
-        align-items: flex-start;
-        flex-direction: column;
+        align-items: center;
+        flex-direction: row;
+        justify-content: space-between;
         gap: 0.48rem;
         padding: 0.68rem;
       }
 
       .daily-head-main {
         width: 100%;
-        align-items: flex-start;
-        flex-direction: column;
+        align-items: center;
+        flex-direction: row;
+        justify-content: space-between;
         gap: 0.48rem;
       }
 
       .daily-tools {
-        width: 100%;
+        width: auto;
         margin-left: 0;
+        flex-direction: row;
+        align-items: center;
         gap: 0.28rem;
       }
 
       .sync-action,
       .clear-chat-btn {
-        width: 100%;
+        width: auto;
       }
 
       .daily-panel,
@@ -1341,15 +1393,6 @@ import { DIARY_AGENT_NAME } from "../lib/agent/skills/diaryAssistantSkill";
         min-height: 30px;
         padding: 0.3rem 0.52rem;
         font-size: 0.7rem;
-      }
-
-      .agent-composer {
-        grid-template-columns: 1fr;
-      }
-
-      .composer-send-btn {
-        width: auto;
-        justify-self: end;
       }
 
       .chat-row {
@@ -2270,6 +2313,23 @@ import { DIARY_AGENT_NAME } from "../lib/agent/skills/diaryAssistantSkill";
     document.addEventListener("astro:page-load", async () => {
       syncArchiveViewport();
       attachHandlers();
+
+      const archiveTabs = document.getElementById("archive-mobile-tabs");
+      if (archiveTabs) {
+        archiveTabs.addEventListener("click", (e) => {
+          const btn = (e.target as HTMLElement).closest(".m-tab");
+          if (!btn) return;
+          const tab = btn.getAttribute("data-mtab");
+          document
+            .querySelectorAll("#archive-mobile-tabs .m-tab")
+            .forEach((b) => b.classList.remove("is-active"));
+          btn.classList.add("is-active");
+          document
+            .querySelector(".archive-agent-page")
+            ?.setAttribute("data-active-tab", tab || "daily");
+        });
+      }
+
       try {
         await loadDays();
       } catch (error) {
