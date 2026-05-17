@@ -726,7 +726,7 @@ export async function getDayPageDataLocal(dateStr: string) {
 }
 
 export async function getUsersPageDataLocal() {
-  const sessionUser = await requireLocalSessionUser<{ id: string }>();
+  const sessionUser = await requireLocalSessionUser<{ id: string; role: string }>();
   const db = await openDb();
   const tx = db.transaction([STORE_USERS, STORE_PERMISSIONS], 'readonly');
   
@@ -759,7 +759,7 @@ export async function getUsersPageDataLocal() {
     id: u.id,
     username: u.username,
     role: u.role,
-    status: requestsMap[u.id] ?? null,
+    status: sessionUser.role === 'ADMIN' && u.id !== sessionUser.id ? 'APPROVED' : requestsMap[u.id] ?? null,
     initial: u.username.charAt(0).toUpperCase(),
     isCurrentUser: u.id === sessionUser.id,
     memberNumber: memberNumberMap.get(u.id) ?? '0000',
@@ -1023,8 +1023,9 @@ export async function getHomeData(yearArg?: number, monthArg?: number): Promise<
   const myDateSet = new Set(myDiaries.map((d) => d.dateStr));
 
   const db = await openDb();
-  const tx = db.transaction(STORE_TEAM_DAYS, 'readonly');
+  const tx = db.transaction([STORE_TEAM_DAYS, STORE_USERS], 'readonly');
   const teamRows = (await requestResult(tx.objectStore(STORE_TEAM_DAYS).getAll())) as TeamDiaryDay[];
+  const userRows = (await requestResult(tx.objectStore(STORE_USERS).getAll())) as Array<{ id: string; username: string; role: string; createdAt: string }>;
   await txDone(tx);
   const teamMap = new Map<string, Set<string>>();
   for (const row of teamRows) {
@@ -1116,6 +1117,59 @@ export async function getHomeData(yearArg?: number, monthArg?: number): Promise<
   const wroteTodayMe = myDateSet.has(todayDateStr);
   const createdAt = new Date(user.createdAt).getTime();
   const daysSinceJoined = Number.isFinite(createdAt) ? Math.floor((Date.now() - createdAt) / 86400000) : 0;
+  const usersById = new Map(userRows.map((row) => [row.id, row]));
+  const diaryDatesByUser = new Map<string, Set<string>>();
+  for (const row of teamRows) {
+    if (!usersById.has(row.userId)) continue;
+    const set = diaryDatesByUser.get(row.userId) ?? new Set<string>();
+    set.add(row.dateStr);
+    diaryDatesByUser.set(row.userId, set);
+  }
+  const currentStreakFor = (dateSet: Set<string>) => {
+    let value = 0;
+    if (dateSet.size === 0) return value;
+    let cursor = toDateKey(todayDateStr);
+    if (!dateSet.has(todayDateStr)) {
+      const d = new Date(`${todayDateStr}T00:00:00Z`);
+      d.setUTCDate(d.getUTCDate() - 1);
+      cursor = toDateKey(d.toISOString().split('T')[0]);
+    }
+    while (true) {
+      const y = Math.floor(cursor / 10000);
+      const m = Math.floor((cursor % 10000) / 100);
+      const d = cursor % 100;
+      const ds = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      if (!dateSet.has(ds)) break;
+      value += 1;
+      const prev = new Date(`${ds}T00:00:00Z`);
+      prev.setUTCDate(prev.getUTCDate() - 1);
+      cursor = toDateKey(prev.toISOString().split('T')[0]);
+    }
+    return value;
+  };
+  const streakTop = userRows
+    .filter((row) => row.role === 'USER')
+    .map((row) => ({
+      userId: row.id,
+      username: row.username,
+      isMe: row.id === user.id,
+      value: currentStreakFor(diaryDatesByUser.get(row.id) ?? new Set<string>()),
+    }))
+    .sort((a, b) => (b.value !== a.value ? b.value - a.value : a.username.localeCompare(b.username)));
+  const monthCountByUser = new Map<string, number>();
+  for (const row of teamRows) {
+    if (!row.dateStr.startsWith(monthPrefix) || !usersById.has(row.userId)) continue;
+    monthCountByUser.set(row.userId, (monthCountByUser.get(row.userId) ?? 0) + 1);
+  }
+  const monthTop = userRows
+    .filter((row) => row.role === 'USER')
+    .map((row) => ({
+      userId: row.id,
+      username: row.username,
+      isMe: row.id === user.id,
+      value: monthCountByUser.get(row.id) ?? 0,
+    }))
+    .sort((a, b) => (b.value !== a.value ? b.value - a.value : a.username.localeCompare(b.username)));
   const weekdayNames = ['日', '一', '二', '三', '四', '五', '六'];
 
   return {
@@ -1128,6 +1182,16 @@ export async function getHomeData(yearArg?: number, monthArg?: number): Promise<
     streak,
     longestStreak,
     daysSinceJoined,
+    personalStats: [
+      { icon: '🔥', label: '当前连续', value: streak, unit: '天' },
+      { icon: '📖', label: '累计日记', value: myDiaries.length, unit: '篇' },
+      { icon: '🏆', label: '最长连续', value: longestStreak, unit: '天' },
+      { icon: '📅', label: '加入天数', value: daysSinceJoined, unit: '天' },
+    ],
+    leaderboards: {
+      streakTop,
+      monthTop,
+    },
     monthCompletionPct,
     myMonthDiaries,
     wroteToday,

@@ -39,7 +39,7 @@ export const GET: APIRoute = async ({ cookies }) => {
         id: u.id,
         username: u.username,
         role: u.role,
-        status: requestsMap[u.id] ?? null,
+        status: currentUser.role === 'ADMIN' && u.id !== currentUser.id ? 'APPROVED' : requestsMap[u.id] ?? null,
         initial: u.username.charAt(0).toUpperCase(),
         isCurrentUser: u.id === currentUser.id,
         memberNumber: memberNumberMap.get(u.id) ?? '0000',

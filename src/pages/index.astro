@@ -51,47 +51,74 @@ import Layout from '../layouts/Layout.astro';
 
     <!-- Sidebar: Stats & Today -->
     <div class="sidebar">
-      <div id="today-card" class="card today-card-skel">
-        <div class="skel" style="width:40px;height:40px;border-radius:12px;"></div>
-        <div style="flex:1;display:flex;flex-direction:column;gap:0.5rem;">
-          <div class="skel" style="width:100px;height:1rem;"></div>
-          <div class="skel" style="width:150px;height:0.75rem;"></div>
+      <div class="card personal-stats-card">
+        <div class="compact-card-head">
+          <span>写作概览</span>
+          <span class="compact-card-note">写作节奏</span>
         </div>
-      </div>
-
-      <div class="stats-grid">
-        {[["🔥","当前连续天数"],["📖","累计日记篇数"],["🏆","最长连续天数"],["📅","加入天数"]].map(([icon,lbl])=>(
-          <div class="card stat-card">
-            <div class="stat-icon">{icon}</div>
-            <div class="stat-val skel skel-num" style="margin:auto"></div>
-            <div class="stat-label">{lbl}</div>
+        <div class="today-inline" id="today-inline">
+          <span class="skel" style="width:28px;height:28px;border-radius:8px;"></span>
+          <span class="today-inline-body">
+            <span class="skel" style="width:96px;height:0.78rem;"></span>
+            <span class="skel" style="width:128px;height:0.62rem;"></span>
+          </span>
+        </div>
+        <div class="personal-stat-list" id="personal-stat-list">
+          {Array.from({ length: 4 }).map(() => (
+            <div class="personal-stat-item">
+              <span class="skel" style="width:26px;height:26px;border-radius:8px;"></span>
+              <span class="skel skel-line-sm"></span>
+            </div>
+          ))}
+        </div>
+        <div class="overview-extra">
+          <div class="overview-metric overview-ring">
+            <div class="ring-wrap">
+              <svg viewBox="0 0 64 64" width="100%" height="100%">
+                <circle cx="32" cy="32" r="26" fill="none" stroke="rgba(0,0,0,0.06)" stroke-width="5"></circle>
+                <circle id="ring-arc" cx="32" cy="32" r="26" fill="none" stroke="url(#rg)" stroke-width="5" stroke-linecap="round" stroke-dasharray="0 163.4" transform="rotate(-90 32 32)"></circle>
+                <defs><linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#6366f1"></stop><stop offset="100%" stop-color="#34d399"></stop></linearGradient></defs>
+              </svg>
+              <div class="ring-center"><span class="ring-pct" id="ring-pct">–</span></div>
+            </div>
+            <div class="ring-info">
+              <div class="ring-title">本月完成率</div>
+              <div class="ring-sub" id="ring-sub"><span class="skel skel-line-sm"></span></div>
+            </div>
           </div>
-        ))}
-      </div>
 
-      <div class="card ring-card">
-        <div class="ring-wrap">
-          <svg viewBox="0 0 64 64" width="100%" height="100%">
-            <circle cx="32" cy="32" r="26" fill="none" stroke="rgba(0,0,0,0.06)" stroke-width="5"></circle>
-            <circle id="ring-arc" cx="32" cy="32" r="26" fill="none" stroke="url(#rg)" stroke-width="5" stroke-linecap="round" stroke-dasharray="0 163.4" transform="rotate(-90 32 32)"></circle>
-            <defs><linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#6366f1"></stop><stop offset="100%" stop-color="#34d399"></stop></linearGradient></defs>
-          </svg>
-          <div class="ring-center"><span class="ring-pct" id="ring-pct">–</span></div>
-        </div>
-        <div class="ring-info">
-          <div class="ring-title">本月完成率</div>
-          <div class="ring-sub" id="ring-sub"><span class="skel skel-line-sm"></span></div>
+          <div class="overview-metric overview-team" id="group-card">
+            <div class="group-header">
+              <span class="group-title">今日动态</span>
+              <span class="group-count" id="group-count">–</span>
+            </div>
+            <div class="group-bar-bg"><div class="group-bar-fg" id="group-bar" style="width:0%"></div></div>
+            <div class="group-note" id="group-note"><span class="skel skel-line-sm"></span></div>
+          </div>
         </div>
       </div>
 
-      <div class="card group-card" id="group-card">
-        <div class="group-header">
-          <span class="group-title">今日动态</span>
-          <span class="group-count" id="group-count">–</span>
+      <div class="card leaderboard-card">
+        <div class="leader-head">
+          <span class="leader-title">
+            榜单
+            <span class="leader-help" tabindex="0" data-leader-help aria-label="榜单说明：连续榜按当前连续写作天数排序；本月榜按本月日记篇数排序。">?</span>
+          </span>
+          <div class="leader-tabs" role="tablist" aria-label="榜单切换">
+            <button type="button" class="leader-tab is-active" data-leader-tab="streak">连续</button>
+            <button type="button" class="leader-tab" data-leader-tab="month">本月</button>
+          </div>
         </div>
-        <div class="group-bar-bg"><div class="group-bar-fg" id="group-bar" style="width:0%"></div></div>
-        <div class="group-note" id="group-note"><span class="skel skel-line-sm"></span></div>
+        <div class="leader-list" id="leader-list">
+          {Array.from({ length: 3 }).map(() => (
+            <div class="leader-row">
+              <span class="skel" style="width:24px;height:24px;border-radius:8px;"></span>
+              <span class="skel skel-line-sm"></span>
+            </div>
+          ))}
+        </div>
       </div>
+
     </div>
   </div>
 
@@ -175,31 +202,80 @@ import Layout from '../layouts/Layout.astro';
 
     .sidebar {
       display:grid;
-      grid-template-rows:auto minmax(0,1fr) auto auto;
+      grid-template-rows:auto minmax(0,1fr);
       gap:clamp(0.55rem,1.3vh,1rem);
       height:100%;
       min-height:0;
       overflow:hidden;
+      align-content:start;
     }
     .sidebar::-webkit-scrollbar { display:none; }
-    .today-card-skel { padding:clamp(0.75rem,1.7vh,1.25rem); display:flex; align-items:center; gap:0.85rem; min-height:0; }
-    .today-card { padding:clamp(0.75rem,1.7vh,1.25rem); display:flex; align-items:center; gap:0.85rem; transition:all 0.3s; border:none; min-height:0; }
-    .today-card.not-wrote { background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%); color:white; box-shadow:0 10px 30px rgba(99,102,241,0.3); }
-    .today-card.wrote { background:white; color:#0f172a; border:1px solid rgba(16,185,129,0.2); }
-    .today-icon { width:clamp(34px,5vh,42px); height:clamp(34px,5vh,42px); border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-    .not-wrote .today-icon { background:rgba(255,255,255,0.2); color:white; }
-    .wrote .today-icon { background:rgba(16,185,129,0.1); color:#10b981; }
-    .today-body { flex:1; min-width:0; }
-    .today-title { font-weight:800; font-size:0.95rem; }
-    .today-date { font-size:0.75rem; opacity:0.8; margin-top:0.1rem; font-weight:500; }
-    .today-cta { padding:0.4rem 0.8rem; background:white; color:#6366f1; border-radius:10px; font-size:0.75rem; font-weight:700; text-decoration:none; transition:all 0.2s; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
-    .today-cta:hover { transform:translateX(3px); box-shadow:0 6px 16px rgba(0,0,0,0.15); }
+    .personal-stats-card { padding:clamp(0.72rem,1.55vh,0.98rem); display:flex; flex-direction:column; gap:clamp(0.48rem,0.95vh,0.64rem); min-height:0; overflow:hidden; background:#fff; }
+    .today-inline { position:relative; display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:0.48rem; min-height:38px; padding:0.42rem 0.48rem; border:1px solid rgba(15,23,42,0.065); border-radius:10px; color:#0f172a; background:#f8fafc; box-shadow:none; overflow:hidden; }
+    .today-inline::before { content:""; position:absolute; inset:0; opacity:0.72; pointer-events:none; }
+    .today-inline > * { position:relative; z-index:1; }
+    .today-inline.is-pending { background:#f7f8ff; border-color:rgba(99,102,241,0.16); box-shadow:inset 0 1px 0 rgba(255,255,255,0.78); }
+    .today-inline.is-pending::before { background:linear-gradient(135deg,rgba(238,242,255,0.95),rgba(240,249,255,0.72)); }
+    .today-inline.is-done { color:#0f172a; background:#f0fdf9; border-color:rgba(16,185,129,0.18); box-shadow:inset 0 1px 0 rgba(255,255,255,0.78); }
+    .today-inline.is-done::before { background:linear-gradient(135deg,rgba(236,253,245,0.98),rgba(240,253,250,0.72)); }
+    .today-inline-icon { width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; color:#4f46e5; background:#fff; box-shadow:inset 0 0 0 1px rgba(99,102,241,0.14),0 6px 14px rgba(99,102,241,0.08); flex:0 0 auto; line-height:0; }
+    .today-inline-icon svg { display:block; }
+    .today-inline.is-done .today-inline-icon { color:#059669; background:#fff; box-shadow:inset 0 0 0 1px rgba(16,185,129,0.18),0 6px 14px rgba(16,185,129,0.08); }
+    .today-inline-body { min-width:0; display:flex; flex-direction:column; gap:0.08rem; }
+    .today-inline-title { font-size:0.84rem; font-weight:900; line-height:1.12; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .today-inline-date { font-size:0.64rem; font-weight:800; color:#94a3b8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .today-inline-cta { min-height:26px; display:inline-flex; align-items:center; justify-content:center; border:1px solid rgba(99,102,241,0.18); border-radius:8px; padding:0 0.58rem; background:#fff; color:#4f46e5; font-size:0.66rem; font-weight:900; text-decoration:none; white-space:nowrap; box-shadow:0 5px 12px rgba(99,102,241,0.08); }
+    .today-inline-cta:hover { transform:translateX(1px); background:#eef2ff; }
+    .compact-card-head,.leader-head { display:flex; align-items:center; justify-content:space-between; gap:0.65rem; }
+    .compact-card-head span:first-child,.leader-title { color:#1e293b; font-size:0.84rem; font-weight:900; }
+    .compact-card-note { color:#0369a1; background:#f0f9ff; border:1px solid rgba(14,165,233,0.14); border-radius:999px; padding:0.12rem 0.45rem; font-size:0.66rem; font-weight:850; white-space:nowrap; }
+    .personal-stat-list { display:grid; grid-template-columns:1fr 1fr; gap:0.36rem; }
+    .personal-stat-item { min-width:0; display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:0.42rem; padding:0.38rem 0.42rem; border-radius:10px; background:#f8fafc; border:1px solid rgba(15,23,42,0.055); }
+    .personal-stat-icon { width:25px; height:25px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; background:#fff; box-shadow:inset 0 0 0 1px rgba(15,23,42,0.06); font-size:0.88rem; }
+    .personal-stat-main { min-width:0; display:flex; flex-direction:column; }
+    .personal-stat-value { color:#0f172a; font-size:0.98rem; font-weight:950; line-height:1; font-variant-numeric:tabular-nums; }
+    .personal-stat-unit { margin-left:0.08rem; color:#64748b; font-size:0.62rem; font-weight:800; }
+    .personal-stat-label { margin-top:0.12rem; color:#94a3b8; font-size:0.64rem; font-weight:850; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-    .stats-grid { display:grid; grid-template-columns:1fr 1fr; grid-template-rows:repeat(2,minmax(0,1fr)); gap:clamp(0.55rem,1.2vh,1rem); min-height:0; overflow:hidden; }
-    .stat-card { padding:clamp(0.45rem,1.2vh,0.75rem) 0.5rem; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:0.1rem; min-height:0; overflow:hidden; }
-    .stat-icon { font-size:clamp(0.95rem,2.2vh,1.15rem); margin-bottom:0; line-height:1; }
-    .stat-val { font-size:clamp(1.35rem,3.8vh,1.8rem); font-weight:800; color:#1e293b; font-variant-numeric:tabular-nums; letter-spacing:0; line-height:1.05; }
-    .stat-label { font-size:0.7rem; font-weight:700; color:#94a3b8; }
+    .overview-extra { display:grid; grid-template-columns:1fr 1fr; gap:0.36rem; }
+    .overview-metric { min-width:0; min-height:70px; padding:0.42rem; border-radius:10px; border:1px solid rgba(15,23,42,0.055); background:#f8fafc; }
+    .overview-ring { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:0.42rem; }
+    .overview-ring .ring-wrap { width:34px; height:34px; }
+    .overview-ring .ring-pct { font-size:0.68rem; }
+    .overview-ring .ring-title,
+    .overview-team .group-title { font-size:0.74rem; font-weight:900; color:#1e293b; }
+    .overview-ring .ring-sub,
+    .overview-team .group-note { font-size:0.64rem; color:#94a3b8; font-weight:800; }
+    .overview-team { display:flex; flex-direction:column; justify-content:center; gap:0.36rem; }
+    .overview-team .group-count { color:#0369a1; background:#e0f2fe; font-size:0.64rem; }
+    .overview-team .group-bar-bg { height:5px; background:#e2e8f0; }
+
+    .leaderboard-card { padding:clamp(0.65rem,1.45vh,0.95rem); display:flex; flex-direction:column; gap:0.55rem; min-height:0; overflow:hidden; }
+    .leader-title { display:inline-flex; align-items:center; gap:0.28rem; position:relative; }
+    .leader-help { width:17px; height:17px; display:inline-flex; align-items:center; justify-content:center; border-radius:999px; color:#64748b; background:#f8fafc; border:1px solid rgba(99,102,241,0.16); font-size:0.62rem; font-weight:950; cursor:help; line-height:1; }
+    .leader-help:hover,
+    .leader-help:focus-visible { color:#4f46e5; background:#eef2ff; outline:none; }
+    .leader-tooltip { position:fixed; width:min(250px,calc(100vw - 28px)); padding:0.62rem 0.68rem; border-radius:12px; border:1px solid rgba(99,102,241,0.14); color:#334155; background:linear-gradient(135deg,#fff,#f8fbff); box-shadow:0 18px 44px rgba(15,23,42,0.18); font-size:0.68rem; font-weight:750; line-height:1.58; opacity:0; transform:translateY(-4px) scale(0.98); pointer-events:none; transition:opacity .16s ease, transform .16s ease; z-index:9999; }
+    .leader-tooltip.is-visible { opacity:1; transform:translateY(0) scale(1); }
+    .leader-tooltip::before { content:""; position:absolute; top:-5px; left:var(--tip-arrow-left,24px); width:10px; height:10px; transform:rotate(45deg); background:#fff; border-left:1px solid rgba(99,102,241,0.14); border-top:1px solid rgba(99,102,241,0.14); }
+    .leader-tooltip-title { display:block; margin-bottom:0.28rem; color:#1e293b; font-size:0.72rem; font-weight:950; }
+    .leader-tooltip-row { display:grid; grid-template-columns:34px minmax(0,1fr); gap:0.36rem; }
+    .leader-tooltip-key { color:#4f46e5; font-weight:950; }
+    .leader-tooltip-text { color:#64748b; }
+    .leader-tabs { display:inline-flex; gap:0.15rem; padding:0.2rem; border-radius:999px; background:#f8fafc; border:1px solid rgba(15,23,42,0.06); }
+    .leader-tab { min-height:26px; padding:0.18rem 0.48rem; border:0; border-radius:999px; background:transparent; color:#64748b; font:inherit; font-size:0.68rem; font-weight:900; cursor:pointer; }
+    .leader-tab.is-active { color:#4f46e5; background:#fff; box-shadow:0 5px 12px rgba(15,23,42,0.08); }
+    .leader-list { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; gap:0.38rem; overflow-y:auto; padding-right:0.18rem; overscroll-behavior:contain; scrollbar-gutter:stable; }
+    .leader-list::-webkit-scrollbar { width:6px; }
+    .leader-list::-webkit-scrollbar-thumb { border:2px solid transparent; border-radius:999px; background:rgba(148,163,184,0.42); background-clip:padding-box; }
+    .leader-row { display:grid; grid-template-columns:28px minmax(0,1fr) auto; align-items:center; gap:0.48rem; min-height:36px; padding:0.4rem 0.48rem; border-radius:13px; border:1px solid rgba(15,23,42,0.06); background:#fff; }
+    .leader-row.is-me { border-color:rgba(99,102,241,0.18); background:linear-gradient(135deg,#f8f7ff,#f0f9ff); box-shadow:inset 0 1px 0 rgba(255,255,255,0.78); }
+    .leader-rank { width:26px; height:26px; display:inline-flex; align-items:center; justify-content:center; border-radius:9px; color:#4f46e5; background:#eef2ff; font-size:0.72rem; font-weight:950; }
+    .leader-row:nth-child(1) .leader-rank { color:#92400e; background:linear-gradient(135deg,#fef3c7,#fde68a); }
+    .leader-name { min-width:0; display:flex; align-items:center; gap:0.3rem; color:#1e293b; font-size:0.78rem; font-weight:850; white-space:nowrap; overflow:hidden; }
+    .leader-name-text { min-width:0; overflow:hidden; text-overflow:ellipsis; }
+    .leader-me-badge { flex:0 0 auto; color:#4f46e5; background:#eef2ff; border:1px solid rgba(99,102,241,0.12); border-radius:999px; padding:0.06rem 0.28rem; font-size:0.56rem; font-weight:950; line-height:1.1; }
+    .leader-value { color:#64748b; background:#f8fafc; border-radius:999px; padding:0.12rem 0.42rem; font-size:0.68rem; font-weight:850; white-space:nowrap; }
 
     .ring-card { padding:clamp(0.75rem,1.7vh,1.25rem); display:flex; align-items:center; gap:0.85rem; min-height:0; }
     .ring-wrap { position:relative; width:clamp(42px,6vh,52px); height:clamp(42px,6vh,52px); flex-shrink:0; }
@@ -242,10 +318,16 @@ import Layout from '../layouts/Layout.astro';
       .cal-weekday{padding:0.25rem;}
       .legend{padding:0.35rem 0.6rem; margin-top:0;}
       .sidebar{gap:0.5rem;}
-      .today-title{font-size:0.86rem;}
-      .today-date,.today-cta,.stat-label,.ring-sub,.group-note{font-size:0.65rem;}
+      .today-inline{min-height:34px;padding:0.34rem 0.42rem;}
+      .today-inline-title{font-size:0.76rem;}
+      .today-inline-date,.today-inline-cta,.personal-stat-label,.ring-sub,.group-note{font-size:0.65rem;}
       .ring-title,.group-title{font-size:0.78rem;}
       .group-bar-bg{height:5px;}
+      .personal-stat-list{gap:0.32rem;}
+      .personal-stat-item{padding:0.3rem 0.36rem;}
+      .overview-extra{gap:0.32rem;}
+      .overview-metric{min-height:62px;padding:0.34rem;}
+      .leader-row{min-height:32px;padding:0.28rem 0.42rem;}
     }
 
     @media(max-width:860px){
@@ -254,7 +336,14 @@ import Layout from '../layouts/Layout.astro';
       .cal-card{flex:none;}
       .cal-grid{flex:none;grid-auto-rows:auto;}
       .cal-cell{aspect-ratio:1;}
-      .sidebar{display:flex;height:auto;overflow-y:visible;}
+      .sidebar{display:flex;flex-direction:column;height:auto;overflow-y:visible;}
+      .leaderboard-card{max-height:420px;}
+      .personal-stat-list{grid-template-columns:repeat(4,minmax(0,1fr));}
+    }
+
+    @media(max-width:560px){
+      .personal-stat-list{grid-template-columns:1fr 1fr;}
+      .overview-extra{grid-template-columns:1fr;}
     }
   </style>
 
@@ -268,11 +357,19 @@ import Layout from '../layouts/Layout.astro';
     } from '../lib/localFirst';
     const MONTH_NAMES = ["一月","二月","三月","四月","五月","六月","七月","八月","九月","十月","十一月","十二月"];
     const homeWindow = window as typeof window & { __homeSyncListenerAttached?: boolean; __pickerClickAttached?: boolean };
+    let currentHomeData: any = null;
+    let activeLeaderTab: 'streak' | 'month' = 'streak';
+    let leaderTooltipEl: HTMLElement | null = null;
 
     function syncHomeViewport() {
       const header = document.querySelector('.navbar');
       const headerHeight = header ? Math.ceil(header.getBoundingClientRect().height) : 82;
       document.documentElement.style.setProperty('--home-header-height', `${headerHeight}px`);
+    }
+
+    function escapeHTML(value: unknown): string {
+      const entities: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+      return String(value).replace(/[&<>"']/g, (char) => entities[char] ?? char);
     }
 
     function buildCalendar(data: any) {
@@ -316,25 +413,42 @@ import Layout from '../layouts/Layout.astro';
       const legend = document.getElementById('cal-legend');
       if (legend) legend.style.visibility = 'visible';
 
-      // Today card
-      const todayCard = document.getElementById('today-card');
-      if (todayCard) {
+      // Today status inside personal card
+      const todayInline = document.getElementById('today-inline');
+      if (todayInline) {
         const iconSVG = data.wroteToday_me
           ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
           : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
-        const ctaHTML = data.wroteToday_me ? '' : `<a href="/diary" class="today-cta">去写 →</a>`;
-        todayCard.className = `card today-card ${data.wroteToday_me ? 'wrote' : 'not-wrote'}`;
-        todayCard.innerHTML = `<div class="today-icon">${iconSVG}</div>
-          <div class="today-body">
-            <div class="today-title">${data.wroteToday_me ? '今日已完成 ✨' : '今日还未写哦'}</div>
-            <div class="today-date">周${data.todayWeekday}，${data.todayDateStr}</div>
-          </div>${ctaHTML}`;
+        const ctaHTML = data.wroteToday_me ? '' : `<a href="/diary" class="today-inline-cta">去写 →</a>`;
+        todayInline.className = `today-inline ${data.wroteToday_me ? 'is-done' : 'is-pending'}`;
+        todayInline.innerHTML = `<span class="today-inline-icon">${iconSVG}</span>
+          <span class="today-inline-body">
+            <span class="today-inline-title">${data.wroteToday_me ? '今日已完成 ✨' : '今日还未写哦'}</span>
+            <span class="today-inline-date">周${data.todayWeekday}，${data.todayDateStr}</span>
+          </span>${ctaHTML}`;
       }
 
-      // Stats
-      const statVals = document.querySelectorAll<HTMLElement>('.stat-val');
-      const vals = [data.streak, data.totalMyDiaries, data.longestStreak, data.daysSinceJoined];
-      statVals.forEach((el,i) => { el.textContent = vals[i]; el.classList.remove('skel','skel-num'); el.style.margin = ''; });
+      // Personal stats
+      const statList = document.getElementById('personal-stat-list');
+      const personalStats = data.personalStats ?? [
+        { icon: '🔥', label: '当前连续', value: data.streak, unit: '天' },
+        { icon: '📖', label: '累计日记', value: data.totalMyDiaries, unit: '篇' },
+        { icon: '🏆', label: '最长连续', value: data.longestStreak, unit: '天' },
+        { icon: '📅', label: '加入天数', value: data.daysSinceJoined, unit: '天' },
+      ];
+      if (statList) {
+        statList.innerHTML = personalStats.map((stat: any) => `
+          <div class="personal-stat-item">
+            <span class="personal-stat-icon">${stat.icon}</span>
+            <span class="personal-stat-main">
+              <span class="personal-stat-value">${stat.value}<span class="personal-stat-unit">${stat.unit}</span></span>
+              <span class="personal-stat-label">${stat.label}</span>
+            </span>
+          </div>
+        `).join('');
+      }
+      currentHomeData = data;
+      renderLeaderboard();
 
       // Ring
       const arc = document.getElementById('ring-arc');
@@ -351,6 +465,31 @@ import Layout from '../layouts/Layout.astro';
       if (countEl) countEl.textContent = `${data.wroteToday} / ${data.totalUsers} 人已写`;
       if (barEl) barEl.style.width = `${data.totalUsers > 0 ? Math.round((data.wroteToday/data.totalUsers)*100) : 0}%`;
       if (noteEl) noteEl.textContent = data.wroteToday === data.totalUsers ? '🎉 所有人今天都写了！' : `还有 ${data.totalUsers - data.wroteToday} 人未写`;
+    }
+
+    function renderLeaderboard() {
+      const list = document.getElementById('leader-list');
+      if (!list || !currentHomeData) return;
+      const rows = activeLeaderTab === 'streak'
+        ? currentHomeData.leaderboards?.streakTop ?? []
+        : currentHomeData.leaderboards?.monthTop ?? [];
+      const unit = activeLeaderTab === 'streak' ? '天' : '篇';
+      document.querySelectorAll<HTMLButtonElement>('[data-leader-tab]').forEach((btn) => {
+        const active = btn.dataset.leaderTab === activeLeaderTab;
+        btn.classList.toggle('is-active', active);
+        btn.setAttribute('aria-selected', String(active));
+      });
+      if (!rows.length) {
+        list.innerHTML = '<div class="group-note">暂无榜单数据</div>';
+        return;
+      }
+      list.innerHTML = rows.map((row: any, index: number) => `
+        <div class="leader-row ${row.isMe ? 'is-me' : ''}">
+          <span class="leader-rank">${index + 1}</span>
+          <span class="leader-name"><span class="leader-name-text">${escapeHTML(row.username)}</span>${row.isMe ? '<span class="leader-me-badge">你</span>' : ''}</span>
+          <span class="leader-value">${row.value} ${unit}</span>
+        </div>
+      `).join('');
     }
 
     function attachPickerEvents(initialYear: number) {
@@ -380,17 +519,20 @@ import Layout from '../layouts/Layout.astro';
       const titleEl = document.getElementById('cal-title');
       const metaEl = document.getElementById('meta-pills');
       const grid = document.getElementById('cal-grid');
-      const todayCard = document.getElementById('today-card');
+      const todayInline = document.getElementById('today-inline');
       const legend = document.getElementById('cal-legend');
       if (titleEl) titleEl.innerHTML = '<span class="skel skel-title"></span>';
       if (metaEl) metaEl.innerHTML = '<div class="meta-pill"><span class="skel skel-num-sm"></span><span class="meta-lbl">加载中</span></div><div class="meta-sep"></div><div class="meta-pill"><span class="skel skel-num-sm"></span><span class="meta-lbl">加载中</span></div>';
       if (grid) grid.innerHTML = Array.from({ length: 35 }).map(() => '<div class="cal-cell cal-skel"></div>').join('');
       if (legend) legend.style.visibility = 'hidden';
-      if (todayCard) {
-        todayCard.className = 'card today-card-skel';
-        todayCard.innerHTML = '<div class="skel" style="width:40px;height:40px;border-radius:12px;"></div><div style="flex:1;display:flex;flex-direction:column;gap:0.5rem;"><div class="skel" style="width:100px;height:1rem;"></div><div class="skel" style="width:150px;height:0.75rem;"></div></div>';
+      if (todayInline) {
+        todayInline.className = 'today-inline';
+        todayInline.innerHTML = '<span class="skel" style="width:28px;height:28px;border-radius:8px;"></span><span class="today-inline-body"><span class="skel" style="width:96px;height:0.78rem;"></span><span class="skel" style="width:128px;height:0.62rem;"></span></span>';
       }
-      document.querySelectorAll<HTMLElement>('.stat-val').forEach(el => { el.textContent = ''; el.classList.add('skel','skel-num'); el.style.margin = 'auto'; });
+      const statList = document.getElementById('personal-stat-list');
+      const leaderList = document.getElementById('leader-list');
+      if (statList) statList.innerHTML = Array.from({ length: 4 }).map(() => '<div class="personal-stat-item"><span class="skel" style="width:26px;height:26px;border-radius:8px;"></span><span class="skel skel-line-sm"></span></div>').join('');
+      if (leaderList) leaderList.innerHTML = Array.from({ length: 3 }).map(() => '<div class="leader-row"><span class="skel" style="width:24px;height:24px;border-radius:8px;"></span><span class="skel skel-line-sm"></span></div>').join('');
       const pctEl = document.getElementById('ring-pct');
       const subEl = document.getElementById('ring-sub');
       const countEl = document.getElementById('group-count');
@@ -431,6 +573,54 @@ import Layout from '../layouts/Layout.astro';
       if (grid) grid.innerHTML = `<div style="grid-column:1/-1;display:flex;align-items:center;justify-content:center;color:#dc2626;font-weight:700;">${message}</div>`;
     }
 
+    function getLeaderTooltip() {
+      if (leaderTooltipEl && document.body.contains(leaderTooltipEl)) return leaderTooltipEl;
+      leaderTooltipEl = document.createElement('div');
+      leaderTooltipEl.className = 'leader-tooltip';
+      leaderTooltipEl.setAttribute('role', 'tooltip');
+      leaderTooltipEl.innerHTML = `
+        <span class="leader-tooltip-title">榜单说明</span>
+        <span class="leader-tooltip-row"><span class="leader-tooltip-key">连续</span><span class="leader-tooltip-text">按当前连续写作天数排序。</span></span>
+        <span class="leader-tooltip-row"><span class="leader-tooltip-key">本月</span><span class="leader-tooltip-text">按本月日记篇数排序。</span></span>
+      `;
+      document.body.appendChild(leaderTooltipEl);
+      return leaderTooltipEl;
+    }
+
+    function positionLeaderTooltip(anchor: HTMLElement) {
+      const tooltip = getLeaderTooltip();
+      const rect = anchor.getBoundingClientRect();
+      tooltip.classList.add('is-visible');
+      const tipRect = tooltip.getBoundingClientRect();
+      const gap = 10;
+      const margin = 14;
+      let left = rect.left + rect.width / 2 - 34;
+      left = Math.max(margin, Math.min(left, window.innerWidth - tipRect.width - margin));
+      let top = rect.bottom + gap;
+      if (top + tipRect.height + margin > window.innerHeight) {
+        top = Math.max(margin, rect.top - tipRect.height - gap);
+      }
+      const arrowLeft = Math.max(18, Math.min(rect.left + rect.width / 2 - left - 5, tipRect.width - 24));
+      tooltip.style.left = `${left}px`;
+      tooltip.style.top = `${top}px`;
+      tooltip.style.setProperty('--tip-arrow-left', `${arrowLeft}px`);
+    }
+
+    function hideLeaderTooltip() {
+      leaderTooltipEl?.classList.remove('is-visible');
+    }
+
+    function bindLeaderHelp() {
+      document.querySelectorAll<HTMLElement>('[data-leader-help]').forEach((help) => {
+        if (help.dataset.bound === '1') return;
+        help.dataset.bound = '1';
+        help.addEventListener('mouseenter', () => positionLeaderTooltip(help));
+        help.addEventListener('focus', () => positionLeaderTooltip(help));
+        help.addEventListener('mouseleave', hideLeaderTooltip);
+        help.addEventListener('blur', hideLeaderTooltip);
+      });
+    }
+
     async function loadData() {
       resetHomeSkeleton();
       const urlParams = new URLSearchParams(window.location.search);
@@ -451,6 +641,15 @@ import Layout from '../layouts/Layout.astro';
 
     document.addEventListener('astro:page-load', () => {
       syncHomeViewport();
+      bindLeaderHelp();
+      document.querySelectorAll<HTMLButtonElement>('[data-leader-tab]').forEach((btn) => {
+        if (btn.dataset.bound === '1') return;
+        btn.dataset.bound = '1';
+        btn.addEventListener('click', () => {
+          activeLeaderTab = btn.dataset.leaderTab === 'month' ? 'month' : 'streak';
+          renderLeaderboard();
+        });
+      });
       loadData();
     });
     if (!homeWindow.__homeSyncListenerAttached) {
@@ -459,6 +658,10 @@ import Layout from '../layouts/Layout.astro';
         loadData();
       });
     }
-    window.addEventListener('resize', syncHomeViewport);
+    window.addEventListener('resize', () => {
+      syncHomeViewport();
+      hideLeaderTooltip();
+    });
+    window.addEventListener('scroll', hideLeaderTooltip, { passive: true });
   </script>
 </Layout>

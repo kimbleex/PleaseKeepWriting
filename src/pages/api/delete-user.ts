@@ -29,11 +29,29 @@ export const POST: APIRoute = async ({ cookies, request }) => {
   }
 
   try {
+    const announcements = await prisma.announcement.findMany({
+      select: { id: true, readUserIds: true },
+    });
+    const announcementReadUpdates = announcements
+      .map((announcement) => {
+        const readUserIds = Array.isArray(announcement.readUserIds)
+          ? announcement.readUserIds.filter((item): item is string => typeof item === 'string' && item !== userId)
+          : [];
+        if (readUserIds.length === (Array.isArray(announcement.readUserIds) ? announcement.readUserIds.length : 0)) {
+          return null;
+        }
+        return prisma.announcement.update({
+          where: { id: announcement.id },
+          data: { readUserIds },
+        });
+      })
+      .filter((query): query is NonNullable<typeof query> => Boolean(query));
+
     await prisma.$transaction([
       prisma.permissionRequest.deleteMany({ where: { OR: [{ requesterId: userId }, { targetId: userId }] } }),
       prisma.diary.deleteMany({ where: { userId } }),
       prisma.diaryReport.deleteMany({ where: { userId } }),
-      prisma.announcementRead.deleteMany({ where: { userId } }),
+      ...announcementReadUpdates,
       prisma.user.delete({ where: { id: userId } }),
     ]);
 

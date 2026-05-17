@@ -37,9 +37,9 @@ export const GET: APIRoute = async ({ cookies, url }) => {
     `${year}-${String(month + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}T23:59:59Z`,
   );
 
-  const [allUserList, diariesThisMonth, totalUsers, allMyDiaries, hasWroteToday, myUser] =
+  const [allUserList, diariesThisMonth, totalUsers, allMyDiaries, hasWroteToday, myUser, allTeamDiaryDays] =
     await Promise.all([
-      prisma.user.findMany({ where: { role: 'USER' }, select: { id: true } }),
+      prisma.user.findMany({ where: { role: 'USER' }, orderBy: [{ createdAt: 'asc' }, { username: 'asc' }], select: { id: true, username: true } }),
       prisma.diary.findMany({
         where: { date: { gte: monthStart, lte: monthEnd } },
         select: { date: true, userId: true },
@@ -60,6 +60,10 @@ export const GET: APIRoute = async ({ cookies, url }) => {
       prisma.user.findUnique({
         where: { id: currentUser.id },
         select: { createdAt: true },
+      }),
+      prisma.diary.findMany({
+        where: { user: { role: 'USER' } },
+        select: { date: true, userId: true },
       }),
     ]);
 
@@ -110,6 +114,44 @@ export const GET: APIRoute = async ({ cookies, url }) => {
     : 0;
   const myMonthDiaries = diariesThisMonth.filter((d) => d.userId === currentUser.id).length;
   const monthCompletionPct = daysInMonth > 0 ? Math.round((myMonthDiaries / daysInMonth) * 100) : 0;
+  const dateKey = (date: Date) => date.toISOString().split('T')[0];
+  const diaryDatesByUser = new Map<string, Set<string>>();
+  allTeamDiaryDays.forEach((diary) => {
+    const set = diaryDatesByUser.get(diary.userId) ?? new Set<string>();
+    set.add(dateKey(diary.date));
+    diaryDatesByUser.set(diary.userId, set);
+  });
+  const currentStreakFor = (dateSet: Set<string>) => {
+    let value = 0;
+    if (dateSet.size === 0) return value;
+    let cursor = new Date(`${realTodayStr}T00:00:00Z`);
+    if (!dateSet.has(realTodayStr)) cursor.setUTCDate(cursor.getUTCDate() - 1);
+    while (dateSet.has(cursor.toISOString().split('T')[0])) {
+      value += 1;
+      cursor.setUTCDate(cursor.getUTCDate() - 1);
+    }
+    return value;
+  };
+  const streakTop = allUserList
+    .map((user) => ({
+      userId: user.id,
+      username: user.username,
+      isMe: user.id === currentUser.id,
+      value: currentStreakFor(diaryDatesByUser.get(user.id) ?? new Set<string>()),
+    }))
+    .sort((a, b) => (b.value !== a.value ? b.value - a.value : a.username.localeCompare(b.username)));
+  const monthCountByUser = new Map<string, number>();
+  nonAdminDiaries.forEach((diary) => {
+    monthCountByUser.set(diary.userId, (monthCountByUser.get(diary.userId) ?? 0) + 1);
+  });
+  const monthTop = allUserList
+    .map((user) => ({
+      userId: user.id,
+      username: user.username,
+      isMe: user.id === currentUser.id,
+      value: monthCountByUser.get(user.id) ?? 0,
+    }))
+    .sort((a, b) => (b.value !== a.value ? b.value - a.value : a.username.localeCompare(b.username)));
 
   // Build calendar cells
   const calendarCells = [];
@@ -150,6 +192,16 @@ export const GET: APIRoute = async ({ cookies, url }) => {
       streak,
       longestStreak,
       daysSinceJoined,
+      personalStats: [
+        { icon: '🔥', label: '当前连续', value: streak, unit: '天' },
+        { icon: '📖', label: '累计日记', value: totalMyDiaries, unit: '篇' },
+        { icon: '🏆', label: '最长连续', value: longestStreak, unit: '天' },
+        { icon: '📅', label: '加入天数', value: daysSinceJoined, unit: '天' },
+      ],
+      leaderboards: {
+        streakTop,
+        monthTop,
+      },
       monthCompletionPct,
       myMonthDiaries,
       wroteToday: realTodayWroteCount,
