@@ -496,7 +496,7 @@ import Layout from '../layouts/Layout.astro';
       const style = window.getComputedStyle(list);
       const gap = Number.parseFloat(style.rowGap || style.gap || '0') || 0;
       if (listHeight <= 0 || itemHeight <= 0) return false;
-      const nextSize = Math.max(1, Math.floor((listHeight + gap) / (itemHeight + gap)));
+      const nextSize = Math.max(1, Math.ceil((listHeight + gap) / (itemHeight + gap)));
       if (kind === 'member') {
         if (nextSize === memberPageSize) return false;
         memberPageSize = nextSize;

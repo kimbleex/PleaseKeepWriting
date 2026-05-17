@@ -345,10 +345,10 @@ import Layout from '../layouts/Layout.astro';
       html:has(.home-layout),
       body:has(.home-layout){height:100svh;overflow:hidden;}
       main.container:has(.home-layout){height:calc(100svh - var(--home-header-height,82px));overflow:hidden;padding:clamp(0.62rem,1.4svh,0.9rem) !important;display:flex;flex-direction:column;}
-      .home-layout{grid-template-columns:1fr;height:100%;min-height:0;overflow:hidden;flex:1;}
+      .home-layout{display:flex;flex-direction:column;height:100%;min-height:0;overflow:hidden;flex:1;gap:0.45rem;}
       .mobile-tabs-wrap { display: block; flex-shrink:0; }
       .cal-column { display: none; flex:1;min-height:0;overflow-y:auto; }
-      .sidebar { display: none; flex-direction:column;flex:1;min-height:0;overflow-y:auto; }
+      .sidebar { display: none; flex-direction:column;flex:1;min-height:0;overflow-y:auto;gap:0.55rem; }
       .personal-stats-card, .leaderboard-card { display: none; }
       
       .home-layout[data-active-tab="cal"] .cal-column { display: flex; }
@@ -359,8 +359,8 @@ import Layout from '../layouts/Layout.astro';
       .cal-card{flex:none;overflow:visible;}
       .cal-grid{flex:none;grid-auto-rows:auto;}
       .cal-cell{aspect-ratio:1;}
-      .leaderboard-card{flex:1;min-height:0;max-height:none;overflow-y:auto;}
-      .personal-stats-card{flex:1;min-height:0;overflow-y:auto;}
+      .leaderboard-card{flex:1;min-height:0;max-height:none;overflow:hidden;}
+      .personal-stats-card{flex:none;overflow:visible;}
       .personal-stat-list{grid-template-columns:repeat(4,minmax(0,1fr));}
     }
 

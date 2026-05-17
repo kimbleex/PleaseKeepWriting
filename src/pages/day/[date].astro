@@ -1035,7 +1035,7 @@ if (!validDate) {
       const gap = Number.parseFloat(style.rowGap || style.gap || '0') || 0;
       if (listHeight <= 0 || itemHeight <= 0) return false;
 
-      const nextSize = Math.max(1, Math.floor((listHeight + gap) / (itemHeight + gap)));
+      const nextSize = Math.max(1, Math.ceil((listHeight + gap) / (itemHeight + gap)));
       if (nextSize === getPageSize(section)) return false;
 
       setPageSize(section, nextSize);

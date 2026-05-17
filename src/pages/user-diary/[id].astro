@@ -695,7 +695,7 @@ if (!targetUserId) {
       const style = window.getComputedStyle(list);
       const gap = Number.parseFloat(style.rowGap || style.gap || '0') || 0;
       if (listHeight <= 0 || cardHeight <= 0) return state.pageSize || 1;
-      return Math.max(1, Math.floor((listHeight + gap) / (cardHeight + gap)));
+      return Math.max(1, Math.ceil((listHeight + gap) / (cardHeight + gap)));
     }
 
     function syncPageSizeFromLayout(): boolean {

@@ -682,7 +682,7 @@ import Layout from "../layouts/Layout.astro";
     const gap = Number.parseFloat(listStyle.rowGap || listStyle.gap || "0") || 0;
     if (listHeight <= 0 || rowHeight <= 0) return currentPageSize;
 
-    return Math.max(1, Math.floor((listHeight + gap) / (rowHeight + gap)));
+    return Math.max(1, Math.ceil((listHeight + gap) / (rowHeight + gap)));
   }
 
   function clampPages(): void {

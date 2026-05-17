@@ -239,11 +239,11 @@ import Layout from "../layouts/Layout.astro";
         flex-direction: column;
       }
       .users-grid {
-        grid-template-columns: 1fr;
-        grid-template-rows: none;
-        height: auto;
+        display: flex;
+        flex-direction: column;
         flex: 1;
         min-height: 0;
+        gap: 0.45rem;
       }
       .mobile-tabs-wrap { display: block; flex-shrink: 0; }
       .users-wrap .card.members-col, .users-wrap .card.requests-col { display: none; }
@@ -978,7 +978,7 @@ import Layout from "../layouts/Layout.astro";
     const gap = Number.parseFloat(listStyle.rowGap || listStyle.gap || "0") || 0;
     if (listHeight <= 0 || rowHeight <= 0) return currentPageSize;
 
-    return Math.max(1, Math.floor((listHeight + gap) / (rowHeight + gap)));
+    return Math.max(1, Math.ceil((listHeight + gap) / (rowHeight + gap)));
   }
 
   function clampPages(): void {

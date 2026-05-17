@@ -139,6 +139,10 @@ if (user.role === 'ADMIN') {
       <aside class="announcement-list" id="announcement-list" aria-label="公告列表">
         <div class="announcement-loading">公告加载中...</div>
       </aside>
+      <button type="button" class="announcement-back-btn" id="announcement-back" aria-label="返回列表">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        <span>返回列表</span>
+      </button>
       <article class="announcement-detail" id="announcement-detail">
         <div class="announcement-empty">选择一篇公告查看内容</div>
       </article>
@@ -1073,6 +1077,10 @@ if (user.role === 'ADMIN') {
     background: #f8fafc;
   }
 
+  .announcement-back-btn {
+    display: none;
+  }
+
   .announcement-list {
     min-height: 0;
     display: flex;
@@ -1440,17 +1448,119 @@ if (user.role === 'ADMIN') {
     .password-secondary,
     .password-primary { width: 100%; }
     .header-inner { gap: 0.7rem; }
+
+    /* --- Mobile announcement redesign --- */
     .announcement-overlay { padding: 0.75rem; align-items: stretch; }
-    .announcement-dialog { height: calc(100dvh - 1.5rem); border-radius: 14px; }
-    .announcement-head { padding: 0.9rem; }
+    .announcement-dialog {
+      height: calc(100dvh - 1.5rem);
+      border-radius: 14px;
+    }
+    .announcement-head {
+      padding: 0.85rem 0.9rem;
+    }
     .announcement-head h2 { font-size: 1.05rem; }
-    .announcement-shell { grid-template-columns: 1fr; grid-template-rows: 190px minmax(0, 1fr); }
-    .announcement-list { border-right: 0; border-bottom: 1px solid rgba(15, 23, 42, 0.08); }
-    .announcement-detail { padding: 0.8rem; }
-    .announcement-detail-card { padding: 1rem; border-radius: 10px; }
-    .announcement-detail-top { flex-direction: column; }
-    .announcement-detail-title { font-size: 1.08rem; }
-    .announcement-markdown { font-size: 0.88rem; line-height: 1.65; }
+    .announcement-kicker { font-size: 0.68rem; }
+
+    .announcement-shell {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Toggle: list vs detail */
+    .announcement-shell .announcement-list {
+      display: flex;
+      flex: 1 1 auto;
+      min-height: 0;
+      border-right: none;
+      border-bottom: none;
+      padding: 0.65rem;
+      overflow-y: auto;
+    }
+    .announcement-shell .announcement-detail,
+    .announcement-shell .announcement-back-btn {
+      display: none;
+    }
+    .announcement-shell.show-detail .announcement-list {
+      display: none;
+    }
+    .announcement-shell.show-detail .announcement-back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.32rem;
+      flex: 0 0 auto;
+      margin: 0.65rem 0.85rem 0;
+      padding: 0.42rem 0.68rem;
+      border-radius: 9px;
+      border: 1px solid rgba(15, 118, 110, 0.18);
+      background: rgba(15, 118, 110, 0.06);
+      color: #0f766e;
+      font: inherit;
+      font-size: 0.78rem;
+      font-weight: 800;
+      cursor: pointer;
+      align-self: flex-start;
+      transition: background 0.16s ease, border-color 0.16s ease;
+    }
+    .announcement-shell.show-detail .announcement-back-btn:hover {
+      background: rgba(15, 118, 110, 0.12);
+      border-color: rgba(15, 118, 110, 0.3);
+    }
+    .announcement-shell.show-detail .announcement-detail {
+      display: block;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .announcement-list-items {
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .announcement-list-item {
+      padding: 0.72rem;
+      margin-bottom: 0.42rem;
+      border-radius: 10px;
+    }
+    .announcement-list-title { font-size: 0.88rem; }
+    .announcement-list-date,
+    .announcement-list-summary { font-size: 0.72rem; }
+    .announcement-list-summary { -webkit-line-clamp: 1; }
+    .announcement-state { font-size: 0.64rem; padding: 0.12rem 0.38rem; }
+    .announcement-tag,
+    .announcement-pin { font-size: 0.64rem; padding: 0.12rem 0.38rem; }
+
+    .announcement-pagination {
+      padding-top: 0.55rem;
+    }
+    .announcement-page-btn { min-height: 30px; padding: 0.3rem 0.5rem; font-size: 0.72rem; }
+    .announcement-page-info { font-size: 0.72rem; }
+
+    .announcement-detail {
+      padding: 0 0.85rem 0.85rem;
+    }
+    .announcement-detail-card {
+      padding: 0.9rem;
+      border-radius: 10px;
+    }
+    .announcement-detail-top {
+      flex-direction: column;
+      gap: 0.65rem;
+      padding-bottom: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+    .announcement-detail-title { font-size: 1.1rem; }
+    .announcement-detail-meta { font-size: 0.72rem; }
+    .announcement-read-btn {
+      height: 30px;
+      font-size: 0.74rem;
+      padding: 0 0.6rem;
+      align-self: flex-start;
+    }
+    .announcement-markdown { font-size: 0.86rem; line-height: 1.65; }
+    .announcement-markdown h1 { font-size: 1.15rem; }
+    .announcement-markdown h2 { font-size: 0.98rem; margin: 1rem 0 0.45rem; }
+    .announcement-markdown h3 { font-size: 0.92rem; }
+    .announcement-markdown blockquote { padding: 0.5rem 0.65rem; font-size: 0.84rem; }
   }
 
   @media (max-width: 430px) {
@@ -1458,7 +1568,6 @@ if (user.role === 'ADMIN') {
       padding-left: 0.65rem;
       padding-right: 0.65rem;
     }
-
     .header-inner { gap: 0.35rem; }
     .nav-pills { gap: 0.08rem; }
     .nav-pill { min-width: 34px; min-height: 34px; padding: 0.34rem; }
@@ -1471,14 +1580,12 @@ if (user.role === 'ADMIN') {
     .user-chip { padding: 0.22rem 0.26rem; }
     .user-avatar-sm { width: 24px; height: 24px; }
     .user-chevron { display: none; }
-    .announcement-dialog { height: calc(100dvh - 1rem); }
-    .announcement-shell { grid-template-rows: 168px minmax(0, 1fr); }
-    .announcement-head { gap: 0.6rem; }
-    .announcement-mark-all { padding: 0 0.58rem; }
-    .announcement-list { padding: 0.58rem; }
-    .announcement-list-item { padding: 0.62rem; margin-bottom: 0.38rem; }
-    .announcement-page-btn { min-height: 30px; padding: 0.3rem 0.5rem; font-size: 0.7rem; }
-    .announcement-page-info { font-size: 0.7rem; }
+    .announcement-head { gap: 0.5rem; padding: 0.72rem 0.78rem; }
+    .announcement-mark-all { padding: 0 0.52rem; font-size: 0.74rem; height: 30px; }
+    .announcement-close { width: 30px; height: 30px; }
+    .announcement-shell.show-detail .announcement-back-btn { margin: 0.55rem 0.72rem 0; font-size: 0.74rem; }
+    .announcement-detail { padding: 0 0.72rem 0.72rem; }
+    .announcement-detail-card { padding: 0.78rem; }
   }
 </style>
 
@@ -1688,7 +1795,7 @@ if (user.role === 'ADMIN') {
     const paginationReserve = 48;
     const listPadding = 24;
     const availableHeight = Math.max(estimatedItemHeight, list.clientHeight - paginationReserve - listPadding);
-    return Math.max(1, Math.floor(availableHeight / estimatedItemHeight));
+    return Math.max(1, Math.ceil(availableHeight / estimatedItemHeight));
   }
 
   function syncAnnouncementPageForCurrent(): void {
@@ -1858,6 +1965,7 @@ if (user.role === 'ADMIN') {
 
   function closeAnnouncementModal(): void {
     setAnnouncementOpen(false);
+    document.querySelector('.announcement-shell')?.classList.remove('show-detail');
   }
 
   async function postAnnouncementAction(action: 'mark-read' | 'mark-all-read', announcementId?: string): Promise<void> {
@@ -2027,6 +2135,11 @@ if (user.role === 'ADMIN') {
         return;
       }
 
+      if (target.closest('#announcement-back')) {
+        document.querySelector('.announcement-shell')?.classList.remove('show-detail');
+        return;
+      }
+
       const pageButton = target.closest<HTMLButtonElement>('[data-announcement-page]');
       if (pageButton) {
         if (pageButton.disabled || !announcementState.payload) return;
@@ -2048,6 +2161,11 @@ if (user.role === 'ADMIN') {
         if (id) {
           announcementState.currentId = id;
           renderAnnouncements();
+          // Mobile: switch to detail view
+          const shell = document.querySelector('.announcement-shell');
+          if (shell && window.innerWidth <= 760) {
+            shell.classList.add('show-detail');
+          }
         }
         return;
       }

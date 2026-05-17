@@ -859,9 +859,11 @@ import Layout from "../layouts/Layout.astro";
       }
 
       .achievements-grid {
-        grid-template-columns: 1fr;
+        display: flex;
+        flex-direction: column;
         flex: 1;
         min-height: 0;
+        gap: 0.45rem;
       }
 
       .mobile-tabs-wrap { display: block; flex-shrink: 0; }
@@ -1223,7 +1225,7 @@ import Layout from "../layouts/Layout.astro";
       const headHeight = panelHead?.getBoundingClientRect().height ?? 0;
       const measuredListHeight = panelHeight > 0 ? panelHeight - headHeight : list.clientHeight;
       const availableHeight = Math.max(estimatedRowHeight, measuredListHeight - paginationReserve - listPadding);
-      return Math.max(1, Math.floor(availableHeight / estimatedRowHeight));
+      return Math.max(1, Math.ceil(availableHeight / estimatedRowHeight));
     }
 
     function renderRankList(data: AchievementPageData): void {

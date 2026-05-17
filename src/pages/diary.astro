@@ -64,6 +64,11 @@ import Layout from '../layouts/Layout.astro';
             </div>
           ))}
         </div>
+        <div class="history-pagination" id="history-pagination">
+          <button type="button" class="page-btn" id="hist-page-prev">上一页</button>
+          <span class="page-info" id="hist-page-info">1 / 1</span>
+          <button type="button" class="page-btn" id="hist-page-next">下一页</button>
+        </div>
       </div>
     </div>
   </div>
@@ -135,6 +140,11 @@ import Layout from '../layouts/Layout.astro';
     .history-list { flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:0.7rem; padding:clamp(0.75rem,1.7vh,1.25rem) 1.2rem; scrollbar-width:thin; scrollbar-color:rgba(99,102,241,0.25) transparent; }
     .history-list::-webkit-scrollbar { width:6px; }
     .history-list::-webkit-scrollbar-thumb { background:rgba(99,102,241,0.22); border-radius:999px; }
+    .history-pagination { display:flex; align-items:center; justify-content:flex-end; gap:0.45rem; min-height:clamp(42px,6svh,52px); padding:clamp(0.35rem,0.7svh,0.5rem) clamp(0.65rem,1.1vw,0.78rem); border-top:1px solid rgba(0,0,0,0.06); background:#f8fafc; flex:0 0 auto; box-sizing:border-box; }
+    .history-pagination .page-btn { min-height:30px; border:1px solid rgba(15,23,42,0.1); background:#fff; color:#475569; border-radius:9px; padding:0.3rem 0.6rem; font:inherit; font-size:0.74rem; font-weight:800; line-height:1; cursor:pointer; transition:transform 0.16s ease,box-shadow 0.16s ease,border-color 0.16s ease; }
+    .history-pagination .page-btn:hover:not(:disabled) { transform:translateY(-1px); border-color:rgba(99,102,241,0.24); box-shadow:0 8px 18px rgba(15,23,42,0.07); }
+    .history-pagination .page-btn:disabled { opacity:0.45; cursor:not-allowed; }
+    .history-pagination .page-info { min-width:78px; color:#64748b; font-size:0.74rem; font-weight:800; text-align:center; white-space:nowrap; }
     .history-item { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:0.75rem; background:#ffffff; border:1px solid rgba(0,0,0,0.06); border-radius:12px; padding:0.85rem; transition:all 0.2s ease; flex:0 0 auto; box-shadow:0 2px 8px rgba(0,0,0,0.02); overflow:hidden; }
     .history-item:hover { border-color:rgba(99,102,241,0.3); transform:translateY(-2px); box-shadow:0 6px 16px rgba(99,102,241,0.08); }
     .history-item-date { display:flex; flex-direction:column; align-items:center; justify-content:center; flex-shrink:0; width:42px; border-right:1px solid rgba(0,0,0,0.06); padding-right:0.75rem; }
@@ -171,7 +181,7 @@ import Layout from '../layouts/Layout.astro';
     @media(max-width:900px){
       html:has(.diary-layout),body:has(.diary-layout){height:100svh;overflow:hidden;}
       main.container:has(.diary-layout){height:calc(100svh - var(--diary-header-height,82px));overflow:hidden;display:flex;flex-direction:column;}
-      .diary-layout{grid-template-columns:1fr;height:100%;min-height:0;overflow:hidden;flex:1;}
+      .diary-layout{display:flex;flex-direction:column;height:100%;min-height:0;overflow:hidden;flex:1;gap:0.45rem;}
       .mobile-tabs-wrap { display: block; flex-shrink:0; }
       .editor-col, .history-col { display: none; flex:1;min-height:0;overflow:hidden; }
       .diary-layout[data-active-tab="editor"] .editor-col { display: flex; }
@@ -234,6 +244,8 @@ import Layout from '../layouts/Layout.astro';
     let todayDateStr = '';
     let historyDiaries: HistoryDiary[] = [];
     let activeHistoryIndex = 0;
+    let histPage = 1;
+    let histPageSize = 5;
     const diaryWindow = window as typeof window & {
       __diaryModalHandlersAttached?: boolean;
       __diarySyncListenerAttached?: boolean;
@@ -357,25 +369,11 @@ import Layout from '../layouts/Layout.astro';
         }
 
         const countBadge = document.getElementById('history-count');
-        const historyList = document.getElementById('history-list');
         historyDiaries = data.previousDiaries as HistoryDiary[];
         if (countBadge) countBadge.textContent = `${historyDiaries.length} 篇`;
-        if (!historyList) return;
-        if (historyDiaries.length === 0) {
-          historyList.innerHTML = '<div style="text-align:center;padding:4rem 1rem;color:#94a3b8;font-size:0.875rem;">还没有历史日记</div>';
-          return;
-        }
-        historyList.innerHTML = historyDiaries.map((d, index) => {
-          const [y, m, day] = d.dateStr.split('-');
-          return `<div class="history-item">
-            <div class="history-item-date"><span class="hid-day">${day}</span><span class="hid-ym">${y}/${m}</span></div>
-            <div class="history-item-body"><p class="history-item-preview">${escapeHTML(d.preview)}</p></div>
-            <button type="button" class="history-view-btn" data-history-index="${index}" aria-label="查看 ${escapeHTML(d.dateStr)} 的完整日记">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
-          </div>`;
-        }).join('');
-        attachHistoryButtons();
+        histPageSize = getHistPageSize();
+        histPage = 1;
+        renderHistoryPage();
       } catch (e) {
         if (isLocalPrivacyKeyMissing(e)) {
           navigate(getLocalPrivacyUnlockUrl());
@@ -455,11 +453,85 @@ import Layout from '../layouts/Layout.astro';
       setTimeout(() => { area.innerHTML = ''; }, 3000);
     }
 
+    function getHistPageSize(): number {
+      const list = document.getElementById('history-list');
+      if (!list) return 5;
+      const wrap = list.closest<HTMLElement>('.history-card-wrap');
+      const wrapH = wrap?.getBoundingClientRect().height ?? 0;
+      if (wrapH < 10) return 5; // container hidden (mobile tab not active)
+      const header = wrap?.querySelector<HTMLElement>('.history-header');
+      const pagination = wrap?.querySelector<HTMLElement>('.history-pagination');
+      const headerH = header?.getBoundingClientRect().height ?? 0;
+      const paginationH = pagination?.getBoundingClientRect().height ?? 0;
+      const listStyle = window.getComputedStyle(list);
+      const listPadY = parseFloat(listStyle.paddingTop) + parseFloat(listStyle.paddingBottom);
+      const listGap = parseFloat(listStyle.gap) || parseFloat(listStyle.rowGap) || 11;
+      const firstItem = list.querySelector<HTMLElement>('.history-item');
+      const itemH = firstItem ? firstItem.getBoundingClientRect().height : 70;
+      const available = Math.max(itemH, wrapH - headerH - paginationH - listPadY);
+      return Math.max(1, Math.ceil((available + listGap) / (itemH + listGap)));
+    }
+
+    function renderHistoryPage() {
+      const historyList = document.getElementById('history-list');
+      if (!historyList) return;
+      const total = historyDiaries.length;
+      const totalPages = Math.max(1, Math.ceil(total / Math.max(1, histPageSize)));
+      if (histPage > totalPages) histPage = totalPages;
+      if (histPage < 1) histPage = 1;
+
+      if (total === 0) {
+        historyList.innerHTML = '<div style="text-align:center;padding:4rem 1rem;color:#94a3b8;font-size:0.875rem;">还没有历史日记</div>';
+        renderHistPagination(total, totalPages);
+        return;
+      }
+
+      const start = (histPage - 1) * histPageSize;
+      const pageItems = historyDiaries.slice(start, start + histPageSize);
+      historyList.innerHTML = pageItems.map((d, i) => {
+        const globalIndex = start + i;
+        const [y, m, day] = d.dateStr.split('-');
+        return `<div class="history-item">
+          <div class="history-item-date"><span class="hid-day">${day}</span><span class="hid-ym">${y}/${m}</span></div>
+          <div class="history-item-body"><p class="history-item-preview">${escapeHTML(d.preview)}</p></div>
+          <button type="button" class="history-view-btn" data-history-index="${globalIndex}" aria-label="查看 ${escapeHTML(d.dateStr)} 的完整日记">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>`;
+      }).join('');
+      historyList.scrollTop = 0;
+      attachHistoryButtons();
+      renderHistPagination(total, totalPages);
+    }
+
+    function renderHistPagination(total: number, totalPages: number) {
+      const pagination = document.getElementById('history-pagination');
+      const info = document.getElementById('hist-page-info');
+      const prev = document.getElementById('hist-page-prev') as HTMLButtonElement | null;
+      const next = document.getElementById('hist-page-next') as HTMLButtonElement | null;
+      if (!pagination || !info || !prev || !next) return;
+      pagination.hidden = total === 0;
+      info.textContent = `${histPage} / ${totalPages} · 每页 ${histPageSize} 篇`;
+      prev.disabled = histPage <= 1;
+      next.disabled = histPage >= totalPages;
+    }
+
+    function attachHistPagination() {
+      const prev = document.getElementById('hist-page-prev');
+      const next = document.getElementById('hist-page-next');
+      prev?.addEventListener('click', () => { if (histPage > 1) { histPage--; renderHistoryPage(); } });
+      next?.addEventListener('click', () => {
+        const totalPages = Math.max(1, Math.ceil(historyDiaries.length / Math.max(1, histPageSize)));
+        if (histPage < totalPages) { histPage++; renderHistoryPage(); }
+      });
+    }
+
     document.addEventListener('astro:page-load', () => {
       syncDiaryViewport();
       attachModalHandlers();
       loadDiaryData();
       attachFormHandler();
+      attachHistPagination();
       
       const diaryTabs = document.getElementById('diary-mobile-tabs');
       if (diaryTabs) {
@@ -470,6 +542,16 @@ import Layout from '../layouts/Layout.astro';
           document.querySelectorAll('#diary-mobile-tabs .m-tab').forEach(b => b.classList.remove('is-active'));
           btn.classList.add('is-active');
           document.querySelector('.diary-layout')?.setAttribute('data-active-tab', tab || 'editor');
+          // Recalculate page size when switching to history tab (container becomes visible)
+          if (tab === 'history') {
+            requestAnimationFrame(() => {
+              const newSize = getHistPageSize();
+              if (newSize !== histPageSize) {
+                histPageSize = newSize;
+                renderHistoryPage();
+              }
+            });
+          }
         });
       }
 
@@ -480,6 +562,13 @@ import Layout from '../layouts/Layout.astro';
         });
       }
     });
-    window.addEventListener('resize', syncDiaryViewport);
+    window.addEventListener('resize', () => {
+      syncDiaryViewport();
+      const newSize = getHistPageSize();
+      if (newSize !== histPageSize) {
+        histPageSize = newSize;
+        renderHistoryPage();
+      }
+    });
   </script>
 </Layout>

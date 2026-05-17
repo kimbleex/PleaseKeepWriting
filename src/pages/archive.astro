@@ -1279,10 +1279,12 @@ import { DIARY_AGENT_NAME } from "../lib/agent/skills/diaryAssistantSkill";
       }
 
       .archive-agent-page {
-        grid-template-columns: 1fr;
+        display: flex;
+        flex-direction: column;
         height: 100%;
         min-height: 0;
         flex: 1;
+        gap: 0.45rem;
       }
 
       .mobile-tabs-wrap {
@@ -1341,7 +1343,7 @@ import { DIARY_AGENT_NAME } from "../lib/agent/skills/diaryAssistantSkill";
 
       .daily-panel,
       .agent-panel {
-        min-height: 360px;
+        min-height: 0;
       }
 
       .panel-head h1,
@@ -1358,11 +1360,27 @@ import { DIARY_AGENT_NAME } from "../lib/agent/skills/diaryAssistantSkill";
 
       .filter-btn,
       .sync-action,
-      .clear-chat-btn,
-      .composer-send-btn {
+      .clear-chat-btn {
         min-height: 28px;
         padding: 0.28rem 0.48rem;
         font-size: 0.7rem;
+      }
+
+      .agent-composer {
+        align-items: stretch;
+      }
+
+      .composer-shell {
+        min-height: 36px;
+      }
+
+      .composer-send-btn {
+        min-height: 0;
+        height: auto;
+        align-self: stretch;
+        padding: 0 0.52rem;
+        font-size: 0.72rem;
+        border-radius: 10px;
       }
 
       .daily-list,
@@ -1577,7 +1595,7 @@ import { DIARY_AGENT_NAME } from "../lib/agent/skills/diaryAssistantSkill";
 
       const nextSize = Math.max(
         1,
-        Math.floor((listHeight + gap) / (itemHeight + gap)),
+        Math.ceil((listHeight + gap) / (itemHeight + gap)),
       );
       if (nextSize === state.pageSize) return false;
 
