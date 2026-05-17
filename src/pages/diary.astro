@@ -169,15 +169,17 @@ import Layout from '../layouts/Layout.astro';
       .history-item-preview{-webkit-line-clamp:2;}
     }
     @media(max-width:900px){
-      html:has(.diary-layout),body:has(.diary-layout){height:auto;overflow-y:auto;}
-      main.container:has(.diary-layout){height:auto;overflow:visible;}
-      .diary-layout{grid-template-columns:1fr;height:auto;overflow:visible;}
-      .mobile-tabs-wrap { display: block; }
-      .editor-col, .history-col { display: none; overflow:visible; }
+      html:has(.diary-layout),body:has(.diary-layout){height:100svh;overflow:hidden;}
+      main.container:has(.diary-layout){height:calc(100svh - var(--diary-header-height,82px));overflow:hidden;display:flex;flex-direction:column;}
+      .diary-layout{grid-template-columns:1fr;height:100%;min-height:0;overflow:hidden;flex:1;}
+      .mobile-tabs-wrap { display: block; flex-shrink:0; }
+      .editor-col, .history-col { display: none; flex:1;min-height:0;overflow:hidden; }
       .diary-layout[data-active-tab="editor"] .editor-col { display: flex; }
       .diary-layout[data-active-tab="history"] .history-col { display: flex; }
-      .diary-textarea{min-height:300px;}
-      .history-list{overflow-y:visible;}
+      .diary-textarea{min-height:0;flex:1;}
+      .editor-card{flex:1;min-height:0;overflow:hidden;}
+      .history-card-wrap{flex:1;min-height:0;overflow:hidden;}
+      .history-list{overflow-y:auto;flex:1;min-height:0;}
       .diary-modal{padding:1rem;}
       .diary-modal-panel{width:100%;max-height:calc(100svh - 2rem);}
     }

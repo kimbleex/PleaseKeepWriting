@@ -65,8 +65,6 @@ import Layout from "../layouts/Layout.astro";
         <div class="list-pagination" id="user-pagination"></div>
       </div>
 
-      </div>
-
       <!-- Incoming requests column -->
       <div class="card requests-col">
         <div class="card-header" style="justify-content:space-between;">
@@ -224,39 +222,49 @@ import Layout from "../layouts/Layout.astro";
     }
     @media (max-width: 800px) {
       body:has(.users-wrap) {
-        height: auto;
-        overflow-y: auto;
+        height: 100svh;
+        overflow: hidden;
       }
       .main-content:has(.users-wrap) {
-        height: auto;
-        min-height: 0;
-        overflow: visible;
-        display: block;
+        height: calc(100svh - var(--users-header-height, 90px));
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
         padding: 0.78rem !important;
       }
       .users-wrap {
-        height: auto;
+        height: 100%;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
       }
       .users-grid {
         grid-template-columns: 1fr;
         grid-template-rows: none;
         height: auto;
+        flex: 1;
+        min-height: 0;
       }
-      .mobile-tabs-wrap { display: block; }
+      .mobile-tabs-wrap { display: block; flex-shrink: 0; }
       .users-wrap .card.members-col, .users-wrap .card.requests-col { display: none; }
       .users-wrap[data-active-tab="members"] .card.members-col { display: flex; }
       .users-wrap[data-active-tab="requests"] .card.requests-col { display: flex; }
       
       .users-wrap .card {
-        min-height: clamp(420px, 72svh, 520px);
+        flex: 1;
+        min-height: 0;
         padding: 1rem;
         border-radius: 16px;
+        overflow: hidden;
       }
       .user-list,
       .request-list {
-        overflow: visible;
+        overflow-y: auto;
+        flex: 1;
+        min-height: 0;
       }
       .list-pagination {
+        flex-shrink: 0;
         margin-right: -1rem;
         margin-bottom: -1rem;
         margin-left: -1rem;

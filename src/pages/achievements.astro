@@ -839,29 +839,42 @@ import Layout from "../layouts/Layout.astro";
     @media (max-width: 980px) {
       html:has(.achievements-page),
       body:has(.achievements-page) {
-        height: auto;
-        overflow-y: auto;
+        height: 100svh;
+        overflow: hidden;
       }
 
       main.container:has(.achievements-page) {
-        height: auto;
-        overflow: visible;
+        height: calc(100svh - var(--achievements-header-height, 82px));
+        overflow: hidden;
         padding: clamp(0.62rem, 1.4svh, 0.9rem) !important;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .achievements-page {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
       }
 
       .achievements-grid {
         grid-template-columns: 1fr;
+        flex: 1;
+        min-height: 0;
       }
 
-      .mobile-tabs-wrap { display: block; }
-      .rank-panel, .mine-panel { display: none; min-height: clamp(420px, 72svh, 520px); }
+      .mobile-tabs-wrap { display: block; flex-shrink: 0; }
+      .rank-panel, .mine-panel { display: none; flex: 1; min-height: 0; overflow: hidden; }
       .achievements-page[data-active-tab="mine"] .mine-panel { display: flex; }
       .achievements-page[data-active-tab="rank"] .rank-panel { display: flex; }
 
-      .rank-list,
-      .mine-panel,
+      .rank-list {
+        overflow-y: auto;
+      }
+
       .mine-scroll {
-        overflow: visible;
+        overflow-y: auto;
       }
 
     }
@@ -944,27 +957,100 @@ import Layout from "../layouts/Layout.astro";
         padding: 0.78rem;
       }
 
+      /* ── Mobile achievement card: compact horizontal layout ── */
       .achievement-card,
       .catalog-item {
-        grid-template-columns: 78px minmax(0, 1fr);
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
         gap: 0.65rem;
+        padding: 0.6rem 0.75rem;
+        border-radius: 12px;
       }
 
       .cartoon-badge {
-        width: 100%;
-        min-height: 80px;
-        justify-items: center;
+        width: 44px !important;
+        height: 44px !important;
+        min-height: 0 !important;
+        flex-shrink: 0;
+        position: relative;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        overflow: visible;
       }
 
       .badge-medal-img {
-        width: 76px;
-        height: 76px;
+        width: 44px !important;
+        height: 44px !important;
+        object-fit: contain;
+      }
+
+      /* Hide ribbons on mobile */
+      .badge-ribbons {
+        display: none !important;
       }
 
       .badge-level {
-        top: 60px;
-        left: 50%;
-        transform: translateX(-50%);
+        position: absolute;
+        top: auto !important;
+        bottom: -5px;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        font-size: 0.52rem;
+        padding: 0.06rem 0.28rem;
+        min-width: 32px;
+      }
+      
+      .achievement-body {
+        flex: 1;
+        min-width: 0;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0.15rem;
+      }
+
+      .achievement-title-row {
+        gap: 0.3rem;
+      }
+
+      .achievement-title {
+        font-size: 0.82rem;
+      }
+
+      .level-label, .max-label {
+        font-size: 0.55rem;
+        padding: 0.05rem 0.3rem;
+      }
+
+      /* Hide description on mobile to save space */
+      .achievement-desc {
+        display: none;
+      }
+
+      /* Show only first detail-line (metric), hide the rest */
+      .achievement-progress-panel {
+        gap: 0.15rem;
+      }
+
+      .achievement-detail-line {
+        font-size: 0.65rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* Hide range text (2nd detail line) */
+      .achievement-detail-line:nth-child(3) {
+        display: none;
+      }
+
+      .progress-track {
+        height: 3px;
+      }
+
+      .level-ladder {
+        display: none;
       }
 
       .rank-row {
