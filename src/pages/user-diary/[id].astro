@@ -508,15 +508,9 @@ if (!targetUserId) {
     }
 
     @media (max-width: 720px) {
-      html:has(.user-diary-page),
-      body:has(.user-diary-page) {
-        height: auto;
-        overflow-y: auto;
-      }
-
       main.container:has(.user-diary-page) {
-        height: auto;
-        overflow: visible;
+        height: 100%;
+        overflow-y: auto;
         padding: clamp(0.62rem, 1.4svh, 0.9rem) !important;
       }
 
