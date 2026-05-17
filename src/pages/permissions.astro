@@ -3,9 +3,15 @@ import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout title="权限管理">
-  <div class="permissions-wrap">
+  <div class="permissions-wrap" data-active-tab="viewers">
+    <div class="perm-mobile-tabs-wrap">
+      <div class="perm-mobile-tabs" id="perm-mobile-tabs">
+        <button type="button" class="perm-m-tab is-active" data-perm-tab="viewers">谁可以看我的</button>
+        <button type="button" class="perm-m-tab" data-perm-tab="viewable">我可以看谁的</button>
+      </div>
+    </div>
     <div class="permissions-grid">
-      <section class="permissions-card">
+      <section class="permissions-card viewers-col">
         <div class="permissions-card-header">
           <div class="permissions-icon viewers-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.68 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
@@ -37,7 +43,7 @@ import Layout from "../layouts/Layout.astro";
         <div class="list-pagination" id="viewers-pagination"></div>
       </section>
 
-      <section class="permissions-card">
+      <section class="permissions-card viewable-col">
         <div class="permissions-card-header">
           <div class="permissions-icon access-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v4"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
@@ -87,6 +93,10 @@ import Layout from "../layouts/Layout.astro";
     .meta-skel { width: 120px; height: 0.72rem; }
     .action-skel { width: 86px; height: 2rem; border-radius: 8px; }
 
+    .perm-mobile-tabs-wrap { display: none; }
+    .perm-mobile-tabs { display: flex; background: #f1f5f9; padding: 0.25rem; border-radius: 12px; gap: 0.25rem; }
+    .perm-m-tab { flex: 1; min-height: 36px; border: none; background: transparent; border-radius: 9px; font-size: 0.82rem; font-weight: 800; color: #64748b; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+    .perm-m-tab.is-active { background: #fff; color: #4f46e5; box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
     .permissions-wrap {
       max-width: none;
       width: 100%;
@@ -171,7 +181,7 @@ import Layout from "../layouts/Layout.astro";
       flex: 1;
       min-height: 0;
       max-height: none;
-      overflow: hidden;
+      overflow-y: auto;
       padding-right: 0.25rem;
     }
     .list-pagination {
@@ -457,31 +467,45 @@ import Layout from "../layouts/Layout.astro";
     }
     @media (max-width: 860px) {
       body:has(.permissions-wrap) {
-        height: auto;
-        overflow-y: auto;
+        height: 100svh;
+        overflow: hidden;
       }
       .main-content:has(.permissions-wrap) {
-        height: auto;
-        min-height: 0;
-        overflow: visible;
-        display: block;
+        height: calc(100svh - var(--permissions-header-height, 90px));
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
         padding: 0.78rem !important;
       }
       .permissions-wrap {
-        height: auto;
+        height: 100%;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
       }
+      .perm-mobile-tabs-wrap { display: block; flex-shrink: 0; margin-bottom: 0.45rem; }
       .permissions-grid {
-        grid-template-columns: 1fr;
-        grid-template-rows: none;
-        height: auto;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+        gap: 0.45rem;
       }
+      .permissions-wrap .permissions-card.viewers-col,
+      .permissions-wrap .permissions-card.viewable-col { display: none; }
+      .permissions-wrap[data-active-tab="viewers"] .permissions-card.viewers-col { display: flex; }
+      .permissions-wrap[data-active-tab="viewable"] .permissions-card.viewable-col { display: flex; }
       .permissions-card {
-        min-height: auto;
+        flex: 1;
+        min-height: 0;
         padding: 1rem;
         border-radius: 16px;
+        overflow: hidden;
       }
       .permissions-list {
-        overflow: visible;
+        overflow-y: auto;
+        flex: 1;
+        min-height: 0;
       }
       .list-pagination {
         margin-right: -1rem;
@@ -509,13 +533,12 @@ import Layout from "../layouts/Layout.astro";
         font-size: 0.7rem;
       }
       .permission-row {
-        align-items: flex-start;
-        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
         padding: 0.58rem 0.7rem;
       }
       .permission-actions {
-        width: 100%;
-        justify-content: flex-end;
+        flex-shrink: 0;
       }
       .permission-link,
       .revoke-btn,
@@ -982,6 +1005,20 @@ import Layout from "../layouts/Layout.astro";
 
   document.addEventListener("astro:page-load", () => {
     setPermissionsViewportHeight();
+
+    const permTabs = document.getElementById('perm-mobile-tabs');
+    if (permTabs) {
+      permTabs.addEventListener('click', (e) => {
+        const btn = (e.target as HTMLElement).closest('.perm-m-tab');
+        if (!btn) return;
+        const tab = btn.getAttribute('data-perm-tab');
+        document.querySelectorAll('#perm-mobile-tabs .perm-m-tab').forEach(b => b.classList.remove('is-active'));
+        btn.classList.add('is-active');
+        document.querySelector('.permissions-wrap')?.setAttribute('data-active-tab', tab || 'viewers');
+        requestAnimationFrame(() => renderAllPermissions());
+      });
+    }
+
     void loadPermissions();
   });
   window.addEventListener("resize", () => {

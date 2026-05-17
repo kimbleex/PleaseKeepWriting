@@ -581,13 +581,13 @@ if (!targetUserId) {
       }
 
       .member-diary-card {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr) auto;
         gap: 0.58rem;
       }
 
       .diary-title-line {
-        align-items: flex-start;
-        flex-direction: column;
+        align-items: center;
+        flex-wrap: wrap;
         gap: 0.28rem;
       }
 
@@ -604,8 +604,9 @@ if (!targetUserId) {
       }
 
       .diary-view-btn {
-        width: 100%;
-        min-height: 36px;
+        min-width: 34px;
+        min-height: 34px;
+        padding: 0.3rem 0.52rem;
         font-size: 0.72rem;
       }
 

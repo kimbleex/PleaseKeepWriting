@@ -27,8 +27,15 @@ if (!validDate) {
       </div>
     </header>
 
-    <div class="day-columns">
-      <section class="member-panel wrote-panel" aria-labelledby="wrote-title">
+    <div class="day-mobile-tabs-wrap">
+      <div class="day-mobile-tabs" id="day-mobile-tabs">
+        <button type="button" class="day-m-tab is-active" data-day-tab="wrote">今日已写</button>
+        <button type="button" class="day-m-tab" data-day-tab="missing">今日未写</button>
+      </div>
+    </div>
+
+    <div class="day-columns" data-active-tab="wrote">
+      <section class="member-panel wrote-panel wrote-col" aria-labelledby="wrote-title">
         <div class="panel-head">
           <div class="panel-title-row">
             <span class="panel-icon wrote" aria-hidden="true">
@@ -58,7 +65,7 @@ if (!validDate) {
         </div>
       </section>
 
-      <section class="member-panel missing-panel" aria-labelledby="missing-title">
+      <section class="member-panel missing-panel missing-col" aria-labelledby="missing-title">
         <div class="panel-head">
           <div class="panel-title-row">
             <span class="panel-icon missing" aria-hidden="true">
@@ -138,6 +145,11 @@ if (!validDate) {
       --panel-pad-x: clamp(0.72rem, 1.2vw, 1rem);
       --panel-gap: clamp(0.48rem, 0.9svh, 0.72rem);
     }
+
+    .day-mobile-tabs-wrap { display: none; }
+    .day-mobile-tabs { display: flex; background: #f1f5f9; padding: 0.25rem; border-radius: 12px; gap: 0.25rem; }
+    .day-m-tab { flex: 1; min-height: 36px; border: none; background: transparent; border-radius: 9px; font-size: 0.82rem; font-weight: 800; color: #64748b; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+    .day-m-tab.is-active { background: #fff; color: #0f766e; box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
 
     .day-topbar {
       display: grid;
@@ -755,41 +767,59 @@ if (!validDate) {
     @media (max-width: 920px) {
       html:has(.day-page),
       body:has(.day-page) {
-        height: auto;
-        overflow-y: auto;
+        height: 100svh;
+        overflow: hidden;
       }
 
       main.container:has(.day-page) {
-        height: auto;
-        overflow: visible;
-        padding: clamp(0.62rem, 1.4svh, 0.9rem) !important;
+        height: calc(100svh - var(--day-header-height, 82px));
+        overflow: hidden;
+        padding: 0.78rem !important;
       }
 
       .day-page {
-        height: auto;
+        height: 100%;
+        grid-template-rows: auto auto minmax(0, 1fr);
       }
 
+      .day-mobile-tabs-wrap { display: block; flex-shrink: 0; }
+
       .day-topbar {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-rows: auto auto;
         justify-items: start;
+        gap: 0.4rem 0.6rem;
+      }
+
+      .back-link {
+        grid-column: 1 / -1;
       }
 
       .day-title-block {
         text-align: left;
+        min-width: 0;
       }
 
       .day-stats {
-        justify-self: stretch;
-        justify-content: flex-start;
+        justify-self: flex-end;
+        align-self: flex-end;
+        justify-content: flex-end;
         flex-wrap: wrap;
       }
 
       .day-columns {
         grid-template-columns: 1fr;
+        min-height: 0;
       }
 
+      .day-columns .member-panel.wrote-col,
+      .day-columns .member-panel.missing-col { display: none; }
+      .day-columns[data-active-tab="wrote"] .member-panel.wrote-col { display: flex; }
+      .day-columns[data-active-tab="missing"] .member-panel.missing-col { display: flex; }
+
       .member-panel {
-        min-height: clamp(420px, 68svh, 560px);
+        min-height: 0;
+        flex: 1;
       }
     }
 
@@ -800,32 +830,31 @@ if (!validDate) {
 
       .day-topbar {
         border-radius: 12px;
-        padding: 0.78rem;
-        gap: 0.62rem;
+        padding: 0.62rem 0.78rem;
+        gap: 0.32rem 0.5rem;
       }
 
       .back-link {
-        font-size: 0.78rem;
-      }
-
-      .day-title-block h1 {
-        font-size: 0.98rem;
-        white-space: normal;
+        font-size: 0.74rem;
       }
 
       .day-title-block p {
-        font-size: 0.68rem;
+        font-size: 0.62rem;
+      }
+
+      .day-title-block h1 {
+        font-size: 0.92rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .stat-chip {
-        min-height: 28px;
-        padding: 0.28rem 0.46rem;
-        font-size: 0.7rem;
+        min-height: 24px;
+        padding: 0.18rem 0.38rem;
+        font-size: 0.64rem;
       }
 
-      .member-panel {
-        min-height: auto;
-      }
 
       .panel-head {
         padding: 0.72rem;
@@ -863,8 +892,8 @@ if (!validDate) {
       }
 
       .member-title-row {
-        align-items: flex-start;
-        flex-direction: column;
+        align-items: center;
+        flex-wrap: wrap;
         gap: 0.28rem;
       }
 
@@ -1284,6 +1313,19 @@ if (!validDate) {
       syncDayViewport();
       attachHandlers();
       loadDay();
+
+      const dayTabs = document.getElementById('day-mobile-tabs');
+      if (dayTabs) {
+        dayTabs.addEventListener('click', (e) => {
+          const btn = (e.target as HTMLElement).closest('.day-m-tab');
+          if (!btn) return;
+          const tab = btn.getAttribute('data-day-tab');
+          document.querySelectorAll('#day-mobile-tabs .day-m-tab').forEach(b => b.classList.remove('is-active'));
+          btn.classList.add('is-active');
+          document.querySelector('.day-columns')?.setAttribute('data-active-tab', tab || 'wrote');
+          requestAnimationFrame(() => renderLists());
+        });
+      }
     });
 
     window.addEventListener('resize', () => {
