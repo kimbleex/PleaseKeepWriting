@@ -2231,15 +2231,53 @@ if (user.role === 'ADMIN') {
     });
   });
 
-  document.addEventListener('astro:page-load', () => {
-    const form = document.getElementById('logout-form') as HTMLFormElement | null;
-    if (!form || form.dataset.bound === '1') return;
-    form.dataset.bound = '1';
-    form.addEventListener('submit', () => {
+  type BoundLogoutForm = HTMLFormElement & {
+    __logoutHandlerBound?: boolean;
+  };
+
+  function deleteLocalDiaryDatabase(): Promise<void> {
+    return new Promise((resolve) => {
       try {
-        sessionStorage.removeItem('our-diary-local:privacy-key:v1');
-        indexedDB.deleteDatabase('our-diary-local');
-      } catch {}
+        const request = indexedDB.deleteDatabase('our-diary-local');
+        request.onsuccess = () => resolve();
+        request.onerror = () => resolve();
+        request.onblocked = () => resolve();
+      } catch {
+        resolve();
+      }
+    });
+  }
+
+  async function handleLogout(form: HTMLFormElement): Promise<void> {
+    const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+    if (submit) {
+      submit.disabled = true;
+      submit.setAttribute('aria-busy', 'true');
+    }
+
+    try {
+      sessionStorage.removeItem('our-diary-local:privacy-key:v1');
+    } catch {}
+
+    await deleteLocalDiaryDatabase();
+
+    try {
+      await fetch('/api/logout', {
+        method: 'POST',
+        credentials: 'same-origin',
+      });
+    } finally {
+      window.location.assign('/login');
+    }
+  }
+
+  document.addEventListener('astro:page-load', () => {
+    const form = document.getElementById('logout-form') as BoundLogoutForm | null;
+    if (!form || form.__logoutHandlerBound) return;
+    form.__logoutHandlerBound = true;
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      void handleLogout(form);
     });
   });
 

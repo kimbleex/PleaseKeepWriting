@@ -112,12 +112,26 @@ const passwordChanged = Astro.url.searchParams.get('passwordChanged') === '1';
         return next;
       }
 
-      const form = document.getElementById('login-form') as HTMLFormElement | null;
-      const errorEl = document.getElementById('client-error');
-      const submit = document.getElementById('login-submit') as HTMLButtonElement | null;
+      type BoundLoginForm = HTMLFormElement & {
+        __loginHandlerBound?: boolean;
+      };
 
-      if (form && submit && form.dataset.bound !== '1') {
-        form.dataset.bound = '1';
+      function prepareLoginForm(form: HTMLFormElement, submit: HTMLButtonElement): void {
+        form.dataset.ready = '1';
+        submit.disabled = false;
+        submit.textContent = '登录系统';
+      }
+
+      function bindLoginForm(): void {
+        const form = document.getElementById('login-form') as BoundLoginForm | null;
+        const errorEl = document.getElementById('client-error');
+        const submit = document.getElementById('login-submit') as HTMLButtonElement | null;
+        if (!form || !submit) return;
+
+        prepareLoginForm(form, submit);
+        if (form.__loginHandlerBound) return;
+        form.__loginHandlerBound = true;
+
         form.addEventListener('submit', async (event) => {
           event.preventDefault();
           const username = String(new FormData(form).get('username') ?? '');
@@ -155,10 +169,11 @@ const passwordChanged = Astro.url.searchParams.get('passwordChanged') === '1';
             submit.textContent = '登录系统';
           }
         });
-        form.dataset.ready = '1';
-        submit.disabled = false;
-        submit.textContent = '登录系统';
       }
+
+      bindLoginForm();
+      document.addEventListener('astro:page-load', bindLoginForm);
+      window.addEventListener('pageshow', bindLoginForm);
     </script>
   </body>
 </html>
